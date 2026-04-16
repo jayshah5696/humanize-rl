@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+*.egg
+
+# Tools
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Project data (large/generated)
+data/raw/
+data/processed/
+scratch/
+log/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local

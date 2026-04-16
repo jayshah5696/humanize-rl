@@ -1,0 +1,168 @@
+version: "1.0"
+description: "Humanness rubric v0.1 — Layer 2 LLM judge dimensions for detecting AI writing patterns"
+
+dimensions:
+  - name: structural_symmetry
+    description: >
+      Does the text use natural structure that follows argument logic,
+      or does it use rigid 3-part templates, "on one hand / on the other hand"
+      framing, or formulaic section organization?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Rigid template structure — intro/body/conclusion with formulaic transitions. Bullet lists with bold headers.
+      2: Mostly templated with occasional natural flow.
+      3: Mixed — some sections feel organic, others formulaic.
+      4: Mostly natural structure with minor symmetry.
+      5: Fully organic structure that follows the argument's logic, not a template.
+
+  - name: specificity
+    description: >
+      Does the text use specific details, names, numbers, and concrete examples,
+      or does it rely on vague generalizations like "significant growth",
+      "various factors", "many experts agree"?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Entirely vague — no specific names, numbers, dates, or concrete examples.
+      2: Mostly vague with one or two specific details.
+      3: Mix of specific and vague claims.
+      4: Mostly specific with minor vague generalizations.
+      5: Rich in concrete details — names, dates, numbers, specific examples throughout.
+
+  - name: formality_gradient
+    description: >
+      Does the text maintain a natural register, or does it shift unnaturally
+      between formal and casual tone within the same piece? Human writers
+      have consistent register; AI often mixes boardroom language with
+      casual asides.
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Jarring register shifts — academic language mixed with casual phrases randomly.
+      2: Noticeable shifts in formality.
+      3: Mostly consistent with occasional shifts.
+      4: Consistent register with natural variation.
+      5: Perfectly natural register maintained throughout.
+
+  - name: voice_consistency
+    description: >
+      Does the text read as if one specific person wrote it, with a
+      consistent identifiable voice? Or does it read as generic output
+      that could have been written by anyone (or any AI)?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Completely generic — no identifiable voice, reads like a template.
+      2: Mostly generic with occasional personality.
+      3: Some voice present but inconsistent.
+      4: Clear voice with minor lapses.
+      5: Strong, consistent, identifiable voice throughout — you can tell who wrote this.
+
+  - name: rhetorical_sophistication
+    description: >
+      Does the text build real arguments with evidence and reasoning,
+      or does it use shallow analysis like "highlighting the importance of",
+      "underscoring the need for", stakes inflation ("pivotal moment",
+      "fundamental shift")?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Pure filler analysis — "-ing" phrases, stakes inflation, no real argument.
+      2: Mostly shallow with one real point.
+      3: Mix of real and shallow analysis.
+      4: Mostly substantive with minor filler.
+      5: Every claim is backed by reasoning or evidence. No filler analysis.
+
+  - name: padding_density
+    description: >
+      Does every sentence add new information, or are there filler paragraphs,
+      summary restatements, or repeated ideas that pad the length without
+      adding value?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Heavy padding — multiple sentences restating the same idea, filler paragraphs.
+      2: Noticeable padding with some restatement.
+      3: Occasional filler but mostly new information.
+      4: Minimal padding — nearly every sentence adds something.
+      5: Zero padding — every sentence earns its place.
+
+  - name: personality_presence
+    description: >
+      Does the text contain opinions, first-person experience, mixed feelings,
+      humor, tangents, or other markers of a human personality? Or is it
+      neutral, balanced, and devoid of any personal perspective?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Completely impersonal — no opinions, no first person, no personality.
+      2: Mostly impersonal with one generic opinion.
+      3: Some personality but feels performative.
+      4: Clear personality with genuine opinions and perspective.
+      5: Strong personality — humor, tangents, mixed feelings, clearly a real person.
+
+  - name: copula_avoidance
+    description: >
+      Does the text use simple copulas ("is", "are", "was") naturally,
+      or does it substitute pompous constructions like "serves as",
+      "stands as", "represents a", "marks a", "functions as"?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Heavy copula avoidance — "serves as", "stands as" everywhere.
+      2: Several instances of copula avoidance.
+      3: Occasional copula avoidance mixed with natural copulas.
+      4: Mostly natural copulas with one instance.
+      5: All natural copulas — uses "is" and "are" without pretension.
+
+overall_weights:
+  structural_symmetry: 0.15
+  specificity: 0.15
+  formality_gradient: 0.15
+  voice_consistency: 0.15
+  rhetorical_sophistication: 0.10
+  padding_density: 0.10
+  personality_presence: 0.10
+  copula_avoidance: 0.10
+
+few_shot:
+  - instruction: "Write about microservices."
+    response: >
+      Certainly! Microservices represent a fundamental shift in software design.
+      The key benefits include: Scalability, Flexibility, and Resilience.
+      Furthermore, it's worth noting that the ecosystem has matured considerably.
+      In conclusion, microservices offer a powerful foundation. I hope this helps!
+    scores:
+      structural_symmetry: 1
+      specificity: 1
+      formality_gradient: 2
+      voice_consistency: 1
+      rhetorical_sophistication: 1
+      padding_density: 2
+      personality_presence: 1
+      copula_avoidance: 3
+    reasoning: >
+      Rigid template structure, vague generalizations, sycophantic opener,
+      hedge phrases, generic sign-off. No personality or specific details.
+    expected_verdict: fail
+
+  - instruction: "Write about microservices."
+    response: >
+      The dirty secret of microservices is that most teams would be better off
+      with a well-structured monolith. I've seen companies with 12 engineers
+      running 40 services. That's not architecture, that's a staffing problem
+      disguised as technical sophistication.
+    scores:
+      structural_symmetry: 5
+      specificity: 4
+      formality_gradient: 5
+      voice_consistency: 5
+      rhetorical_sophistication: 5
+      padding_density: 5
+      personality_presence: 5
+      copula_avoidance: 5
+    reasoning: >
+      Strong voice, specific number (12 engineers, 40 services), direct opinion,
+      natural structure, zero filler. Reads like a real person wrote it.
+    expected_verdict: pass

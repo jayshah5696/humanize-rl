@@ -1,0 +1,78 @@
+# WHAT:      AIify human-written seeds — inject AI writing patterns.
+# WHEN:      First step of the humanize-rl pipeline.
+# REQUIRES:  OPENROUTER_API_KEY, seeds/human_seeds_v01.jsonl
+# RUN:       cd /Users/jshah/Documents/GitHub/humanize-rl && uv run arka --config configs/01-aiify.yaml --run-id aiify-v01
+# COST:      ~$0.15 (50 seeds × Gemini 3.1 Flash Lite)
+
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 5
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 4
+
+data_source:
+  type: seeds
+  path: ../seeds/human_seeds_v01.jsonl
+
+generator:
+  type: transform
+  target_count: 50
+  generation_multiplier: 1
+  input_field: payload.response
+  output_field: payload.response
+  preserve_original: true
+  prompt_template: |
+    You are rewriting human-written text to add typical AI assistant writing patterns. Your goal is to make the text sound like a chatbot wrote it.
+
+    Add ALL of the following patterns:
+
+    1. OPENER: Start with a sycophantic phrase like "Great question!", "Certainly!", "That's an excellent point!", or "I'd be happy to help!"
+    2. HEDGING: Add hedge phrases: "it's worth noting", "it's important to consider", "one might argue"
+    3. LISTS: Convert prose into bullet points or numbered lists with **bold headers**
+    4. UNIFORM SENTENCES: Make sentences similar in length and rhythm
+    5. NO CONTRACTIONS: Replace all contractions with full forms ("don't" to "do not", "can't" to "cannot")
+    6. CLOSING: End with "I hope this helps!", "Let me know if you have any questions!", or "In conclusion..."
+    7. TRANSITIONS: Use "Furthermore", "Moreover", "Additionally", "In addition" between paragraphs
+    8. FORMALITY: Remove personality, opinions, humor, and first-person anecdotes. Make it sound generic.
+
+    Rules:
+    - Keep the core information and meaning intact
+    - The output should be 80-130% the length of the input
+    - Make it sound like a helpful AI assistant wrote it
+    - Do NOT mention that you are rewriting or that this is an exercise
+
+    Text to rewrite:
+    {input_text}
+  temperature: 0.7
+  max_tokens: 1024
+
+dedup:
+  exact:
+    enabled: false
+  near:
+    enabled: false
+
+filters:
+  target_count: 50
+  length:
+    enabled: true
+    min_response_chars: 50
+    max_response_chars: 4096
+  language:
+    enabled: false
+
+output:
+  format: jsonl
+  path: ../output/01-aiify-dataset.jsonl

@@ -32,3 +32,11 @@ benchmark:
 # Run benchmark and export scored output
 benchmark-export:
     uv run python -m humanize_rl.benchmark.cli --output data/benchmark/scored_output.jsonl
+
+# Run AIify pipeline (requires OPENROUTER_API_KEY)
+aiify:
+    uv run arka --config configs/01-aiify.yaml --run-id aiify-v01
+
+# Score AIified output + compute AUROC on real LLM data
+pipeline:
+    uv run python -m humanize_rl.pipeline_cli

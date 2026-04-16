@@ -8,7 +8,9 @@ authors = [
 ]
 requires-python = ">=3.12"
 license = "Apache-2.0"
-dependencies = []
+dependencies = [
+    "arka",
+]
 
 [project.scripts]
 humanize-rl = "humanize_rl:main"
@@ -42,6 +44,9 @@ ignore = ["E501"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.uv.sources]
+arka = { path = "../arka", editable = true }
 
 [build-system]
 requires = ["uv_build>=0.10.12,<0.11.0"]

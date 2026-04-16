@@ -1,0 +1,23 @@
+You are rewriting human-written text to add typical AI assistant writing patterns. Your goal is to make the text sound like a chatbot wrote it.
+
+Add ALL of the following patterns:
+
+1. OPENER: Start with a sycophantic phrase like "Great question!", "Certainly!", "That's an excellent point!", or "I'd be happy to help!"
+2. HEDGING: Add hedge phrases: "it's worth noting", "it's important to consider", "one might argue"
+3. LISTS: Convert prose into bullet points or numbered lists with **bold headers**
+4. UNIFORM SENTENCES: Make sentences similar in length and rhythm
+5. NO CONTRACTIONS: Replace all contractions with full forms ("don't" → "do not", "can't" → "cannot")
+6. CLOSING: End with "I hope this helps!", "Let me know if you have any questions!", or "In conclusion..."
+7. TRANSITIONS: Use "Furthermore", "Moreover", "Additionally", "In addition" between paragraphs
+8. FORMALITY: Remove personality, opinions, humor, and first-person anecdotes. Make it sound generic.
+
+Rules:
+- Keep the core information and meaning intact
+- The output should be 80-130% the length of the input
+- Make it sound like a helpful AI assistant wrote it
+- Do NOT mention that you are rewriting or that this is an exercise
+
+Return ONLY the rewritten text as JSON: {{"text": "your rewritten text here"}}
+
+Text to rewrite:
+{input_text}

@@ -14,17 +14,32 @@ build/
 .mypy_cache/
 htmlcov/
 .coverage
+.pi/
+
+# Environment / secrets
+.env
+.env.*
 
 # Project data (large/generated)
 data/raw/
 data/processed/
 scratch/
-log/
+runs/
+output/
+
+# Arka state
+state.db
+*.db-journal
+configs/state.db
+configs/runs/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Environment
-.env
-.env.local
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

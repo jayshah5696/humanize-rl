@@ -61,20 +61,12 @@ generator:
   temperature: 0.8
   max_tokens: 4096
 
-dedup:
-  exact:
-    enabled: false
-  near:
-    enabled: false
-
 filters:
   target_count: 50
-  length:
-    enabled: true
-    min_response_chars: 50
-    max_response_chars: 4096
-  language:
-    enabled: false
+  stages:
+    - type: length
+      min_response_chars: 50
+      max_response_chars: 4096
 
 output:
   format: jsonl

@@ -45,5 +45,13 @@ humanize:
 pipeline:
     uv run python -m humanize_rl.pipeline_cli
 
-# Full end-to-end: aiify → humanize → score → export
-full: aiify humanize pipeline
+# Score all with Layer 1 + Layer 2 (LLM judge) — the real benchmark
+score-all:
+    uv run python -m humanize_rl.score_all
+
+# Score all with cheaper model (dev/testing)
+score-all-cheap:
+    uv run python -m humanize_rl.score_all --model google/gemini-3-flash-preview
+
+# Full end-to-end: aiify → humanize → score L1+L2 → export
+full: aiify humanize score-all

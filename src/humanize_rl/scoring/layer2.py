@@ -59,7 +59,12 @@ def _label_result_to_layer2(
     result: LabelResult,
     rubric: Rubric,
 ) -> Layer2Result:
-    """Convert Arka LabelResult to Layer2Result with normalization."""
+    """Convert Arka LabelResult to Layer2Result with normalization.
+
+    Arka returns overall as weighted sum in [1.0, 5.0] (raw scale).
+    We normalize per-dim to [0, 1] and recompute overall as weighted
+    mean of normalized scores.
+    """
     per_dim_normalized: dict[str, float] = {}
     for dim in rubric.dimensions:
         raw = result.scores.get(dim.name, dim.scale_min)
@@ -67,8 +72,15 @@ def _label_result_to_layer2(
             raw, dim.scale_min, dim.scale_max
         )
 
+    # Recompute overall as weighted mean of normalized scores
+    total_weight = sum(rubric.overall_weights.values())
+    overall_normalized = sum(
+        per_dim_normalized[name] * rubric.overall_weights[name]
+        for name in rubric.overall_weights
+    ) / total_weight if total_weight > 0 else 0.0
+
     return Layer2Result(
-        overall=result.overall,
+        overall=overall_normalized,
         per_dim=per_dim_normalized,
         raw_scores=result.scores,
         reasoning=result.reasoning,
@@ -108,6 +120,16 @@ def score_layer2(
     return _label_result_to_layer2(result, rubric)
 
 
+def _default_layer2() -> Layer2Result:
+    """Return a neutral Layer2Result for failed scoring."""
+    return Layer2Result(
+        overall=0.5,
+        per_dim={},
+        raw_scores={},
+        reasoning="Layer 2 scoring failed — using neutral default.",
+    )
+
+
 def score_layer2_batch(
     texts: list[str],
     instructions: list[str] | None = None,
@@ -117,6 +139,9 @@ def score_layer2_batch(
 ) -> list[Layer2Result]:
     """Score multiple texts with the Layer 2 LLM judge.
 
+    Scores individually for fault tolerance — one failure doesn't
+    kill the batch.
+
     Args:
         texts: List of texts to score.
         instructions: Optional per-text instructions.
@@ -125,7 +150,7 @@ def score_layer2_batch(
         max_workers: Concurrent API calls.
 
     Returns:
-        List of Layer2Results.
+        List of Layer2Results (one per text).
     """
     rubric = RubricLoader().load(rubric_path)
     llm_config = _build_llm_config(model=model)
@@ -136,12 +161,25 @@ def score_layer2_batch(
     if instructions is None:
         instructions = [default_instruction] * len(texts)
 
-    pairs = list(zip(instructions, texts, strict=True))
-    results = engine.label_batch(
-        pairs=pairs,
-        rubric=rubric,
-        max_workers=max_workers,
-        run_canary=True,
-    )
+    results: list[Layer2Result] = []
+    failed = 0
+    for i, (inst, text) in enumerate(zip(instructions, texts, strict=True)):
+        try:
+            result = engine.label(
+                instruction=inst,
+                response=text,
+                rubric=rubric,
+            )
+            results.append(_label_result_to_layer2(result, rubric))
+        except Exception as exc:  # noqa: BLE001
+            print(f"  [WARN] L2 scoring failed for text {i}: {exc}")
+            results.append(_default_layer2())
+            failed += 1
 
-    return [_label_result_to_layer2(r, rubric) for r in results]
+        if (i + 1) % 10 == 0:
+            print(f"  ... scored {i + 1}/{len(texts)}")
+
+    if failed:
+        print(f"  Layer 2: {failed}/{len(texts)} failed, used neutral defaults")
+
+    return results

@@ -20,3 +20,15 @@ check:
 # Score text for humanness (Layer 1)
 score text:
     uv run python -m humanize_rl.scoring.cli "{{text}}"
+
+# Score a file
+score-file path:
+    uv run python -m humanize_rl.scoring.cli --file {{path}}
+
+# Run benchmark on human vs AI samples
+benchmark:
+    uv run python -m humanize_rl.benchmark.cli
+
+# Run benchmark and export scored output
+benchmark-export:
+    uv run python -m humanize_rl.benchmark.cli --output data/benchmark/scored_output.jsonl

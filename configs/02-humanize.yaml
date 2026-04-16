@@ -1,0 +1,81 @@
+# WHAT:      Humanize AI-ified text — remove AI writing patterns.
+# WHEN:      Second step: takes AIify output and rewrites to sound human.
+# REQUIRES:  OPENROUTER_API_KEY, output/01-aiify-dataset.jsonl
+# RUN:       cd /Users/jshah/Documents/GitHub/humanize-rl && uv run arka --config configs/02-humanize.yaml --run-id humanize-v01
+# COST:      ~$2.50 (50 records × Gemini 3.1 Pro — humanization needs strong reasoning)
+
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-pro-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 120
+  max_retries: 5
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 3
+
+data_source:
+  type: seeds
+  path: ../output/01-aiify-dataset.jsonl
+
+generator:
+  type: transform
+  target_count: 50
+  generation_multiplier: 1
+  input_field: payload.response
+  output_field: payload.response
+  preserve_original: true
+  prompt_template: |
+    Rewrite the following text to sound natural and human-written.
+
+    The text currently has these AI writing patterns — remove them all:
+
+    1. Sycophantic openers ("Certainly!", "Great question!", "I'd be happy to help")
+    2. Hedge phrases ("it's worth noting", "it's important to consider")
+    3. Bullet lists with bold headers where prose would flow naturally
+    4. Uniform sentence lengths — vary them. Short sentences. Then longer ones.
+    5. Missing contractions — use don't, can't, won't, I'm, we're naturally
+    6. AI sign-offs ("I hope this helps!", "In conclusion", "Let me know if")
+    7. Stiff transitions ("Furthermore", "Moreover", "Additionally")
+    8. Generic voice — add personality, opinions, specific details
+
+    Requirements:
+    - Preserve the core meaning and information exactly
+    - Keep roughly the same length (within 20%)
+    - Do NOT add new facts or claims
+    - Write as a specific person with opinions, not a helpful assistant
+    - Use contractions naturally
+    - Vary sentence rhythm
+    - End cleanly without summarizing or signing off
+
+    Text to rewrite:
+    {input_text}
+  temperature: 0.8
+  max_tokens: 4096
+
+dedup:
+  exact:
+    enabled: false
+  near:
+    enabled: false
+
+filters:
+  target_count: 50
+  length:
+    enabled: true
+    min_response_chars: 50
+    max_response_chars: 4096
+  language:
+    enabled: false
+
+output:
+  format: jsonl
+  path: ../output/02-humanize-dataset.jsonl

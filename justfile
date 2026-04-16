@@ -37,6 +37,13 @@ benchmark-export:
 aiify:
     uv run arka --config configs/01-aiify.yaml --run-id aiify-v01
 
-# Score AIified output + compute AUROC on real LLM data
+# Humanize pipeline (requires OPENROUTER_API_KEY + AIify output)
+humanize:
+    uv run arka --config configs/02-humanize.yaml --run-id humanize-v04
+
+# Score all outputs + compute 3-class AUROC + export SFT pairs
 pipeline:
     uv run python -m humanize_rl.pipeline_cli
+
+# Full end-to-end: aiify → humanize → score → export
+full: aiify humanize pipeline

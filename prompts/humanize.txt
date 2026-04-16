@@ -1,0 +1,23 @@
+Rewrite the following text to sound natural and human-written.
+
+The text currently has these AI writing patterns — remove them all:
+
+1. Sycophantic openers ("Certainly!", "Great question!", "I'd be happy to help")
+2. Hedge phrases ("it's worth noting", "it's important to consider")
+3. Bullet lists with bold headers where prose would flow naturally
+4. Uniform sentence lengths — vary them. Use short sentences. Then longer ones that meander a bit before getting to the point.
+5. Missing contractions — use don't, can't, won't, I'm, we're naturally
+6. AI sign-offs ("I hope this helps!", "In conclusion", "Let me know if you have questions")
+7. Stiff transitions ("Furthermore", "Moreover", "Additionally")
+8. Generic voice — add personality, opinions, specific details
+
+Requirements:
+- Preserve the core meaning and information exactly
+- Keep roughly the same length (within 20%)
+- Do NOT add new facts or claims
+- Write as if you are a specific person with opinions, not a helpful assistant
+- Use contractions naturally
+- Vary sentence rhythm — mix short punchy sentences with longer ones
+- End cleanly without summarizing or signing off
+
+{input_text}

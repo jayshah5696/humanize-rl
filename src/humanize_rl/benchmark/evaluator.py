@@ -39,6 +39,7 @@ class BenchmarkReport:
     scored_samples: list[ScoredSample] = field(default_factory=list)
     by_label: dict[str, dict[str, float | int]] = field(default_factory=dict)
     by_source: dict[str, dict[str, float | int]] = field(default_factory=dict)
+    by_domain: dict[str, dict[str, float | int]] = field(default_factory=dict)
 
     def __str__(self) -> str:
         lines = [
@@ -163,6 +164,24 @@ def summarize_by_source(
     return summary
 
 
+def summarize_by_domain(
+    report: BenchmarkReport,
+) -> dict[str, dict[str, float | int]]:
+    """Summarize scored samples by source-as-domain buckets."""
+    summary: dict[str, dict[str, float | int]] = {}
+    buckets: dict[str, list[ScoredSample]] = {}
+    for sample in report.scored_samples:
+        buckets.setdefault(sample.source, []).append(sample)
+
+    for domain, samples in buckets.items():
+        mean_score = sum(sample.result.overall for sample in samples) / len(samples)
+        summary[domain] = {
+            "count": len(samples),
+            "mean_overall": round(mean_score, 4),
+        }
+    return summary
+
+
 def evaluate(
     human_path: Path,
     ai_path: Path,
@@ -222,6 +241,7 @@ def evaluate(
     )
     report.by_label = summarize_by_label(report)
     report.by_source = summarize_by_source(report)
+    report.by_domain = summarize_by_domain(report)
     return report
 
 

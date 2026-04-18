@@ -10,6 +10,7 @@ from pathlib import Path
 _AI_GENERATOR = "google/gemini-3.1-flash-lite-preview"
 _HUMANIZED_GENERATOR = "google/gemini-3.1-pro-preview"
 _TRIPLE_ID_RE = re.compile(r"^triple_(\d+)_([a-z]+)$")
+_DOMAIN_NAMES = {"blog", "email", "essay", "forum", "social", "technical", "academic"}
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,14 @@ def _build_dataset(samples: list[BenchmarkSample]) -> BenchmarkDataset:
     )
 
 
+def _infer_domain(domain: str | None, source: str) -> str:
+    if domain:
+        return domain
+    if source in _DOMAIN_NAMES:
+        return source
+    return "unknown"
+
+
 def load_benchmark_dataset(path: Path) -> BenchmarkDataset:
     """Load a normalized 3-class benchmark dataset from JSONL."""
     samples: list[BenchmarkSample] = []
@@ -71,10 +80,7 @@ def load_benchmark_dataset(path: Path) -> BenchmarkDataset:
             has_full_text = bool(record.get("text"))
             text = record.get("text") or record.get("text_preview", "")
             source = record.get("source", "unknown")
-            domain = record.get("domain") or (
-                source if source in {"blog", "email", "essay", "forum", "social"}
-                else "unknown"
-            )
+            domain = _infer_domain(record.get("domain"), source)
             samples.append(
                 BenchmarkSample(
                     id=record["id"],
@@ -192,3 +198,63 @@ def build_mvp_benchmark_dataset(
             written += 1
 
     return written
+
+
+def build_repo_benchmark_dataset(
+    base_dataset_path: Path,
+    human_path: Path,
+    ai_path: Path,
+    scored_output_path: Path,
+    output_path: Path,
+) -> int:
+    """Expand the benchmark with unique full-text human/AI samples from repo data."""
+    base_records = _load_jsonl(base_dataset_path)
+    human_records = _load_jsonl(human_path)
+    ai_records = _load_jsonl(ai_path)
+    scored_records = {
+        record["id"]: record for record in _load_jsonl(scored_output_path)
+    }
+
+    seen_texts = {record.get("text", "") for record in base_records}
+    combined = list(base_records)
+
+    for record in human_records + ai_records:
+        text = record.get("text", "")
+        if not text or text in seen_texts:
+            continue
+
+        scored = scored_records.get(record["id"], {})
+        combined.append(
+            {
+                "id": record["id"],
+                "label": record["label"],
+                "domain": _infer_domain(None, record.get("source", "unknown")),
+                "instruction": "",
+                "overall_score": scored.get("overall_score"),
+                "per_dim": scored.get("per_dim", {}),
+                "text": text,
+                "text_is_preview": False,
+                "source": record.get("source", "unknown"),
+                "generator": "human" if record["label"] == "human" else record.get("source", "unknown"),
+            }
+        )
+        seen_texts.add(text)
+
+    with output_path.open("w", encoding="utf-8") as handle:
+        for record in combined:
+            source = record.get("source", "unknown")
+            record["domain"] = _infer_domain(record.get("domain"), source)
+            handle.write(json.dumps(record) + "\n")
+
+    return len(combined)
+
+
+def format_dataset_summary(dataset: BenchmarkDataset) -> str:
+    """Format a compact summary for CLI/reporting."""
+    lines = [
+        f"Samples: {len(dataset.samples)}",
+        f"Labels: {dataset.label_counts}",
+        f"Preview-only rows: {dataset.preview_only_count}",
+        f"Domains: {dataset.domain_counts}",
+    ]
+    return "\n".join(lines)

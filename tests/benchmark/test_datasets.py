@@ -8,6 +8,8 @@ from pathlib import Path
 from humanize_rl.benchmark.datasets import (
     BenchmarkDataset,
     build_mvp_benchmark_dataset,
+    build_repo_benchmark_dataset,
+    format_dataset_summary,
     load_benchmark_dataset,
 )
 
@@ -159,3 +161,143 @@ class TestBuildMVPBenchmarkDataset:
         assert humanized_record["domain"] == "email"
         assert humanized_record["generator"] == "google/gemini-3.1-pro-preview"
         assert humanized_record["source"] == "humanize-v04"
+
+
+class TestBuildRepoBenchmarkDataset:
+    def test_adds_unique_full_text_binary_samples(self, tmp_path: Path) -> None:
+        base_dataset_path = tmp_path / "test_set_v01.jsonl"
+        human_path = tmp_path / "human.jsonl"
+        ai_path = tmp_path / "ai.jsonl"
+        scored_output_path = tmp_path / "scored_output.jsonl"
+        output_path = tmp_path / "test_set_v02.jsonl"
+
+        _write_jsonl(
+            base_dataset_path,
+            [
+                {
+                    "id": "triple_000_human",
+                    "label": "human",
+                    "domain": "blog",
+                    "text": "human existing",
+                    "text_is_preview": False,
+                    "source": "curated",
+                    "generator": "human",
+                },
+                {
+                    "id": "triple_000_ai",
+                    "label": "ai",
+                    "domain": "blog",
+                    "text": "ai preview existing",
+                    "text_is_preview": True,
+                    "source": "aiify-v01",
+                    "generator": "google/gemini-3.1-flash-lite-preview",
+                },
+                {
+                    "id": "triple_000_humanized",
+                    "label": "humanized",
+                    "domain": "blog",
+                    "text": "humanized preview existing",
+                    "text_is_preview": True,
+                    "source": "humanize-v04",
+                    "generator": "google/gemini-3.1-pro-preview",
+                },
+            ],
+        )
+        _write_jsonl(
+            human_path,
+            [
+                {"id": "human_01", "label": "human", "source": "blog", "text": "human existing"},
+                {"id": "human_02", "label": "human", "source": "essay", "text": "new human full text"},
+            ],
+        )
+        _write_jsonl(
+            ai_path,
+            [
+                {"id": "ai_01", "label": "ai", "source": "chatgpt", "text": "new ai full text"},
+            ],
+        )
+        _write_jsonl(
+            scored_output_path,
+            [
+                {
+                    "id": "human_02",
+                    "label": "human",
+                    "source": "essay",
+                    "overall_score": 0.88,
+                    "per_dim": {"opener_pattern": 1.0},
+                },
+                {
+                    "id": "ai_01",
+                    "label": "ai",
+                    "source": "chatgpt",
+                    "overall_score": 0.22,
+                    "per_dim": {"opener_pattern": 0.0},
+                },
+            ],
+        )
+
+        written = build_repo_benchmark_dataset(
+            base_dataset_path=base_dataset_path,
+            human_path=human_path,
+            ai_path=ai_path,
+            scored_output_path=scored_output_path,
+            output_path=output_path,
+        )
+
+        assert written == 5
+        records = [json.loads(line) for line in output_path.read_text().splitlines()]
+        assert len(records) == 5
+        assert [record["text"] for record in records].count("human existing") == 1
+
+        new_human = next(record for record in records if record["id"] == "human_02")
+        assert new_human["text_is_preview"] is False
+        assert new_human["domain"] == "essay"
+        assert new_human["overall_score"] == 0.88
+
+        new_ai = next(record for record in records if record["id"] == "ai_01")
+        assert new_ai["text"] == "new ai full text"
+        assert new_ai["text_is_preview"] is False
+        assert new_ai["source"] == "chatgpt"
+        assert new_ai["domain"] == "unknown"
+        assert new_ai["overall_score"] == 0.22
+
+
+class TestFormatDatasetSummary:
+    def test_includes_preview_and_domain_counts(self, tmp_path: Path) -> None:
+        dataset_path = tmp_path / "dataset.jsonl"
+        _write_jsonl(
+            dataset_path,
+            [
+                {
+                    "id": "h1",
+                    "label": "human",
+                    "source": "curated",
+                    "domain": "blog",
+                    "text": "human text",
+                    "text_is_preview": False,
+                },
+                {
+                    "id": "a1",
+                    "label": "ai",
+                    "source": "chatgpt",
+                    "domain": "unknown",
+                    "text": "ai text",
+                    "text_is_preview": False,
+                },
+                {
+                    "id": "u1",
+                    "label": "humanized",
+                    "source": "humanize-v04",
+                    "domain": "blog",
+                    "text": "preview text",
+                    "text_is_preview": True,
+                },
+            ],
+        )
+
+        summary = format_dataset_summary(load_benchmark_dataset(dataset_path))
+
+        assert "Samples: 3" in summary
+        assert "Preview-only rows: 1" in summary
+        assert "humanized" in summary
+        assert "blog" in summary

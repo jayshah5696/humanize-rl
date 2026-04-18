@@ -18,6 +18,7 @@ from humanize_rl.benchmark.evaluator import (
     _best_threshold,
     evaluate,
     export_scored,
+    summarize_by_domain,
     summarize_by_label,
     summarize_by_source,
 )
@@ -126,6 +127,12 @@ class TestBenchmarkOnRealData:
 
     def test_summarize_by_source(self, report: BenchmarkReport) -> None:
         summary = summarize_by_source(report)
+        assert summary
+        total = sum(bucket["count"] for bucket in summary.values())
+        assert total == report.n_human + report.n_ai
+
+    def test_summarize_by_domain(self, report: BenchmarkReport) -> None:
+        summary = summarize_by_domain(report)
         assert summary
         total = sum(bucket["count"] for bucket in summary.values())
         assert total == report.n_human + report.n_ai

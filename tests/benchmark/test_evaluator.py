@@ -18,6 +18,9 @@ from humanize_rl.benchmark.evaluator import (
     _best_threshold,
     evaluate,
     export_scored,
+    summarize_by_domain,
+    summarize_by_label,
+    summarize_by_source,
 )
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data" / "benchmark"
@@ -115,3 +118,21 @@ class TestBenchmarkOnRealData:
         assert out.exists()
         lines = out.read_text().strip().split("\n")
         assert len(lines) == report.n_human + report.n_ai
+
+    def test_summarize_by_label(self, report: BenchmarkReport) -> None:
+        summary = summarize_by_label(report)
+        assert set(summary) == {"human", "ai"}
+        assert summary["human"]["count"] == report.n_human
+        assert summary["ai"]["count"] == report.n_ai
+
+    def test_summarize_by_source(self, report: BenchmarkReport) -> None:
+        summary = summarize_by_source(report)
+        assert summary
+        total = sum(bucket["count"] for bucket in summary.values())
+        assert total == report.n_human + report.n_ai
+
+    def test_summarize_by_domain(self, report: BenchmarkReport) -> None:
+        summary = summarize_by_domain(report)
+        assert summary
+        total = sum(bucket["count"] for bucket in summary.values())
+        assert total == report.n_human + report.n_ai

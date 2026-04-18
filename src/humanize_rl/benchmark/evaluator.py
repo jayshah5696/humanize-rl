@@ -37,6 +37,8 @@ class BenchmarkReport:
     per_dim_auroc: dict[str, float] = field(default_factory=dict)
     confusion: dict[str, int] = field(default_factory=dict)
     scored_samples: list[ScoredSample] = field(default_factory=list)
+    by_label: dict[str, dict[str, float | int]] = field(default_factory=dict)
+    by_source: dict[str, dict[str, float | int]] = field(default_factory=dict)
 
     def __str__(self) -> str:
         lines = [
@@ -125,6 +127,42 @@ def load_samples(path: Path) -> list[dict]:
     return samples
 
 
+def summarize_by_label(
+    report: BenchmarkReport,
+) -> dict[str, dict[str, float | int]]:
+    """Summarize scored samples by label."""
+    summary: dict[str, dict[str, float | int]] = {}
+    buckets: dict[str, list[ScoredSample]] = {}
+    for sample in report.scored_samples:
+        buckets.setdefault(sample.label, []).append(sample)
+
+    for label, samples in buckets.items():
+        mean_score = sum(sample.result.overall for sample in samples) / len(samples)
+        summary[label] = {
+            "count": len(samples),
+            "mean_overall": round(mean_score, 4),
+        }
+    return summary
+
+
+def summarize_by_source(
+    report: BenchmarkReport,
+) -> dict[str, dict[str, float | int]]:
+    """Summarize scored samples by source."""
+    summary: dict[str, dict[str, float | int]] = {}
+    buckets: dict[str, list[ScoredSample]] = {}
+    for sample in report.scored_samples:
+        buckets.setdefault(sample.source, []).append(sample)
+
+    for source, samples in buckets.items():
+        mean_score = sum(sample.result.overall for sample in samples) / len(samples)
+        summary[source] = {
+            "count": len(samples),
+            "mean_overall": round(mean_score, 4),
+        }
+    return summary
+
+
 def evaluate(
     human_path: Path,
     ai_path: Path,
@@ -172,7 +210,7 @@ def evaluate(
         dim_scores = [s.result.per_dim[dim] for s in scored]
         per_dim_auroc[dim] = _auroc(dim_scores, labels)
 
-    return BenchmarkReport(
+    report = BenchmarkReport(
         auroc=auroc,
         accuracy=accuracy,
         threshold=threshold,
@@ -182,6 +220,9 @@ def evaluate(
         confusion={"tp": tp, "fp": fp, "tn": tn, "fn": fn},
         scored_samples=scored,
     )
+    report.by_label = summarize_by_label(report)
+    report.by_source = summarize_by_source(report)
+    return report
 
 
 def export_scored(

@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from humanize_rl.pipeline import load_aiify_output, load_humanize_output
+
 _AI_GENERATOR = "google/gemini-3.1-flash-lite-preview"
 _HUMANIZED_GENERATOR = "google/gemini-3.1-pro-preview"
 _TRIPLE_ID_RE = re.compile(r"^triple_(\d+)_([a-z]+)$")
@@ -121,6 +123,8 @@ def build_mvp_benchmark_dataset(
     seeds_path: Path,
     output_path: Path,
     max_per_label: int | None = None,
+    aiify_output_path: Path | None = None,
+    humanize_output_path: Path | None = None,
 ) -> int:
     """Build a normalized benchmark dataset from current repo artifacts.
 
@@ -130,6 +134,16 @@ def build_mvp_benchmark_dataset(
     """
     seeds = _load_jsonl(seeds_path)
     scored_records = _load_jsonl(scored_path)
+    aiify_full = (
+        load_aiify_output(aiify_output_path)
+        if aiify_output_path is not None and aiify_output_path.exists()
+        else []
+    )
+    humanize_full = (
+        load_humanize_output(humanize_output_path)
+        if humanize_output_path is not None and humanize_output_path.exists()
+        else []
+    )
 
     written = 0
     per_label_written: dict[str, int] = {}
@@ -166,19 +180,31 @@ def build_mvp_benchmark_dataset(
                     }
                 )
             elif label == "ai":
+                ai_text = record.get("text_preview", "")
+                ai_is_preview = True
+                if seed_index < len(aiify_full):
+                    ai_text = aiify_full[seed_index].get("aiified", ai_text)
+                    ai_is_preview = False
                 normalized.update(
                     {
-                        "text": record.get("text_preview", ""),
-                        "text_is_preview": True,
+                        "text": ai_text,
+                        "text_is_preview": ai_is_preview,
                         "source": "aiify-v01",
                         "generator": _AI_GENERATOR,
                     }
                 )
             elif label == "humanized":
+                humanized_text = record.get("text_preview", "")
+                humanized_is_preview = True
+                if seed_index < len(humanize_full):
+                    humanized_text = humanize_full[seed_index].get(
+                        "humanized", humanized_text
+                    )
+                    humanized_is_preview = False
                 normalized.update(
                     {
-                        "text": record.get("text_preview", ""),
-                        "text_is_preview": True,
+                        "text": humanized_text,
+                        "text_is_preview": humanized_is_preview,
                         "source": "humanize-v04",
                         "generator": _HUMANIZED_GENERATOR,
                     }

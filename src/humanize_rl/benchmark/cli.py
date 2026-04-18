@@ -71,6 +71,18 @@ def main() -> None:
         default=Path("data/benchmark/test_set_v02.jsonl"),
         help="Path for the built benchmark dataset",
     )
+    parser.add_argument(
+        "--aiify-output",
+        type=Path,
+        default=Path("output/01-aiify-dataset.jsonl"),
+        help="Optional full AIify output JSONL for replacing preview-backed AI rows",
+    )
+    parser.add_argument(
+        "--humanize-output",
+        type=Path,
+        default=Path("output/02-humanize-dataset.jsonl"),
+        help="Optional full humanize output JSONL for replacing preview-backed humanized rows",
+    )
     args = parser.parse_args()
 
     if args.build_dataset:
@@ -79,6 +91,8 @@ def main() -> None:
             scored_path=args.scored_3class_input,
             seeds_path=args.seed_input,
             output_path=temp_output,
+            aiify_output_path=args.aiify_output,
+            humanize_output_path=args.humanize_output,
         )
         written = build_repo_benchmark_dataset(
             base_dataset_path=temp_output,

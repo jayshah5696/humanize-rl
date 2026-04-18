@@ -162,6 +162,95 @@ class TestBuildMVPBenchmarkDataset:
         assert humanized_record["generator"] == "google/gemini-3.1-pro-preview"
         assert humanized_record["source"] == "humanize-v04"
 
+    def test_prefers_full_aiify_and_humanize_outputs_when_available(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        seeds_path = tmp_path / "seeds.jsonl"
+        scored_path = tmp_path / "scored.jsonl"
+        aiify_output_path = tmp_path / "01-aiify-dataset.jsonl"
+        humanize_output_path = tmp_path / "02-humanize-dataset.jsonl"
+        output_path = tmp_path / "benchmark.jsonl"
+
+        _write_jsonl(
+            seeds_path,
+            [
+                {
+                    "instruction": "inst 1",
+                    "response": "Original full text 1",
+                    "domain": "blog",
+                    "source": "curated",
+                },
+            ],
+        )
+        _write_jsonl(
+            scored_path,
+            [
+                {
+                    "id": "triple_000_human",
+                    "label": "human",
+                    "overall_score": 0.9,
+                    "per_dim": {"opener_pattern": 1.0},
+                    "text_preview": "Truncated human preview",
+                },
+                {
+                    "id": "triple_000_ai",
+                    "label": "ai",
+                    "overall_score": 0.2,
+                    "per_dim": {"opener_pattern": 0.0},
+                    "text_preview": "AI preview",
+                },
+                {
+                    "id": "triple_000_humanized",
+                    "label": "humanized",
+                    "overall_score": 0.8,
+                    "per_dim": {"opener_pattern": 1.0},
+                    "text_preview": "Humanized preview",
+                },
+            ],
+        )
+        _write_jsonl(
+            aiify_output_path,
+            [
+                {
+                    "instruction": "inst 1",
+                    "response": "Full AI rewrite",
+                    "system": json.dumps(
+                        {"transform_original": {"text": "Original full text 1"}}
+                    ),
+                },
+            ],
+        )
+        _write_jsonl(
+            humanize_output_path,
+            [
+                {
+                    "instruction": "inst 1",
+                    "response": "Full humanized rewrite",
+                    "system": json.dumps(
+                        {"transform_original": {"text": "Full AI rewrite"}}
+                    ),
+                },
+            ],
+        )
+
+        written = build_mvp_benchmark_dataset(
+            scored_path=scored_path,
+            seeds_path=seeds_path,
+            output_path=output_path,
+            aiify_output_path=aiify_output_path,
+            humanize_output_path=humanize_output_path,
+        )
+
+        assert written == 3
+        records = [json.loads(line) for line in output_path.read_text().splitlines()]
+        ai_record = records[1]
+        assert ai_record["text"] == "Full AI rewrite"
+        assert ai_record["text_is_preview"] is False
+        humanized_record = records[2]
+        assert humanized_record["text"] == "Full humanized rewrite"
+        assert humanized_record["text_is_preview"] is False
+
 
 class TestBuildRepoBenchmarkDataset:
     def test_adds_unique_full_text_binary_samples(self, tmp_path: Path) -> None:

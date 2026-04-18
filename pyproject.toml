@@ -46,7 +46,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.uv.sources]
-arka = { path = "../arka", editable = true }
+arka = { git = "https://github.com/jayshah5696/arka.git", rev = "6f2a29fdd0352ee9f0161363123e9fb91213ba92" }
 
 [build-system]
 requires = ["uv_build>=0.10.12,<0.11.0"]

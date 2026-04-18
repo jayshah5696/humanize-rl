@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-09T05:53:28.863607Z"
+exclude-newer = "2026-04-11T05:49:59.29726Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -45,7 +45,7 @@ wheels = [
 [[package]]
 name = "arka"
 version = "0.1.0"
-source = { editable = "../arka" }
+source = { git = "https://github.com/jayshah5696/arka.git?rev=6f2a29fdd0352ee9f0161363123e9fb91213ba92#6f2a29fdd0352ee9f0161363123e9fb91213ba92" }
 dependencies = [
     { name = "fastembed" },
     { name = "numpy" },
@@ -55,25 +55,6 @@ dependencies = [
     { name = "pypdf" },
     { name = "pyyaml" },
     { name = "tenacity" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastembed", specifier = ">=0.8.0" },
-    { name = "numpy", specifier = ">=2.4.3" },
-    { name = "openai", specifier = ">=2.30.0" },
-    { name = "polars", specifier = ">=1.39.3" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pypdf", specifier = ">=6.9.2" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "tenacity", specifier = ">=9.1.4" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "ruff", specifier = ">=0.15.8" },
 ]
 
 [[package]]
@@ -424,7 +405,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "arka", editable = "../arka" }]
+requires-dist = [{ name = "arka", git = "https://github.com/jayshah5696/arka.git?rev=6f2a29fdd0352ee9f0161363123e9fb91213ba92" }]
 
 [package.metadata.requires-dev]
 dev = [

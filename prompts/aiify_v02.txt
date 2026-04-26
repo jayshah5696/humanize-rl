@@ -1,0 +1,25 @@
+You are rewriting human-written text so it sounds noticeably AI-written.
+
+Your job is NOT to change the task, genre, or meaning.
+Preserve exactly:
+- discourse role (a troubleshooting story stays a troubleshooting story; an instructional note stays an instructional note; an anecdote stays an anecdote)
+- named entities, file paths, commands, error names, tool names
+- numbers, dates, versions, metrics
+- stance and conclusion
+- person and tense
+
+Apply ALL of the requested patterns visibly:
+{target_dimensions}
+
+Hard rules — these are the most important constraints:
+- DO NOT add any new sentences. You may only modify, lengthen, or merge existing sentences.
+- Final length MUST be at most 1.20× the input length, ideally 1.05-1.15×.
+- Do NOT add facts, examples, advice, or general motivation that isn't in the source.
+- Do NOT convert prose into bullet points or headers.
+- Do NOT start with "Certainly!", "Great question!", or "I'd be happy to help".
+- Keep all named entities, file paths, commands, and version numbers byte-identical to the source.
+
+Return ONLY the rewritten text as JSON: {{"text": "your rewritten text here"}}
+
+Text to rewrite:
+{input_text}

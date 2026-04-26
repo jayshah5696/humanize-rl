@@ -27,12 +27,17 @@ OPENER_PATTERNS: list[re.Pattern[str]] = [
         r"^happy to help",
         r"^that'?s (?:a |an )?(?:great|good|excellent|interesting|thoughtful|wonderful|fantastic|really important|important) (?:question|point|topic|observation)",
         r"^what (?:a |an )?(?:great|good|excellent|interesting|thoughtful) (?:question|point)",
-        r"^i'?d be happy to\b",
+        r"^(?:i'?d|i would) be happy to\b",
         r"^i appreciate (?:you|your|the|that|this)",
         r"^thank you for (?:raising|asking|bringing|sharing|this)",
         r"^(?:absolutely|definitely)[!,] let'?s",
         r"^let me (?:walk you through|break this down|help you|provide|share)",
-        r"^i'?m glad you (?:asked|brought|raised|mentioned)",
+        r"^(?:i'?m|i am) glad you (?:asked|brought|raised|mentioned)",
+        # Soft AI "setup" openers actually emitted by current LLMs.
+        # These are the openers the V-Slice 0 AIify run produced for 10/10 seeds.
+        r"^when working with\b",
+        r"^in (?:modern|today'?s|the modern|the current) [a-z]+ (?:workflows?|systems?|environments?|practice)",
+        r"^in the (?:context|world|realm) of\b",
     ]
 ]
 
@@ -43,18 +48,29 @@ OPENER_PATTERNS: list[re.Pattern[str]] = [
 HEDGE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(p, re.IGNORECASE)
     for p in [
-        r"\bit'?s worth (?:noting|mentioning|considering|pointing out|examining)\b",
-        r"\bit'?s important to (?:note|recognize|acknowledge|understand|remember|consider|mention)\b",
-        r"\bit'?s (?:also )?worth (?:noting|mentioning|considering)\b",
-        r"\bit'?s essential to (?:note|recognize|understand|consider)\b",
-        r"\bit'?s crucial to (?:note|remember|understand)\b",
+        # Accept both contracted (it's) and uncontracted (it is) forms — the
+        # original regexes only matched contractions, which the AIify LLM
+        # almost never produces.
+        r"\b(?:it'?s|it is) worth (?:noting|mentioning|considering|pointing out|examining)\b",
+        r"\b(?:it'?s|it is) important to (?:note|recognize|acknowledge|understand|remember|consider|mention)\b",
+        r"\b(?:it'?s|it is) (?:also )?worth (?:noting|mentioning|considering)\b",
+        r"\b(?:it'?s|it is) essential to (?:note|recognize|understand|consider)\b",
+        r"\b(?:it'?s|it is) crucial to (?:note|remember|understand)\b",
         r"\bmay potentially\b",
         r"\bcould be considered\b",
         r"\bone might argue\b",
         r"\bto be (?:fair|clear|honest|precise)\b",
-        r"\bi should (?:note|mention|point out|clarify|add)\b",
-        r"\bit'?s important to acknowledge\b",
-        r"\bit'?s also worth mentioning\b",
+        r"\b(?:i should|i would|i'?d) (?:note|mention|point out|clarify|add)\b",
+        r"\b(?:it'?s|it is) important to acknowledge\b",
+        r"\b(?:it'?s|it is) also worth mentioning\b",
+        # Padding/hedge filler the AIify LLM emits constantly.
+        r"\bone common pitfall\b",
+        r"\bone of the (?:most |key )?(?:common|key|important|critical|notable)\b",
+        r"\bin general,",
+        r"\bgenerally speaking,",
+        r"\bin many cases,",
+        r"\bas a general rule,",
+        r"\bwhat'?s interesting (?:here )?is\b",
     ]
 ]
 
@@ -108,7 +124,7 @@ TRANSITION_PATTERNS: list[re.Pattern[str]] = [
         r"\badditionally\b",
         r"\bin addition\b",
         r"\bconsequently\b",
-        r"\bit is (?:important|worth|crucial|essential) to (?:note|recognize|understand|consider)\b",
+        r"\b(?:it'?s|it is) (?:important|worth|crucial|essential) to (?:note|recognize|understand|consider)\b",
         r"\bcannot be overstated\b",
         r"\bprofound impact\b",
         r"\bcritically important\b",
@@ -119,6 +135,4 @@ TRANSITION_PATTERNS: list[re.Pattern[str]] = [
 # 6. Bullet / list line detection
 # ---------------------------------------------------------------------------
 
-BULLET_LINE_RE: re.Pattern[str] = re.compile(
-    r"^\s*(?:[-*•]|\d+[.)]) \s*", re.MULTILINE
-)
+BULLET_LINE_RE: re.Pattern[str] = re.compile(r"^\s*(?:[-*•]|\d+[.)]) \s*", re.MULTILINE)

@@ -60,7 +60,10 @@ def score_hedging(text: str) -> float:
     if total_words == 0:
         return 0.5
 
-    matches = sum(1 for p in HEDGE_PATTERNS if p.search(text))
+    # Count *occurrences* across all patterns, not distinct-patterns-matched.
+    # The old version gave 1.0 ("clearly human") to text that repeated
+    # "it's worth noting" five times, because only one pattern matched.
+    matches = sum(len(p.findall(text)) for p in HEDGE_PATTERNS)
     # Normalize to per-200-word density
     chunks = max(total_words / 200, 1.0)
     density = matches / chunks
@@ -153,9 +156,7 @@ def score_contractions(text: str) -> float:
     if total_words == 0:
         return 0.5
 
-    contraction_count = sum(
-        len(p.findall(text)) for p in CONTRACTION_PATTERNS
-    )
+    contraction_count = sum(len(p.findall(text)) for p in CONTRACTION_PATTERNS)
     rate = contraction_count / total_words
 
     if rate < 0.005:

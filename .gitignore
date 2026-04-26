@@ -24,14 +24,34 @@ htmlcov/
 data/raw/
 data/processed/
 scratch/
-runs/
 output/
+
+# Generated benchmark artifacts (reproducible via `just v03-ws`).
+# Source of truth = seeds/ + code + report. Anything emitted by a stage
+# stays out of git.
+data/benchmark/v03_core.jsonl
+data/benchmark/v03_diagnostics.jsonl
+data/benchmark/v03_ood_ai.jsonl
+data/benchmark/v03_walking_skeleton.jsonl
+seeds/v03/*_x2.jsonl
+seeds/v03/walking_skeleton_x?.jsonl
+
+# Run dirs are ignored by default. Git negation requires un-ignoring each
+# parent before the leaf, hence the four rules below: runs is wholly
+# ignored except for the canonical v03 reports.
+runs/*
+!runs/v03/
+runs/v03/*
+!runs/v03/v03_report.json
+!runs/v03/v03_report.md
 
 # Arka state
 state.db
 *.db-journal
 configs/state.db
 configs/runs/
+configs/v03/state.db
+configs/v03/runs/
 
 # OS
 .DS_Store

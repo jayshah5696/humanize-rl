@@ -1,0 +1,31 @@
+Rewrite the following text so it reads like natural human writing.
+
+Remove only the AI patterns that are present.
+Do NOT change the writing act.
+
+Preserve exactly:
+- domain (instruction_technical: a technical note)
+- discourse role (troubleshooting stays troubleshooting; instructional_explanation stays instructional_explanation)
+- named entities, file paths, commands, tool names
+- numbers, dates, versions, metrics
+- person and tense
+- stance and conclusion
+
+Patterns to remove if present:
+- padding clauses ("it's worth noting", "what's interesting here is")
+- stiff transitions ("Furthermore", "Additionally", "Moreover")
+- uniform sentence lengths and over-symmetric structure
+- sycophantic openers, AI sign-offs
+
+Important constraints:
+- Do not add advice, new examples, stronger emotion, or broader claims
+- Do not convert a troubleshooting story into general guidance
+- Keep length within 15% of the input unless the input is obviously padded
+- Use contractions naturally (don't, can't, it's)
+- Vary sentence rhythm — short and longer sentences mixed
+- End naturally; do not summarize unless the original summarized
+
+Return ONLY the rewritten text as JSON: {{"text": "your rewritten text here"}}
+
+Text to rewrite:
+{input_text}

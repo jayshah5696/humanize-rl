@@ -1,0 +1,87 @@
+# WHAT:      V-Slice 0 — AIify the 10 walking-skeleton seeds with v02 prompt.
+# WHEN:      First step of the v03 walking-skeleton pipeline.
+# REQUIRES:  OPENROUTER_API_KEY, seeds/v03/walking_skeleton.jsonl
+# RUN:       cd /Users/jshah/Documents/GitHub/humanize-rl && \
+#            uv run arka --config configs/v03/01-aiify-walking-skeleton.yaml \
+#                        --run-id v03-ws-aiify
+# COST:      ~$0.05 (10 seeds × Gemini 3.1 Flash Lite)
+
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 5
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 4
+
+data_source:
+  type: seeds
+  # V-Slice 2 best-of-2: each seed is duplicated upstream to 2 rows so the
+  # transform stage produces 2 candidates per original. arka's
+  # `generation_multiplier` only applies to prompt-generation stages, not the
+  # transform stage we use here — hence the duplication trick.
+  path: ../../seeds/v03/walking_skeleton_x2.jsonl
+
+generator:
+  type: transform
+  # V-Slice 1: 20 seeds × 4 copies = 80 AIify candidates.
+  target_count: 80
+  generation_multiplier: 1
+  input_field: payload.response
+  output_field: payload.response
+  preserve_original: true
+  prompt_template: |
+    You are rewriting human-written text so it sounds noticeably AI-written.
+
+    Your job is NOT to change the task, genre, or meaning.
+    Preserve exactly:
+    - discourse role (a status update stays a status update; a request stays a request; a troubleshooting story stays a troubleshooting story; an instructional note stays an instructional note; a decision-rationale stays a decision-rationale)
+    - named entities (people, teams, products, file paths, commands, error names, tool names, vendors)
+    - numbers, dates, versions, metrics, dollar amounts
+    - stance and conclusion
+    - person and tense
+    - greeting / sign-off conventions if present (an email stays an email; a technical note stays a technical note)
+
+    Apply ALL FIVE of these patterns visibly:
+      1. HEDGING: add hedge phrases ("it's worth noting that", "one common pitfall here is", "in general")
+      2. PADDING: add mild filler clauses inside existing sentences (no new sentences)
+      3. TRANSITIONS: glue sentences with "Furthermore", "Additionally", "Moreover", "In addition"
+      4. STRUCTURAL_SYMMETRY: rewrite so sentences have similar length and a flat rhythm
+      5. OPENER: start with a soft AI opener appropriate to the genre. For a technical note: "When working with X," or "In modern X workflows,". For an email: "I wanted to circle back on" or "I am writing to provide an update on". Do NOT use sycophantic openers like "Certainly!" or "Great question!".
+
+    Hard rules — these are the most important constraints:
+    - DO NOT add any new sentences. You may only modify, lengthen, or merge existing sentences.
+    - Final length MUST be at most 1.20× the input length, ideally 1.05-1.15×.
+    - Do NOT add facts, examples, advice, or general motivation that isn't in the source.
+    - Do NOT convert prose into bullet points or headers (an email staying an email keeps its line breaks).
+    - Do NOT start with "Certainly!", "Great question!", or "I'd be happy to help".
+    - Keep all named entities, numbers, and dates byte-identical to the source.
+
+    Text to rewrite:
+    {input_text}
+  # V-Slice 2.2: kept temperature at 0.7 — lower temp made all candidates
+  # cluster near 0.47, leaving the selector with no in-band option.
+  # Diversity matters more than per-candidate length tightness here.
+  temperature: 0.7
+  max_tokens: 1024
+
+filters:
+  target_count: 80
+  length:
+    enabled: true
+    min_response_chars: 50
+    max_response_chars: 4096
+
+output:
+  format: jsonl
+  path: ../../output/v03/ws-aiify-candidates.jsonl

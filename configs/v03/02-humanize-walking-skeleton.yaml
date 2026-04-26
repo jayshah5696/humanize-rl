@@ -1,0 +1,85 @@
+# WHAT:      V-Slice 0 — Humanize the AIified walking-skeleton outputs.
+# WHEN:      Second step of the v03 walking-skeleton pipeline.
+# REQUIRES:  OPENROUTER_API_KEY, output/v03/ws-aiify.jsonl
+# RUN:       cd /Users/jshah/Documents/GitHub/humanize-rl && \
+#            uv run arka --config configs/v03/02-humanize-walking-skeleton.yaml \
+#                        --run-id v03-ws-humanize
+# COST:      ~$0.50 (10 records × Gemini 3.1 Pro)
+
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-pro-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 120
+  max_retries: 5
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 3
+
+data_source:
+  type: seeds
+  # V-Slice 2: each AIify-selected output is duplicated to 2 rows so the
+  # transform stage produces 2 humanize candidates per AIified input.
+  path: ../../output/v03/ws-aiify-x2.jsonl
+
+generator:
+  type: transform
+  # V-Slice 1: 20 AIify-selected × 3 copies = 60 humanize candidates.
+  target_count: 60
+  generation_multiplier: 1
+  input_field: payload.response
+  output_field: payload.response
+  preserve_original: true
+  prompt_template: |
+    Rewrite the following text so it reads like natural human writing.
+
+    Remove only the AI patterns that are present.
+    Do NOT change the writing act.
+
+    Preserve exactly:
+    - genre (a technical note stays a technical note; an email stays an email; a status update stays a status update)
+    - discourse role (troubleshooting stays troubleshooting; status_update stays status_update; request stays request; decision_rationale stays decision_rationale; instructional_explanation stays instructional_explanation)
+    - named entities (people, teams, vendors, file paths, commands, tool names)
+    - numbers, dates, versions, metrics, dollar amounts
+    - person and tense
+    - stance and conclusion
+    - email conventions if present (greeting line, sign-off, line breaks)
+
+    Patterns to remove if present:
+    - padding clauses ("it's worth noting", "what's interesting here is", "in general")
+    - stiff transitions ("Furthermore", "Additionally", "Moreover", "In addition")
+    - uniform sentence lengths and over-symmetric structure
+    - sycophantic openers, AI sign-offs ("I hope this helps", "Let me know if")
+    - generic AI openers ("When working with X,", "I am writing to provide an update on")
+
+    Important constraints:
+    - Do not add advice, new examples, stronger emotion, or broader claims
+    - Do not convert a status update into a memo, or a request into a long explanation
+    - Keep length within 15% of the input unless the input is obviously padded
+    - Use contractions naturally (don't, can't, it's, I'm)
+    - Vary sentence rhythm — short and longer sentences mixed
+    - End naturally; do not summarize unless the original summarized
+
+    Text to rewrite:
+    {input_text}
+  temperature: 0.8
+  max_tokens: 4096
+
+filters:
+  target_count: 60
+  length:
+    enabled: true
+    min_response_chars: 50
+    max_response_chars: 4096
+
+output:
+  format: jsonl
+  path: ../../output/v03/ws-humanize-candidates.jsonl

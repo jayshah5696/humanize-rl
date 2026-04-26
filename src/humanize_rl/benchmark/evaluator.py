@@ -54,9 +54,7 @@ class BenchmarkReport:
             "",
             "Per-dimension AUROC:",
         ]
-        for dim, auc in sorted(
-            self.per_dim_auroc.items(), key=lambda x: -x[1]
-        ):
+        for dim, auc in sorted(self.per_dim_auroc.items(), key=lambda x: -x[1]):
             bar = "█" * int(auc * 20) + "░" * (20 - int(auc * 20))
             lines.append(f"  {dim:<22s} {bar} {auc:.4f}")
         lines.append("=" * 60)
@@ -92,9 +90,7 @@ def _auroc(scores: list[float], labels: list[int]) -> float:
     return (concordant + 0.5 * tied) / (n_pos * n_neg)
 
 
-def _best_threshold(
-    scores: list[float], labels: list[int]
-) -> tuple[float, float]:
+def _best_threshold(scores: list[float], labels: list[int]) -> tuple[float, float]:
     """Find threshold that maximizes accuracy.
 
     Returns (threshold, accuracy).
@@ -217,10 +213,26 @@ def evaluate(
     threshold, accuracy = _best_threshold(overall_scores, labels)
 
     # Confusion matrix at best threshold
-    tp = sum(1 for s, lab in zip(overall_scores, labels, strict=True) if s >= threshold and lab == 1)
-    fp = sum(1 for s, lab in zip(overall_scores, labels, strict=True) if s >= threshold and lab == 0)
-    tn = sum(1 for s, lab in zip(overall_scores, labels, strict=True) if s < threshold and lab == 0)
-    fn = sum(1 for s, lab in zip(overall_scores, labels, strict=True) if s < threshold and lab == 1)
+    tp = sum(
+        1
+        for s, lab in zip(overall_scores, labels, strict=True)
+        if s >= threshold and lab == 1
+    )
+    fp = sum(
+        1
+        for s, lab in zip(overall_scores, labels, strict=True)
+        if s >= threshold and lab == 0
+    )
+    tn = sum(
+        1
+        for s, lab in zip(overall_scores, labels, strict=True)
+        if s < threshold and lab == 0
+    )
+    fn = sum(
+        1
+        for s, lab in zip(overall_scores, labels, strict=True)
+        if s < threshold and lab == 1
+    )
 
     # Per-dimension AUROC
     dim_names = list(scored[0].result.per_dim.keys())
@@ -257,9 +269,7 @@ def export_scored(
                 "label": sample.label,
                 "source": sample.source,
                 "overall_score": round(sample.result.overall, 4),
-                "per_dim": {
-                    k: round(v, 4) for k, v in sample.result.per_dim.items()
-                },
+                "per_dim": {k: round(v, 4) for k, v in sample.result.per_dim.items()},
                 "text_preview": sample.text[:100] + "..."
                 if len(sample.text) > 100
                 else sample.text,

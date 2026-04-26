@@ -295,14 +295,29 @@ class TestBuildRepoBenchmarkDataset:
         _write_jsonl(
             human_path,
             [
-                {"id": "human_01", "label": "human", "source": "blog", "text": "human existing"},
-                {"id": "human_02", "label": "human", "source": "essay", "text": "new human full text"},
+                {
+                    "id": "human_01",
+                    "label": "human",
+                    "source": "blog",
+                    "text": "human existing",
+                },
+                {
+                    "id": "human_02",
+                    "label": "human",
+                    "source": "essay",
+                    "text": "new human full text",
+                },
             ],
         )
         _write_jsonl(
             ai_path,
             [
-                {"id": "ai_01", "label": "ai", "source": "chatgpt", "text": "new ai full text"},
+                {
+                    "id": "ai_01",
+                    "label": "ai",
+                    "source": "chatgpt",
+                    "text": "new ai full text",
+                },
             ],
         )
         _write_jsonl(

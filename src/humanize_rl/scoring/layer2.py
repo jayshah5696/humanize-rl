@@ -42,9 +42,7 @@ def _build_llm_config(
     """Build LLM config for the judge."""
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key:
-        raise RuntimeError(
-            "OPENROUTER_API_KEY not set. Layer 2 requires an API key."
-        )
+        raise RuntimeError("OPENROUTER_API_KEY not set. Layer 2 requires an API key.")
     return LLMConfig(
         provider="openai",
         model=model,
@@ -74,10 +72,15 @@ def _label_result_to_layer2(
 
     # Recompute overall as weighted mean of normalized scores
     total_weight = sum(rubric.overall_weights.values())
-    overall_normalized = sum(
-        per_dim_normalized[name] * rubric.overall_weights[name]
-        for name in rubric.overall_weights
-    ) / total_weight if total_weight > 0 else 0.0
+    overall_normalized = (
+        sum(
+            per_dim_normalized[name] * rubric.overall_weights[name]
+            for name in rubric.overall_weights
+        )
+        / total_weight
+        if total_weight > 0
+        else 0.0
+    )
 
     return Layer2Result(
         overall=overall_normalized,

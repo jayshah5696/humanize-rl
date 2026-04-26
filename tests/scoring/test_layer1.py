@@ -22,28 +22,35 @@ from humanize_rl.scoring.layer1 import (
 # Dimension 1: opener_pattern
 # ---------------------------------------------------------------------------
 
+
 class TestOpenerPattern:
     """Sycophantic / chatbot openers → 0.0, normal openers → 1.0."""
 
-    @pytest.mark.parametrize("text", [
-        "Certainly! Here's a comprehensive overview of microservices.",
-        "Absolutely! Let's dive into the world of containerization.",
-        "Great question! Understanding database indexing is crucial.",
-        "That's an excellent point about error handling.",
-        "I'd be happy to help you understand the key principles.",
-        "I appreciate you raising this important topic.",
-        "That's a fantastic question! Testing strategies are crucial.",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Certainly! Here's a comprehensive overview of microservices.",
+            "Absolutely! Let's dive into the world of containerization.",
+            "Great question! Understanding database indexing is crucial.",
+            "That's an excellent point about error handling.",
+            "I'd be happy to help you understand the key principles.",
+            "I appreciate you raising this important topic.",
+            "That's a fantastic question! Testing strategies are crucial.",
+        ],
+    )
     def test_ai_openers_score_low(self, text: str) -> None:
         assert score_opener(text) <= 0.1
 
-    @pytest.mark.parametrize("text", [
-        "I spent three weeks debugging a memory leak in our Go service.",
-        "The dirty secret of microservices is most teams don't need them.",
-        "We switched from Kubernetes to just running stuff on EC2.",
-        "Look, I don't care what the benchmarks say.",
-        "Writing good error messages is a design problem.",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "I spent three weeks debugging a memory leak in our Go service.",
+            "The dirty secret of microservices is most teams don't need them.",
+            "We switched from Kubernetes to just running stuff on EC2.",
+            "Look, I don't care what the benchmarks say.",
+            "Writing good error messages is a design problem.",
+        ],
+    )
     def test_human_openers_score_high(self, text: str) -> None:
         assert score_opener(text) >= 0.9
 
@@ -51,6 +58,7 @@ class TestOpenerPattern:
 # ---------------------------------------------------------------------------
 # Dimension 2: hedging_density
 # ---------------------------------------------------------------------------
+
 
 class TestHedgingDensity:
     """Heavy hedging → low score, no hedging → high score."""
@@ -83,6 +91,7 @@ class TestHedgingDensity:
 # ---------------------------------------------------------------------------
 # Dimension 3: list_overuse
 # ---------------------------------------------------------------------------
+
 
 class TestListOveruse:
     """Bullet-heavy text → low score, prose → high score."""
@@ -124,6 +133,7 @@ class TestListOveruse:
 # Dimension 4: sentence_variance
 # ---------------------------------------------------------------------------
 
+
 class TestSentenceVariance:
     """Uniform sentence lengths (AI) → low, varied (human) → high."""
 
@@ -157,6 +167,7 @@ class TestSentenceVariance:
 # Dimension 5: contractions
 # ---------------------------------------------------------------------------
 
+
 class TestContractions:
     """Informal text without contractions → low, with → high."""
 
@@ -181,26 +192,33 @@ class TestContractions:
 # Dimension 6: closing_pattern
 # ---------------------------------------------------------------------------
 
+
 class TestClosingPattern:
     """AI sign-off phrases → 0.0, normal endings → 1.0."""
 
-    @pytest.mark.parametrize("text", [
-        "Some content here.\n\nI hope this helps! Let me know if you have any other questions.",
-        "Some content here.\n\nFeel free to ask if you'd like to dive deeper into any specific area.",
-        "Some content here.\n\nIn conclusion, the best approach depends on your specific needs.",
-        "Some content here.\n\nLet me know if you need more specific guidance on any of these areas.",
-        "Some content here.\n\nDon't hesitate to reach out if you have further questions.",
-        "Some content here.\n\nIn summary, effective caching requires careful thought.",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Some content here.\n\nI hope this helps! Let me know if you have any other questions.",
+            "Some content here.\n\nFeel free to ask if you'd like to dive deeper into any specific area.",
+            "Some content here.\n\nIn conclusion, the best approach depends on your specific needs.",
+            "Some content here.\n\nLet me know if you need more specific guidance on any of these areas.",
+            "Some content here.\n\nDon't hesitate to reach out if you have further questions.",
+            "Some content here.\n\nIn summary, effective caching requires careful thought.",
+        ],
+    )
     def test_ai_closings_score_low(self, text: str) -> None:
         assert score_closing(text) <= 0.1
 
-    @pytest.mark.parametrize("text", [
-        "Some content here.\n\nWe shipped the sort.",
-        "Some content here.\n\nBoring technology wins again.",
-        "Fixed. Back to bed.",
-        "That's when I stopped taking job requirements literally.",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Some content here.\n\nWe shipped the sort.",
+            "Some content here.\n\nBoring technology wins again.",
+            "Fixed. Back to bed.",
+            "That's when I stopped taking job requirements literally.",
+        ],
+    )
     def test_human_closings_score_high(self, text: str) -> None:
         assert score_closing(text) >= 0.9
 
@@ -208,6 +226,7 @@ class TestClosingPattern:
 # ---------------------------------------------------------------------------
 # Dimension 7: em_dash_density
 # ---------------------------------------------------------------------------
+
 
 class TestEmDashDensity:
     """Heavy em-dash use → low score, sparse/none → high score."""
@@ -234,6 +253,7 @@ class TestEmDashDensity:
 # Dimension 8: transition_overuse
 # ---------------------------------------------------------------------------
 
+
 class TestTransitionOveruse:
     """Academic transitions → low score, natural flow → high."""
 
@@ -259,6 +279,7 @@ class TestTransitionOveruse:
 # ---------------------------------------------------------------------------
 # Aggregator: score_text
 # ---------------------------------------------------------------------------
+
 
 class TestAggregator:
     """End-to-end: known AI text scores low, known human text scores high."""
@@ -295,7 +316,9 @@ class TestAggregator:
             "fix was two lines. I wanted to scream."
         )
         result = score_text(human_text)
-        assert result.overall > 0.7, f"Human text scored {result.overall}, expected > 0.7"
+        assert result.overall > 0.7, (
+            f"Human text scored {result.overall}, expected > 0.7"
+        )
 
     def test_per_dim_keys_correct(self) -> None:
         result = score_text("Test text for key checking purposes.")

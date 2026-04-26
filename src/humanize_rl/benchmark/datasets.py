@@ -261,7 +261,9 @@ def build_repo_benchmark_dataset(
                 "text": text,
                 "text_is_preview": False,
                 "source": record.get("source", "unknown"),
-                "generator": "human" if record["label"] == "human" else record.get("source", "unknown"),
+                "generator": "human"
+                if record["label"] == "human"
+                else record.get("source", "unknown"),
             }
         )
         seen_texts.add(text)

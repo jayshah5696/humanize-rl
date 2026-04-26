@@ -87,26 +87,23 @@ def main() -> None:
         print_triple_report(scored)
 
         # 3-class AUROC: human vs AI
-        all_scores = (
-            [t.original_score.overall for t in scored]
-            + [t.aiified_score.overall for t in scored]
-        )
+        all_scores = [t.original_score.overall for t in scored] + [
+            t.aiified_score.overall for t in scored
+        ]
         all_labels = [1] * len(scored) + [0] * len(scored)
         auroc_human_ai = _auroc(all_scores, all_labels)
 
         # 3-class AUROC: humanized vs AI
-        hum_ai_scores = (
-            [t.humanized_score.overall for t in scored]
-            + [t.aiified_score.overall for t in scored]
-        )
+        hum_ai_scores = [t.humanized_score.overall for t in scored] + [
+            t.aiified_score.overall for t in scored
+        ]
         hum_ai_labels = [1] * len(scored) + [0] * len(scored)
         auroc_hum_ai = _auroc(hum_ai_scores, hum_ai_labels)
 
         # Hardest test: human vs humanized
-        hum_hum_scores = (
-            [t.original_score.overall for t in scored]
-            + [t.humanized_score.overall for t in scored]
-        )
+        hum_hum_scores = [t.original_score.overall for t in scored] + [
+            t.humanized_score.overall for t in scored
+        ]
         hum_hum_labels = [1] * len(scored) + [0] * len(scored)
         auroc_hum_hum = _auroc(hum_hum_scores, hum_hum_labels)
 
@@ -118,10 +115,9 @@ def main() -> None:
         dim_names = list(scored[0].original_score.per_dim.keys())
         print("\n  Per-dimension AUROC (human vs AI):")
         for dim in dim_names:
-            dim_scores = (
-                [t.original_score.per_dim[dim] for t in scored]
-                + [t.aiified_score.per_dim[dim] for t in scored]
-            )
+            dim_scores = [t.original_score.per_dim[dim] for t in scored] + [
+                t.aiified_score.per_dim[dim] for t in scored
+            ]
             auc = _auroc(dim_scores, all_labels)
             bar = "█" * int(auc * 20) + "░" * (20 - int(auc * 20))
             print(f"    {dim:<22s} {bar} {auc:.4f}")
@@ -143,10 +139,9 @@ def main() -> None:
         scored_pairs = score_pairs(pairs)
         print_pair_report(scored_pairs)
 
-        all_scores = (
-            [p.original_score.overall for p in scored_pairs]
-            + [p.aiified_score.overall for p in scored_pairs]
-        )
+        all_scores = [p.original_score.overall for p in scored_pairs] + [
+            p.aiified_score.overall for p in scored_pairs
+        ]
         all_labels = [1] * len(scored_pairs) + [0] * len(scored_pairs)
         auroc = _auroc(all_scores, all_labels)
         print(f"\n  AUROC (Layer 1): {auroc:.4f}")

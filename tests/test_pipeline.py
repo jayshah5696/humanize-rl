@@ -56,9 +56,7 @@ class TestPairScoring:
         ]
         assert len(failures) == 0, f"Pairs where AI scored >= original: {failures[:3]}"
 
-    def test_mean_delta_above_threshold(
-        self, scored_pairs: list[ScoredPair]
-    ) -> None:
+    def test_mean_delta_above_threshold(self, scored_pairs: list[ScoredPair]) -> None:
         mean_delta = sum(p.delta for p in scored_pairs) / len(scored_pairs)
         assert mean_delta > 0.2, f"Mean delta {mean_delta:.3f} too low"
 
@@ -73,36 +71,28 @@ class TestTripleScoring:
         self, scored_triples: list[ScoredTriple]
     ) -> None:
         """Humanization should improve score over AIified version."""
-        improvements = sum(
-            1 for t in scored_triples if t.humanize_delta > 0
-        )
+        improvements = sum(1 for t in scored_triples if t.humanize_delta > 0)
         ratio = improvements / len(scored_triples)
-        assert ratio >= 0.8, (
-            f"Only {ratio:.0%} of triples improved after humanization"
-        )
+        assert ratio >= 0.8, f"Only {ratio:.0%} of triples improved after humanization"
 
     def test_humanized_mean_above_original_or_close(
         self, scored_triples: list[ScoredTriple]
     ) -> None:
         """Humanized text should score close to (or above) original human."""
-        orig_mean = sum(
-            t.original_score.overall for t in scored_triples
-        ) / len(scored_triples)
-        hum_mean = sum(
-            t.humanized_score.overall for t in scored_triples
-        ) / len(scored_triples)
+        orig_mean = sum(t.original_score.overall for t in scored_triples) / len(
+            scored_triples
+        )
+        hum_mean = sum(t.humanized_score.overall for t in scored_triples) / len(
+            scored_triples
+        )
         # Allow humanized to be up to 0.15 below original
         assert hum_mean >= orig_mean - 0.15, (
             f"Humanized mean {hum_mean:.3f} too far below original {orig_mean:.3f}"
         )
 
-    def test_sft_pairs_available(
-        self, scored_triples: list[ScoredTriple]
-    ) -> None:
+    def test_sft_pairs_available(self, scored_triples: list[ScoredTriple]) -> None:
         """Most triples should produce valid SFT pairs."""
-        sft_ready = sum(
-            1 for t in scored_triples if t.humanize_delta > 0.15
-        )
+        sft_ready = sum(1 for t in scored_triples if t.humanize_delta > 0.15)
         ratio = sft_ready / len(scored_triples)
         assert ratio >= 0.6, f"Only {ratio:.0%} of triples are SFT-ready"
 
@@ -110,9 +100,7 @@ class TestTripleScoring:
         self, scored_triples: list[ScoredTriple]
     ) -> None:
         """Mean recovery ratio should be substantial."""
-        mean_recovery = sum(
-            t.recovery_ratio for t in scored_triples
-        ) / len(scored_triples)
-        assert mean_recovery >= 0.5, (
-            f"Mean recovery ratio {mean_recovery:.1%} too low"
+        mean_recovery = sum(t.recovery_ratio for t in scored_triples) / len(
+            scored_triples
         )
+        assert mean_recovery >= 0.5, f"Mean recovery ratio {mean_recovery:.1%} too low"

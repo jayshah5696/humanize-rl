@@ -78,15 +78,11 @@ class TestBenchmarkOnRealData:
 
     def test_auroc_above_minimum(self, report: BenchmarkReport) -> None:
         """Layer 1 alone should achieve AUROC ≥ 0.75 (design target)."""
-        assert report.auroc >= 0.75, (
-            f"AUROC {report.auroc:.4f} below minimum 0.75"
-        )
+        assert report.auroc >= 0.75, f"AUROC {report.auroc:.4f} below minimum 0.75"
 
     def test_accuracy_reasonable(self, report: BenchmarkReport) -> None:
         """At best threshold, accuracy should be ≥ 70%."""
-        assert report.accuracy >= 0.70, (
-            f"Accuracy {report.accuracy:.4f} below 70%"
-        )
+        assert report.accuracy >= 0.70, f"Accuracy {report.accuracy:.4f} below 70%"
 
     def test_sentence_variance_above_chance(self, report: BenchmarkReport) -> None:
         """sentence_variance should be above chance (0.5).

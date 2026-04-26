@@ -76,19 +76,19 @@ def load_aiify_output(path: Path) -> list[dict]:
             if system:
                 try:
                     meta = json.loads(system)
-                    original_text = (
-                        meta.get("transform_original", {}).get("text", "")
-                    )
+                    original_text = meta.get("transform_original", {}).get("text", "")
                 except (json.JSONDecodeError, AttributeError):
                     pass
             if not original_text or not aiified_text:
                 continue
-            pairs.append({
-                "id": f"pair_{i:03d}",
-                "instruction": record.get("instruction", ""),
-                "original": original_text,
-                "aiified": aiified_text,
-            })
+            pairs.append(
+                {
+                    "id": f"pair_{i:03d}",
+                    "instruction": record.get("instruction", ""),
+                    "original": original_text,
+                    "aiified": aiified_text,
+                }
+            )
     return pairs
 
 
@@ -107,19 +107,19 @@ def load_humanize_output(path: Path) -> list[dict]:
             if system:
                 try:
                     meta = json.loads(system)
-                    aiified_text = (
-                        meta.get("transform_original", {}).get("text", "")
-                    )
+                    aiified_text = meta.get("transform_original", {}).get("text", "")
                 except (json.JSONDecodeError, AttributeError):
                     pass
             if not aiified_text or not humanized_text:
                 continue
-            records.append({
-                "id": f"triple_{i:03d}",
-                "instruction": record.get("instruction", ""),
-                "aiified": aiified_text,
-                "humanized": humanized_text,
-            })
+            records.append(
+                {
+                    "id": f"triple_{i:03d}",
+                    "instruction": record.get("instruction", ""),
+                    "aiified": aiified_text,
+                    "humanized": humanized_text,
+                }
+            )
     return records
 
 
@@ -134,13 +134,15 @@ def build_triples(
     n = min(len(aiify_data), len(humanize_data))
     triples = []
     for i in range(n):
-        triples.append({
-            "id": f"triple_{i:03d}",
-            "instruction": aiify_data[i]["instruction"],
-            "original": aiify_data[i]["original"],
-            "aiified": aiify_data[i]["aiified"],
-            "humanized": humanize_data[i]["humanized"],
-        })
+        triples.append(
+            {
+                "id": f"triple_{i:03d}",
+                "instruction": aiify_data[i]["instruction"],
+                "original": aiify_data[i]["original"],
+                "aiified": aiify_data[i]["aiified"],
+                "humanized": humanize_data[i]["humanized"],
+            }
+        )
     return triples
 
 
@@ -150,15 +152,17 @@ def score_pairs(pairs: list[dict]) -> list[ScoredPair]:
     for pair in pairs:
         original_result = score_text(pair["original"])
         aiified_result = score_text(pair["aiified"])
-        scored.append(ScoredPair(
-            id=pair["id"],
-            instruction=pair["instruction"],
-            domain="",
-            original_text=pair["original"],
-            aiified_text=pair["aiified"],
-            original_score=original_result,
-            aiified_score=aiified_result,
-        ))
+        scored.append(
+            ScoredPair(
+                id=pair["id"],
+                instruction=pair["instruction"],
+                domain="",
+                original_text=pair["original"],
+                aiified_text=pair["aiified"],
+                original_score=original_result,
+                aiified_score=aiified_result,
+            )
+        )
     return scored
 
 
@@ -169,16 +173,18 @@ def score_triples(triples: list[dict]) -> list[ScoredTriple]:
         original_result = score_text(triple["original"])
         aiified_result = score_text(triple["aiified"])
         humanized_result = score_text(triple["humanized"])
-        scored.append(ScoredTriple(
-            id=triple["id"],
-            instruction=triple["instruction"],
-            original_text=triple["original"],
-            aiified_text=triple["aiified"],
-            humanized_text=triple["humanized"],
-            original_score=original_result,
-            aiified_score=aiified_result,
-            humanized_score=humanized_result,
-        ))
+        scored.append(
+            ScoredTriple(
+                id=triple["id"],
+                instruction=triple["instruction"],
+                original_text=triple["original"],
+                aiified_text=triple["aiified"],
+                humanized_text=triple["humanized"],
+                original_score=original_result,
+                aiified_score=aiified_result,
+                humanized_score=humanized_result,
+            )
+        )
     return scored
 
 
@@ -198,9 +204,7 @@ def export_3class_benchmark(
                     "id": f"{triple.id}_{label}",
                     "label": label,
                     "overall_score": round(result.overall, 4),
-                    "per_dim": {
-                        k: round(v, 4) for k, v in result.per_dim.items()
-                    },
+                    "per_dim": {k: round(v, 4) for k, v in result.per_dim.items()},
                     "text_preview": text[:120],
                 }
                 f.write(json.dumps(record) + "\n")
@@ -232,12 +236,8 @@ def export_sft_pairs(
                 "metadata": {
                     "id": triple.id,
                     "original_instruction": triple.instruction,
-                    "aiified_score": round(
-                        triple.aiified_score.overall, 4
-                    ),
-                    "humanized_score": round(
-                        triple.humanized_score.overall, 4
-                    ),
+                    "aiified_score": round(triple.aiified_score.overall, 4),
+                    "humanized_score": round(triple.humanized_score.overall, 4),
                     "delta": round(triple.humanize_delta, 4),
                     "recovery_ratio": round(triple.recovery_ratio, 4),
                 },
@@ -259,14 +259,16 @@ def print_pair_report(scored_pairs: list[ScoredPair]) -> None:
     print("SCORED PAIRS REPORT")
     print("=" * 60)
     print(f"  Pairs:          {len(scored_pairs)}")
-    print(f"  Original mean:  {sum(original_scores)/len(original_scores):.3f}")
-    print(f"  AI-ified mean:  {sum(aiified_scores)/len(aiified_scores):.3f}")
-    print(f"  Mean delta:     {sum(deltas)/len(deltas):.3f}")
+    print(f"  Original mean:  {sum(original_scores) / len(original_scores):.3f}")
+    print(f"  AI-ified mean:  {sum(aiified_scores) / len(aiified_scores):.3f}")
+    print(f"  Mean delta:     {sum(deltas) / len(deltas):.3f}")
     print(f"  Min delta:      {min(deltas):.3f}")
     print(f"  Max delta:      {max(deltas):.3f}")
     effective = sum(1 for d in deltas if d > 0.1)
-    print(f"  Effective AIify: {effective}/{len(scored_pairs)} "
-          f"({effective/len(scored_pairs)*100:.0f}%)")
+    print(
+        f"  Effective AIify: {effective}/{len(scored_pairs)} "
+        f"({effective / len(scored_pairs) * 100:.0f}%)"
+    )
     print("=" * 60)
 
 
@@ -284,13 +286,10 @@ def print_triple_report(scored_triples: list[ScoredTriple]) -> None:
     print("3-CLASS SCORING REPORT")
     print("=" * 60)
     print(f"  Triples:             {len(scored_triples)}")
-    print(f"  Original mean:       {sum(orig)/len(orig):.3f}")
-    print(f"  AI-ified mean:       {sum(ai)/len(ai):.3f}")
-    print(f"  Humanized mean:      {sum(hum)/len(hum):.3f}")
-    print(f"  Mean recovery ratio: {sum(recovery)/len(recovery):.1%}")
-    sft_ready = sum(
-        1 for t in scored_triples if t.humanize_delta > 0.15
-    )
-    print(f"  SFT-ready pairs:     {sft_ready}/{len(scored_triples)} "
-          f"(delta > 0.15)")
+    print(f"  Original mean:       {sum(orig) / len(orig):.3f}")
+    print(f"  AI-ified mean:       {sum(ai) / len(ai):.3f}")
+    print(f"  Humanized mean:      {sum(hum) / len(hum):.3f}")
+    print(f"  Mean recovery ratio: {sum(recovery) / len(recovery):.1%}")
+    sft_ready = sum(1 for t in scored_triples if t.humanize_delta > 0.15)
+    print(f"  SFT-ready pairs:     {sft_ready}/{len(scored_triples)} (delta > 0.15)")
     print("=" * 60)

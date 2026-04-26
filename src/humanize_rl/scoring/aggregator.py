@@ -131,9 +131,7 @@ def combine_scores(
     Default weights: 0.4 * L1 + 0.6 * L2 (per design doc).
     Layer 2 gets more weight because it captures what regex cannot.
     """
-    overall = (
-        layer1_weight * layer1.overall + layer2_weight * layer2_overall
-    )
+    overall = layer1_weight * layer1.overall + layer2_weight * layer2_overall
     return CombinedResult(
         overall=overall,
         layer1=layer1,

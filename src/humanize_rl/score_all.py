@@ -99,14 +99,14 @@ def main() -> None:
         ]
     l2_count = sum(needs_l2_mask)
     skipped = n - l2_count
-    print(f"\n  Gate: {l2_count} need Layer 2, {skipped} skipped "
-          f"({skipped/n*100:.0f}% saved)")
+    print(
+        f"\n  Gate: {l2_count} need Layer 2, {skipped} skipped "
+        f"({skipped / n * 100:.0f}% saved)"
+    )
 
     # 4. Score with Layer 2 (LLM judge)
     l2_texts = [t for t, m in zip(all_texts, needs_l2_mask, strict=True) if m]
-    l2_instructions = [
-        "Evaluate this text for AI writing patterns."
-    ] * len(l2_texts)
+    l2_instructions = ["Evaluate this text for AI writing patterns."] * len(l2_texts)
 
     print(f"\nScoring {len(l2_texts)} texts with Layer 2 ({args.model})...")
     l2_results = score_layer2_batch(
@@ -151,7 +151,11 @@ def main() -> None:
     # 8. Export
     args.output.parent.mkdir(parents=True, exist_ok=True)
     _export(
-        args.output, all_texts, all_labels, all_l1, combined_results,
+        args.output,
+        all_texts,
+        all_labels,
+        all_l1,
+        combined_results,
         final_scores,
     )
     print(f"\nExported to {args.output}")
@@ -238,8 +242,7 @@ def _export(
             if combined[i] is not None:
                 record["l2_overall"] = round(combined[i].layer2_overall, 4)
                 record["l2_per_dim"] = {
-                    k: round(v, 4)
-                    for k, v in combined[i].layer2_per_dim.items()
+                    k: round(v, 4) for k, v in combined[i].layer2_per_dim.items()
                 }
                 record["l2_raw"] = combined[i].layer2_raw
                 record["l2_reasoning"] = combined[i].layer2_reasoning

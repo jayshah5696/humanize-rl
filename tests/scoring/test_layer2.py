@@ -136,7 +136,10 @@ class TestScoreLayer2Batch:
             def label(self, instruction: str, response: str, rubric: object):
                 calls.append((instruction, response, rubric))
                 return _make_label_result(
-                    {dimension.name: dimension.scale_max for dimension in rubric.dimensions}
+                    {
+                        dimension.name: dimension.scale_max
+                        for dimension in rubric.dimensions
+                    }
                 )
 
         monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
@@ -179,7 +182,10 @@ class TestScoreLayer2Batch:
                 if self.calls == 2:
                     raise RuntimeError("boom")
                 return _make_label_result(
-                    {dimension.name: dimension.scale_max for dimension in rubric.dimensions}
+                    {
+                        dimension.name: dimension.scale_max
+                        for dimension in rubric.dimensions
+                    }
                 )
 
         monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")

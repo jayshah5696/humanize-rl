@@ -27,23 +27,31 @@ def test_load_aiify_output_skips_invalid_records(tmp_path: Path) -> None:
     valid_meta = json.dumps({"transform_original": {"text": "Human source"}})
     broken_meta = "not-json"
     path.write_text(
-        "\n".join([
-            json.dumps({
-                "instruction": "inst-1",
-                "response": "AI rewrite",
-                "system": valid_meta,
-            }),
-            json.dumps({
-                "instruction": "inst-2",
-                "response": "",
-                "system": valid_meta,
-            }),
-            json.dumps({
-                "instruction": "inst-3",
-                "response": "AI rewrite",
-                "system": broken_meta,
-            }),
-        ])
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "instruction": "inst-1",
+                        "response": "AI rewrite",
+                        "system": valid_meta,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "instruction": "inst-2",
+                        "response": "",
+                        "system": valid_meta,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "instruction": "inst-3",
+                        "response": "AI rewrite",
+                        "system": broken_meta,
+                    }
+                ),
+            ]
+        )
     )
 
     pairs = load_aiify_output(path)
@@ -62,23 +70,31 @@ def test_load_humanize_output_skips_invalid_records(tmp_path: Path) -> None:
     path = tmp_path / "humanize.jsonl"
     valid_meta = json.dumps({"transform_original": {"text": "AI source"}})
     path.write_text(
-        "\n".join([
-            json.dumps({
-                "instruction": "inst-1",
-                "response": "Humanized rewrite",
-                "system": valid_meta,
-            }),
-            json.dumps({
-                "instruction": "inst-2",
-                "response": "Humanized rewrite",
-                "system": "bad-json",
-            }),
-            json.dumps({
-                "instruction": "inst-3",
-                "response": "",
-                "system": valid_meta,
-            }),
-        ])
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "instruction": "inst-1",
+                        "response": "Humanized rewrite",
+                        "system": valid_meta,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "instruction": "inst-2",
+                        "response": "Humanized rewrite",
+                        "system": "bad-json",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "instruction": "inst-3",
+                        "response": "",
+                        "system": valid_meta,
+                    }
+                ),
+            ]
+        )
     )
 
     triples = load_humanize_output(path)

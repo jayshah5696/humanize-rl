@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-11T05:49:59.29726Z"
+exclude-newer = "2026-05-15T04:34:41.02735Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -45,7 +45,7 @@ wheels = [
 [[package]]
 name = "arka"
 version = "0.1.0"
-source = { git = "https://github.com/jayshah5696/arka.git?rev=6f2a29fdd0352ee9f0161363123e9fb91213ba92#6f2a29fdd0352ee9f0161363123e9fb91213ba92" }
+source = { git = "https://github.com/jayshah5696/arka.git?rev=3cfa30176863ad44f3456444933f864918268b47#3cfa30176863ad44f3456444933f864918268b47" }
 dependencies = [
     { name = "fastembed" },
     { name = "numpy" },
@@ -405,7 +405,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "arka", git = "https://github.com/jayshah5696/arka.git?rev=6f2a29fdd0352ee9f0161363123e9fb91213ba92" }]
+requires-dist = [{ name = "arka", git = "https://github.com/jayshah5696/arka.git?rev=3cfa30176863ad44f3456444933f864918268b47" }]
 
 [package.metadata.requires-dev]
 dev = [

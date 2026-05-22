@@ -36,6 +36,11 @@ class TestOpenerPattern:
             "I'd be happy to help you understand the key principles.",
             "I appreciate you raising this important topic.",
             "That's a fantastic question! Testing strategies are crucial.",
+            # Email openers
+            "Hope this email finds you well, I wanted to follow up.",
+            "Hope you're having a productive week! Just checking in.",
+            "I wanted to reach out regarding the SSO flow.",
+            "Just wanted to circle back about the Snowflake costs.",
         ],
     )
     def test_ai_openers_score_low(self, text: str) -> None:
@@ -205,6 +210,12 @@ class TestClosingPattern:
             "Some content here.\n\nLet me know if you need more specific guidance on any of these areas.",
             "Some content here.\n\nDon't hesitate to reach out if you have further questions.",
             "Some content here.\n\nIn summary, effective caching requires careful thought.",
+            # Email closings
+            "Some content here.\n\nLet me know if you have any questions.\n\nThanks in advance,\nJay",
+            "Some content here.\n\nTalk tomorrow.\n\nKind regards,\nSarah",
+            "Some content here.\n\nTalk tomorrow.\n\nWarm regards,\nTom",
+            "Some content here.\n\nLooking forward to hearing from you.",
+            "Some content here.\n\nLet me know if you need anything else or have any thoughts.",
         ],
     )
     def test_ai_closings_score_low(self, text: str) -> None:
@@ -274,6 +285,14 @@ class TestTransitionOveruse:
             "worked but was impossible to test. So we wrote our own."
         )
         assert score_transitions(text) >= 0.8
+
+    def test_corporate_jargon_scores_low(self) -> None:
+        text = (
+            "We need to leverage our assets to synergize the workflow. "
+            "This will seamlessly integrate both platforms. Let's delve into "
+            "the specifics. This is a testament to the team's effort."
+        )
+        assert score_transitions(text) <= 0.4
 
 
 # ---------------------------------------------------------------------------

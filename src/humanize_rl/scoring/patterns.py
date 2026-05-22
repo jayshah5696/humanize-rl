@@ -38,6 +38,11 @@ OPENER_PATTERNS: list[re.Pattern[str]] = [
         r"^when working with\b",
         r"^in (?:modern|today'?s|the modern|the current) [a-z]+ (?:workflows?|systems?|environments?|practice)",
         r"^in the (?:context|world|realm) of\b",
+        # Email openers
+        r"^hope this email finds you well\b",
+        r"^hope you're having a (?:great|good|productive) (?:week|day)\b",
+        r"^i wanted to (?:reach out|circle back|follow up|connect)\b",
+        r"^just wanted to (?:follow up|circle back|check in)\b",
     ]
 ]
 
@@ -109,6 +114,12 @@ CLOSING_PATTERNS: list[re.Pattern[str]] = [
         r"in summary[,.]",
         r"happy to (?:discuss|elaborate|help|clarify) further",
         r"if you (?:need|want|have) (?:any )?(?:more|further|additional)",
+        # Email closings
+        r"\bthanks in advance\b",
+        r"\bkind regards\b",
+        r"\bwarm regards\b",
+        r"\blooking forward to (?:hearing|your reply|working together)\b",
+        r"\blet me know if you (?:have any questions|need anything else|have any thoughts)\b",
     ]
 ]
 
@@ -128,6 +139,12 @@ TRANSITION_PATTERNS: list[re.Pattern[str]] = [
         r"\bcannot be overstated\b",
         r"\bprofound impact\b",
         r"\bcritically important\b",
+        # Corporate jargon
+        r"\bleverage\b",
+        r"\bsynergiz",
+        r"\bseamlessly\b",
+        r"\bdelve into\b",
+        r"\btestament to\b",
     ]
 ]
 

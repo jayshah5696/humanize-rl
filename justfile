@@ -109,3 +109,72 @@ v03-ws-report:
 
 # Full v03 walking skeleton in one shot.
 v03-ws: v03-ws-seeds v03-ws-aiify v03-ws-aiify-select v03-ws-humanize v03-ws-humanize-select v03-ws-score v03-ws-report
+
+# ---------------------------------------------------------------------------
+# V03 1,000-seed scaleup
+# ---------------------------------------------------------------------------
+
+# Build the 8,000-seed dataset via HF streaming loaders
+seeds-scaleup:
+	uv run python -m humanize_rl.data.loaders --num-seeds 8000 --output seeds/v03/corpus_seeds.jsonl
+
+# Generate duplicated seeds for 1-to-1 AIify selection
+v03-scaleup-seeds:
+	uv run python scripts/duplicate_seeds.py \
+		--input seeds/v03/corpus_seeds.jsonl \
+		--output seeds/v03/corpus_seeds_x1.jsonl \
+		--copies 1
+
+# AIify 8,000 seeds (8,000 candidates)
+v03-corpus-aiify:
+	uv run arka --config configs/v03/01-aiify-corpus.yaml --run-id v03-corpus-aiify
+
+# AIify selection and duplication (copies 1)
+v03-corpus-aiify-select:
+	uv run python -m humanize_rl.data.selector \
+		--mode aiify \
+		--input output/v03/corpus-aiify-candidates.jsonl \
+		--output output/v03/corpus-aiify.jsonl \
+		--report runs/v03/corpus-aiify-selection.json
+	uv run python scripts/duplicate_seeds.py \
+		--input output/v03/corpus-aiify.jsonl \
+		--output output/v03/corpus-aiify-x1.jsonl \
+		--copies 1
+
+# Humanize (8,000 candidates)
+v03-corpus-humanize:
+	uv run arka --config configs/v03/02-humanize-corpus.yaml --run-id v03-corpus-humanize
+
+# Humanize selection
+v03-corpus-humanize-select:
+	uv run python -m humanize_rl.data.selector \
+		--mode humanize \
+		--input output/v03/corpus-humanize-candidates.jsonl \
+		--output output/v03/corpus-humanize.jsonl \
+		--originals seeds/v03/corpus_seeds.jsonl \
+		--aiify-selected output/v03/corpus-aiify.jsonl \
+		--report runs/v03/corpus-humanize-selection.json
+
+# Score with L1, gate, export matched corpus benchmark + SFT pairs
+v03-corpus-score:
+	uv run python -m humanize_rl.data.walking_skeleton \
+		--aiify-output output/v03/corpus-aiify.jsonl \
+		--humanize-output output/v03/corpus-humanize.jsonl \
+		--benchmark-out data/benchmark/v03_corpus_matched.jsonl \
+		--sft-out data/processed/v03_corpus_sft.jsonl \
+		--report-out runs/v03/corpus_skeleton_report.json \
+		--seeds seeds/v03/corpus_seeds.jsonl
+
+# Report generation
+v03-corpus-report:
+	uv run python -m humanize_rl.data.report_v03 \
+		--matched data/benchmark/v03_corpus_matched.jsonl \
+		--sft data/processed/v03_corpus_sft.jsonl \
+		--core-out data/benchmark/v03_corpus_core.jsonl \
+		--ood-out data/benchmark/v03_corpus_ood_ai.jsonl \
+		--diagnostics-out data/benchmark/v03_corpus_diagnostics.jsonl \
+		--report-json runs/v03/v03_corpus_report.json \
+		--report-md runs/v03/v03_corpus_report.md
+
+# E2E corpus scale-up pipeline
+v03-corpus: v03-scaleup-seeds v03-corpus-aiify v03-corpus-aiify-select v03-corpus-humanize v03-corpus-humanize-select v03-corpus-score v03-corpus-report

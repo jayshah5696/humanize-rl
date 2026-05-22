@@ -136,7 +136,10 @@ def _humanize_score_key(
     else:
         tier = 2
 
-    # Within tier, larger delta is better -> negate for "lower is better"
+    # For Tier 0, larger delta is better.
+    # For Tier 1 and 2, closeness to original is more important to limit overshoot/drift.
+    if tier in (1, 2):
+        return (tier, abs(h - original_score), -delta)
     return (tier, -delta, abs(h - original_score))
 
 

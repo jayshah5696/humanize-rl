@@ -149,3 +149,32 @@ def test_humanize_selector_avoids_overshoot_when_possible() -> None:
     candidates = [_arka_row("ANY", safe)]
     chosen = select_humanize_best(candidates, aiified_score, original_score)
     assert chosen["response"] == safe
+
+
+def test_humanize_selector_minimizes_overshoot_on_fallback() -> None:
+    """When all candidates overshoot (Tier 1 fallback), prefer the one closest to original."""
+    aiified_score = 0.10
+    original_score = 0.35
+
+    # A: score = 0.8125, delta = 0.7125 >= 0.30, overshoot = 0.4625. Lands in Tier 1.
+    candidate_a = (
+        "I spent half the day chasing this. Painful, but the locale issue "
+        "was the smoking gun. Quick fix in the end."
+    )
+    # B: score = 0.525, delta = 0.425 >= 0.30, overshoot = 0.175. Lands in Tier 1.
+    candidate_b = (
+        "When working with this, it is worth noting that the fix was small. "
+        "Furthermore, additionally I changed the workflow as well."
+    )
+
+    candidates = [
+        _arka_row("ANY", candidate_a),
+        _arka_row("ANY", candidate_b),
+    ]
+
+    # Both overshoot original_score + 0.05 (0.35 + 0.05 = 0.40) and have delta >= 0.30.
+    # Therefore, both land in Tier 1.
+    # We expect candidate_b to be selected because its score (0.525) is closer to the
+    # original_score (0.35) than candidate_a's score (0.8125).
+    chosen = select_humanize_best(candidates, aiified_score, original_score)
+    assert chosen["response"] == candidate_b

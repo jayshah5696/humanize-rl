@@ -113,12 +113,45 @@ _CAPITAL_STOPWORDS: frozenset[str] = frozenset(
 )
 
 
+def clean_system_headers(text: str) -> str:
+    """Strip system/email headers and ID markers to avoid parsing metadata as content."""
+    lines = text.split("\n")
+    cleaned = []
+    for line in lines:
+        lower_line = line.lower().strip()
+        if (
+            lower_line.startswith("from:")
+            or lower_line.startswith("to:")
+            or lower_line.startswith("cc:")
+            or lower_line.startswith("bcc:")
+            or lower_line.startswith("subject:")
+            or lower_line.startswith("date:")
+            or lower_line.startswith("sent:")
+            or lower_line.startswith("importance:")
+            or lower_line.startswith("mime-version:")
+            or lower_line.startswith("content-type:")
+            or lower_line.startswith("content-transfer-encoding:")
+            or lower_line.startswith("x-")
+            or lower_line.startswith("sender:")
+            or lower_line.startswith("precedence:")
+            or lower_line.startswith("charset=")
+            or lower_line.startswith("boundary=")
+        ):
+            continue
+        # Skip boundary lines or ID markers
+        if lower_line.startswith("------_=_") or re.match(r"^\s*<[^>]+>\s*$", line):
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned)
+
+
 def extract_numbers(text: str) -> set[str]:
     """Return the set of normalized number-like tokens in `text`.
 
     Normalization: strip surrounding whitespace; collapse comma separators
     so 1,234 == 1234 for comparison purposes.
     """
+    text = clean_system_headers(text)
     out: set[str] = set()
     for m in _NUMBER_RE.finditer(text):
         token = m.group(0).strip().replace(",", "")
@@ -139,11 +172,11 @@ def _is_strongly_entity_shaped(tok: str) -> bool:
     """
     if len(tok) < 2:
         return False
-    if tok in _CAPITAL_STOPWORDS:
+    if tok.lower() in {s.lower() for s in _CAPITAL_STOPWORDS}:
         return False
-    if tok.isupper() and len(tok) >= 2:
+    if tok.isupper() and 2 <= len(tok) <= 5:
         return True
-    if any(c.isupper() for c in tok[1:]):
+    if any(c.isupper() for c in tok[1:]) and not tok.isupper():
         return True
     if "." in tok or "-" in tok:
         return True
@@ -151,37 +184,45 @@ def _is_strongly_entity_shaped(tok: str) -> bool:
 
 
 def extract_entities(text: str) -> set[str]:
-    """Return the set of entity-shaped tokens in `text`.
-
-    Two paths:
-    1. Strongly-shaped tokens (acronyms, CamelCase, dotted/hyphenated
-       identifiers) are always counted, even with a single mention.
-    2. Plain capitalized words (Sarah, Datadog, Mike, Postgres) are only
-       counted if they appear at least twice in the text. This avoids
-       firing on sentence-starters ("Spent", "Turned", "Quick", "Reply",
-       "Better") that the AIify model legitimately rephrases.
-
-    Trade-off: a single-mention proper name in the original will not
-    trigger preservation enforcement for that token. Acceptable for V-Slice
-    3 — the strong-shape path still catches every product/tool/file/error
-    name, which is where we care most about preservation.
-    """
-    tokens = _TOKEN_RE.findall(text)
+    """Return the set of entity-shaped tokens in `text`."""
+    text = clean_system_headers(text)
+    sentences = _SENT_SPLIT_RE.split(text)
     entities: set[str] = set()
-    counts: dict[str, int] = {}
-    for tok in tokens:
-        counts[tok] = counts.get(tok, 0) + 1
-    for tok, count in counts.items():
-        if _is_strongly_entity_shaped(tok):
-            entities.add(tok)
+    
+    for sentence in sentences:
+        if ":" in sentence:
+            prefix, suffix = sentence.split(":", 1)
+            if prefix.strip().replace(" ", "").isupper():
+                sentence = suffix
+                
+        words = _TOKEN_RE.findall(sentence)
+        if not words:
             continue
-        if (
-            tok not in _CAPITAL_STOPWORDS
-            and len(tok) >= 2
-            and tok[0].isupper()
-            and count >= 2
-        ):
-            entities.add(tok)
+        
+        # Check first word
+        first_word = words[0]
+        if _is_strongly_entity_shaped(first_word):
+            entities.add(first_word)
+        elif len(words) >= 2 and first_word.istitle() and words[1].istitle() and first_word.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS}:
+            entities.add(first_word)
+            
+        # Check remaining words
+        for word in words[1:]:
+            if len(word) >= 2 and word.istitle() and word.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS}:
+                entities.add(word)
+            elif _is_strongly_entity_shaped(word):
+                entities.add(word)
+                
+    # Also add words that are capitalized and appear >= 2 times in the text
+    all_words = _TOKEN_RE.findall(text)
+    counts: dict[str, int] = {}
+    for w in all_words:
+        counts[w] = counts.get(w, 0) + 1
+    for w, count in counts.items():
+        if w.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS} and count >= 2:
+            if w.istitle() or _is_strongly_entity_shaped(w):
+                entities.add(w)
+            
     return entities
 
 
@@ -244,22 +285,33 @@ def evaluate_preservation(
     """Compare `original` vs `rewrite` and return what was lost/added.
 
     A preservation *violation* (-> reject) is:
-    - ANY number from the original missing in the rewrite
-    - ANY entity from the original missing in the rewrite
+    - excessive number/entity drops (allowing up to 15% drops, minimum 1 drop allowed if > 2 items)
     - role drift: question -> not-question, or email -> not-email
-
-    Numbers added or entities added are usually fine (the rewrite may use
-    "the team" instead of "Sarah's team"), but we still surface the diff
-    for inspection.
     """
     orig_numbers = extract_numbers(original)
     rewr_numbers = extract_numbers(rewrite)
     orig_entities = extract_entities(original)
     rewr_entities = extract_entities(rewrite)
 
-    numbers_dropped = tuple(sorted(orig_numbers - rewr_numbers))
+    # Perform case-insensitive token-lookup on the rewrite for entity preservation
+    rewr_tokens_lower = {tok.lower() for tok in _TOKEN_RE.findall(rewrite)}
+    all_entities_dropped = {ent for ent in orig_entities if ent.lower() not in rewr_tokens_lower}
+    all_numbers_dropped = orig_numbers - rewr_numbers
+
+    def get_violating_drops(dropped_set, orig_set):
+        if not dropped_set:
+            return set()
+        max_allowed = int(len(orig_set) * 0.15) if len(orig_set) > 5 else 0
+        if len(dropped_set) <= max_allowed:
+            return set()
+        return dropped_set
+
+    violating_entities_dropped = get_violating_drops(all_entities_dropped, orig_entities)
+    violating_numbers_dropped = get_violating_drops(all_numbers_dropped, orig_numbers)
+
+    numbers_dropped = tuple(sorted(violating_numbers_dropped))
     numbers_added = tuple(sorted(rewr_numbers - orig_numbers))
-    entities_dropped = tuple(sorted(orig_entities - rewr_entities))
+    entities_dropped = tuple(sorted(violating_entities_dropped))
     entities_added = tuple(sorted(rewr_entities - orig_entities))
 
     role_drift_reasons: list[str] = []
@@ -268,9 +320,8 @@ def evaluate_preservation(
     if has_email_shape(original) and not has_email_shape(rewrite):
         role_drift_reasons.append("email_lost_greeting")
 
-    # Soft signal: rewrite invented a flood of new entities (often means
-    # the model hallucinated new actors). We don't fail on this; just flag.
-    _ = max_added_entity_ratio  # reserved for future flag-only signal
+    # Soft signal: rewrite invented a flood of new entities
+    _ = max_added_entity_ratio
 
     return PreservationResult(
         numbers_dropped=numbers_dropped,

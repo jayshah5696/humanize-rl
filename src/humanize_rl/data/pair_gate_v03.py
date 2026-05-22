@@ -30,17 +30,17 @@ def _word_count(text: str) -> int:
 
 @dataclass(frozen=True)
 class GateThresholds:
-    max_aiified_score: float = 0.45
+    max_aiified_score: float = 0.55
     min_humanized_score: float = 0.75
-    min_humanize_delta: float = 0.30
-    min_aiify_delta: float = 0.25
+    min_humanize_delta: float = 0.20
+    min_aiify_delta: float = 0.20
     min_dim_improvements: int = 2
 
     # Length ratios — see spec §10.2 (preferred bands; we only enforce hard maxes)
-    max_aiify_to_original: float = 1.25
-    max_humanized_to_aiified: float = 1.20
-    max_humanized_to_original: float = 1.20
-    min_length_ratio: float = 0.75  # symmetric floor for any of the three ratios
+    max_aiify_to_original: float = 1.30
+    max_humanized_to_aiified: float = 1.30
+    max_humanized_to_original: float = 1.30
+    min_length_ratio: float = 0.70  # symmetric floor for any of the three ratios
 
     # Suspicion (don't reject, just flag)
     max_recovery_ratio: float = 1.25

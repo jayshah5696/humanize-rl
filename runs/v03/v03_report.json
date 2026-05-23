@@ -1,17 +1,17 @@
 {
   "n_core": 60,
   "n_ood_ai": 75,
-  "n_diagnostics": 48,
+  "n_diagnostics": 39,
   "core": {
     "per_class_mean": {
       "human": 0.808125,
-      "ai": 0.528125,
-      "humanized": 0.871875
+      "ai": 0.521875,
+      "humanized": 0.865625
     },
     "auroc": {
       "human_vs_ai": 1.0,
       "humanized_vs_ai": 1.0,
-      "human_vs_humanized": 0.20625
+      "human_vs_humanized": 0.23625
     },
     "per_domain": {
       "instruction_technical": {
@@ -21,15 +21,15 @@
       },
       "email": {
         "human": 0.81125,
-        "ai": 0.6074999999999999,
-        "humanized": 0.9225
+        "ai": 0.595,
+        "humanized": 0.91
       }
     },
     "per_length_band": {
       "short": {
         "human": 0.808125,
-        "ai": 0.53359375,
-        "humanized": 0.871875
+        "ai": 0.52578125,
+        "humanized": 0.865625
       },
       "medium": {
         "ai": 0.50625
@@ -47,7 +47,7 @@
         "transition_overuse": 0.9
       },
       "ai": {
-        "opener_pattern": 0.5,
+        "opener_pattern": 0.45,
         "hedging_density": 0.12000000000000001,
         "list_overuse": 1.0,
         "sentence_variance": 0.45,
@@ -57,7 +57,7 @@
         "transition_overuse": 0.13
       },
       "humanized": {
-        "opener_pattern": 1.0,
+        "opener_pattern": 0.95,
         "hedging_density": 1.0,
         "list_overuse": 1.0,
         "sentence_variance": 0.65,
@@ -75,48 +75,6 @@
     "frac_below_0.7": 1.0
   },
   "manual_review_queue": [
-    {
-      "id": "triple_000_human",
-      "triple_id": "triple_000",
-      "label": "human",
-      "domain": "instruction_technical",
-      "score": 0.8125
-    },
-    {
-      "id": "triple_000_ai",
-      "triple_id": "triple_000",
-      "label": "ai",
-      "domain": "instruction_technical",
-      "score": 0.5375
-    },
-    {
-      "id": "triple_000_humanized",
-      "triple_id": "triple_000",
-      "label": "humanized",
-      "domain": "instruction_technical",
-      "score": 0.8125
-    },
-    {
-      "id": "triple_002_human",
-      "triple_id": "triple_002",
-      "label": "human",
-      "domain": "instruction_technical",
-      "score": 0.8125
-    },
-    {
-      "id": "triple_002_ai",
-      "triple_id": "triple_002",
-      "label": "ai",
-      "domain": "instruction_technical",
-      "score": 0.475
-    },
-    {
-      "id": "triple_002_humanized",
-      "triple_id": "triple_002",
-      "label": "humanized",
-      "domain": "instruction_technical",
-      "score": 0.8125
-    },
     {
       "id": "triple_003_human",
       "triple_id": "triple_003",
@@ -144,6 +102,48 @@
       "label": "human",
       "domain": "instruction_technical",
       "score": 0.775
+    },
+    {
+      "id": "triple_004_ai",
+      "triple_id": "triple_004",
+      "label": "ai",
+      "domain": "instruction_technical",
+      "score": 0.4
+    },
+    {
+      "id": "triple_004_humanized",
+      "triple_id": "triple_004",
+      "label": "humanized",
+      "domain": "instruction_technical",
+      "score": 0.725
+    },
+    {
+      "id": "triple_007_human",
+      "triple_id": "triple_007",
+      "label": "human",
+      "domain": "instruction_technical",
+      "score": 0.7375
+    },
+    {
+      "id": "triple_007_ai",
+      "triple_id": "triple_007",
+      "label": "ai",
+      "domain": "instruction_technical",
+      "score": 0.45
+    },
+    {
+      "id": "triple_007_humanized",
+      "triple_id": "triple_007",
+      "label": "humanized",
+      "domain": "instruction_technical",
+      "score": 0.8375
+    },
+    {
+      "id": "triple_010_human",
+      "triple_id": "triple_010",
+      "label": "human",
+      "domain": "email",
+      "score": 0.8
     }
   ]
 }

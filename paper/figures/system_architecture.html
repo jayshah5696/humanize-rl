@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Humanize-RL Pipeline & Architecture Explainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030712;
+      --bg-gradient: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #030712 60%);
+      --surface: #0f172a;
+      --surface-elevated: #1e293b;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f3f4f6;
+      --text-dim: #9ca3af;
+      
+      /* Neon Accents */
+      --cyan: #22d3ee;
+      --cyan-glow: rgba(34, 211, 238, 0.15);
+      --emerald: #34d399;
+      --emerald-glow: rgba(52, 211, 153, 0.15);
+      --violet: #a78bfa;
+      --violet-glow: rgba(167, 139, 250, 0.15);
+      --amber: #fbbf24;
+      --amber-glow: rgba(251, 191, 36, 0.15);
+      --rose: #fb7185;
+      --rose-glow: rgba(251, 113, 133, 0.15);
+      --orange: #fb923c;
+      --orange-glow: rgba(251, 146, 60, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(167, 139, 250, 0.05) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(34, 211, 238, 0.05) 0%, transparent 45%),
+        linear-gradient(rgba(255, 255, 255, 0.005) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.005) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      padding: 3rem 2rem;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 4rem;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      display: block;
+      width: 100px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+      margin: 1.5rem auto 0;
+      border-radius: 2px;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 40%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      font-weight: 300;
+    }
+
+    /* Core Flow Layout */
+    .flow-section {
+      margin-bottom: 4rem;
+    }
+
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      letter-spacing: -0.01em;
+    }
+
+    .section-title span {
+      background: var(--bg-gradient);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--violet);
+      font-family: 'Fira Code', monospace;
+    }
+
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: 1fr 40px 1.2fr 40px 1.2fr;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    @media (max-width: 1100px) {
+      .pipeline-grid {
+        grid-template-columns: 1fr;
+      }
+      .flow-arrow {
+        transform: rotate(90deg);
+        margin: 1rem auto;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent, var(--violet));
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 30px -10px var(--accent-glow);
+    }
+
+    .card-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .card-badge {
+      display: inline-block;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      color: var(--accent);
+      background-color: var(--accent-glow);
+      margin-bottom: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .card-title {
+      font-size: 1.35rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-body {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      flex-grow: 1;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .card-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .card-list li::before {
+      content: '⚡';
+      color: var(--accent);
+      font-size: 0.8rem;
+    }
+
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .flow-arrow svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--text-dim);
+    }
+
+    /* Sub-systems details grid */
+    .gating-details-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    @media (max-width: 900px) {
+      .gating-details-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.2rem;
+      position: relative;
+    }
+
+    .panel-header {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+    }
+
+    .panel-header svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* Layer 1 List items style */
+    .heuristics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      .heuristics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .heuristic-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .heuristic-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--violet);
+      box-shadow: 0 4px 20px rgba(167, 139, 250, 0.05);
+    }
+
+    .heuristic-name {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .heuristic-type {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      color: var(--violet);
+      margin-bottom: 0.5rem;
+    }
+
+    .heuristic-desc {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    /* Semantic Gating item design */
+    .preservation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .preservation-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      background: linear-gradient(90deg, rgba(34, 211, 238, 0.02) 0%, transparent 100%);
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      transition: border-color 0.2s ease;
+    }
+
+    .preservation-card:hover {
+      border-color: var(--cyan);
+    }
+
+    .pres-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background-color: var(--cyan-glow);
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .pres-info h4 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .pres-info p {
+      color: var(--text-dim);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    /* Results Dashboard Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr;
+      gap: 1.5rem;
+      margin-top: 3rem;
+    }
+
+    @media (max-width: 1000px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .db-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .db-card h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .stat-label {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+    }
+
+    .stat-val {
+      font-family: 'Fira Code', monospace;
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    .stat-val.highlight {
+      color: var(--emerald);
+      background-color: var(--emerald-glow);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .progress-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+    }
+
+    /* Radar/Plot visual links */
+    .fig-showcase {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .fig-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .fig-link:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--amber);
+      transform: translateX(4px);
+    }
+
+    .fig-label {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .fig-icon {
+      color: var(--amber);
+      font-size: 1.2rem;
+    }
+
+    .fig-meta {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-family: 'Fira Code', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Humanize-RL</h1>
+      <p class="subtitle">System Architecture & Gating Verification Pipeline</p>
+    </header>
+
+    <!-- Pipeline Section -->
+    <div class="flow-section">
+      <h2 class="section-title">Transformation Workflow <span>STAGE_RUNNER</span></h2>
+      <div class="pipeline-grid">
+        <!-- Card 1 -->
+        <div class="card" style="--accent: var(--violet); --accent-glow: var(--violet-glow);">
+          <div class="card-header">
+            <span class="card-badge">INPUT</span>
+            <h3 class="card-title">1. Human Seeds</h3>
+          </div>
+          <div class="card-body">
+            Raw human seed prompts (8,000 samples) streamed dynamically across 5 domains (Academic, Blog, Creative, Email, Instruction).
+          </div>
+          <ul class="card-list">
+            <li>Original text distribution</li>
+            <li>No AI writes/tells</li>
+            <li>Diverse instruction tasks</li>
+          </ul>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flow-arrow">
+          <svg viewBox="0 0 24 24"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-8.29-1.42 1.42L16.86 11H5v2z"/></svg>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="card" style="--accent: var(--orange); --accent-glow: var(--orange-glow);">
+          <div class="card-header">
+            <span class="card-badge">DISTORTION</span>
+            <h3 class="card-title">2. AIify Stage</h3>
+          </div>
+          <div class="card-body">
+            Model: <code style="font-family:'Fira Code'">gemini-3.1-flash-lite</code>. Prompts are distorted to inject distinct AI fingerprints (sycophancy, list overuses, structural symmetries).
+          </div>
+          <ul class="card-list">
+            <li>Baseline AIified text</li>
+            <li>Establishes lower anchor</li>
+            <li>Generates 6,897 candidates</li>
+          </ul>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flow-arrow">
+          <svg viewBox="0 0 24 24"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-8.29-1.42 1.42L16.86 11H5v2z"/></svg>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="card" style="--accent: var(--cyan); --accent-glow: var(--cyan-glow);">
+          <div class="card-header">
+            <span class="card-badge">ALIGNMENT</span>
+            <h3 class="card-title">3. Humanize Stage</h3>
+          </div>
+          <div class="card-body">
+            Model: <code style="font-family:'Fira Code'">gemini-3-flash</code>. Paraphrases the AIified inputs to completely strip synthetic markers while matching the tone register.
+          </div>
+          <ul class="card-list">
+            <li>Refinement rewrite</li>
+            <li>Enforces facts preservation</li>
+            <li>Inputs to Gating Stage</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gating System Section -->
+    <div class="flow-section">
+      <h2 class="section-title">Multi-Layer Filtering Gate <span>VERIFIER_GATE</span></h2>
+      <div class="gating-details-grid">
+        <!-- Panel 1 (Layer 1 Heuristics) -->
+        <div class="panel">
+          <div class="panel-header" style="color: var(--violet)">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/></svg>
+            Layer 1 Stylometric Gate (Deterministic)
+          </div>
+          <div class="heuristics-grid">
+            <div class="heuristic-item">
+              <div class="heuristic-name">Sentence Variance</div>
+              <div class="heuristic-type">S_variance</div>
+              <div class="heuristic-desc">Checks coefficient of sentence length variation. Rejects flat pacing.</div>
+            </div>
+            <div class="heuristic-item">
+              <div class="heuristic-name">List Overuse</div>
+              <div class="heuristic-type">S_list</div>
+              <div class="heuristic-desc">Measures bullet ratio. Rejects markdown list structures.</div>
+            </div>
+            <div class="heuristic-item">
+              <div class="heuristic-name">Hedging Density</div>
+              <div class="heuristic-type">S_hedge</div>
+              <div class="heuristic-desc">Scans for defensive phrases (e.g., "worth noting").</div>
+            </div>
+            <div class="heuristic-item">
+              <div class="heuristic-name">Opener Pattern</div>
+              <div class="heuristic-type">S_opener</div>
+              <div class="heuristic-desc">Filters conversational chatbot greetings ("Certainly!").</div>
+            </div>
+            <div class="heuristic-item">
+              <div class="heuristic-name">Contraction Rate</div>
+              <div class="heuristic-type">S_contract</div>
+              <div class="heuristic-desc">Monitors presence of contractions in informal text.</div>
+            </div>
+            <div class="heuristic-item">
+              <div class="heuristic-name">Closing Pattern</div>
+              <div class="heuristic-type">S_closer</div>
+              <div class="heuristic-desc">Rejects conversational disclaimers ("I hope this helps").</div>
+            </div>
+            <div class="heuristic-item">
+              <div class="heuristic-name">Em-Dash Density</div>
+              <div class="heuristic-type">S_dash</div>
+              <div class="heuristic-desc">Identifies synthetic cadence via overuse of dashes.</div>
+            </div>
+            <div class="heuristic-item">
+              <div class="heuristic-name">Transition Overuse</div>
+              <div class="heuristic-type">S_transition</div>
+              <div class="heuristic-desc">Scans for formal transitional padding ("Moreover").</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2 (Semantic Gate) -->
+        <div class="panel">
+          <div class="panel-header" style="color: var(--cyan)">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            Semantic Preservation Gate
+          </div>
+          <div class="preservation-list">
+            <div class="preservation-card">
+              <div class="pres-badge">CI</div>
+              <div class="pres-info">
+                <h4>Case-Insensitive Entity Matching</h4>
+                <p>Extracts sequence proper nouns from seed text and verifies complete presence in rewrite, ignoring capitalization changes (e.g. "github" vs "GitHub").</p>
+              </div>
+            </div>
+            <div class="preservation-card">
+              <div class="pres-badge">PN</div>
+              <div class="pres-info">
+                <h4>Proportional Number Gating</h4>
+                <p>Enforces strict 100% number matches for short texts (&le;5 numbers). Allows up to 15% drop rate tolerance for long technical tables to avoid false rejects.</p>
+              </div>
+            </div>
+            <div class="preservation-card">
+              <div class="pres-badge">ES</div>
+              <div class="pres-info">
+                <h4>Email System Header Stripping</h4>
+                <p>Filters out metadata headings (e.g., "From:", "Subject:") prior to running entity verification to prevent false format mismatch flags.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="flow-section">
+      <h2 class="section-title">Empirical Results <span>PIPELINE_METRICS</span></h2>
+      <div class="dashboard-grid">
+        <!-- Yield Card -->
+        <div class="db-card">
+          <h3>Dataset Yield & Throughput</h3>
+          <div class="stat-row">
+            <span class="stat-label">Total Seeds Processed</span>
+            <span class="stat-val">8,000</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Generated Triples</span>
+            <span class="stat-val">6,897</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Accepted SFT Pairs</span>
+            <span class="stat-val highlight">1,045</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Yield Rate</span>
+            <span class="stat-val" style="color: var(--cyan)">15.2%</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width: 15.2%"></div>
+          </div>
+        </div>
+
+        <!-- Score Card -->
+        <div class="db-card">
+          <h3>Stylometric Distinguishability</h3>
+          <div class="stat-row">
+            <span class="stat-label">Human vs. AI (AUROC)</span>
+            <span class="stat-val" style="color: var(--rose)">0.992</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Humanized vs. AI (AUROC)</span>
+            <span class="stat-val" style="color: var(--orange)">0.994</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Human vs. Humanized (AUROC)</span>
+            <span class="stat-val" style="color: var(--emerald)">0.398</span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 1rem; line-height: 1.4;">
+            * An AUROC of 0.398 demonstrates that the humanized rewrites are statistically indistinguishable from human seeds.
+          </p>
+        </div>
+
+        <!-- Figures Card -->
+        <div class="db-card">
+          <h3>Generated Plots (PNG / PDF)</h3>
+          <div class="fig-showcase">
+            <a href="score_distributions.png" target="_blank" class="fig-link">
+              <span class="fig-label"><span class="fig-icon">📊</span> Score Distributions</span>
+              <span class="fig-meta">fig_1.png</span>
+            </a>
+            <a href="rejection_reasons.png" target="_blank" class="fig-link">
+              <span class="fig-label"><span class="fig-icon">📉</span> Failure Analysis</span>
+              <span class="fig-meta">fig_2.png</span>
+            </a>
+            <a href="stylometric_radar.png" target="_blank" class="fig-link">
+              <span class="fig-label"><span class="fig-icon">🕸️</span> Spider Radar</span>
+              <span class="fig-meta">fig_3.png</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

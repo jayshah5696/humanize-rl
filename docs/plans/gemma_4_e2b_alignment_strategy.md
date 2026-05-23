@@ -196,3 +196,59 @@ To preserve all high-quality data engineered during prior project iterations, we
 ### 9.3 Diagnostic Benchmark Split
 *   **The Data:** Curated human seeds in [human_seeds_v01.jsonl](file:///Users/jshah/Documents/GitHub/humanize-rl/seeds/human_seeds_v01.jsonl).
 *   **The Integration:** Kept as a core part of the `v03_diagnostics` split (or diagnostic pool) in [report_v03.py](file:///Users/jshah/Documents/GitHub/humanize-rl/src/humanize_rl/data/report_v03.py) to stress-test the model against human-written prose containing challenging natural features (like contractions or em-dashes).
+
+---
+
+## 10. Execution Workflow & Parallelization Chart
+
+To accelerate delivery, the implementation is divided into two parallelizable tracks (Scorer Calibration and SFT Data Preparation) that merge prior to SFT Model Training, with a final pipeline run leading to Reinforcement Learning and deployment:
+
+```mermaid
+flowchart TD
+    subgraph Track A: Scorer Calibration [Parallel to Track B]
+        A1["Prepare Scorer Calibration Data (gsingh1-py / scored_combined_v01)"] --> A2["Train Distilled Classifier Candidates (Ridge, FastText, Nomic, Gemma-300M)"]
+        A2 --> A3["Evaluate Latency (<15ms) & Performance (MSE, AUROC)"]
+        A3 --> A4["Select & Save Layer 2 Scorer Checkpoint"]
+    end
+
+    subgraph Track B: SFT Data Preparation [Parallel to Track A]
+        B1["Ingest LMSYS Chat / Alpaca Prompts"] --> B2["Apply SOTA Quality & Dependency Filters"]
+        B2 --> B3["Mix in Legacy SFT Gold Pairs (sft_pairs_v01)"]
+        B3 --> B4["Finalize Direct SFT Dataset"]
+    end
+
+    B4 --> C1["Train SFT Model via Unsloth (gemma-4-e2b-it, bf16 LoRA)"]
+    
+    A4 & C1 --> D1["Construct RL Environment & Verifier Wrapper (Prime Intellect compatible)"]
+    
+    D1 --> D2["Run GRPO/DAPO RL Post-Training"]
+    D2 --> D3["Stress-Test v03 Diagnostics Benchmarks"]
+    
+    D3 --> E1["Publish Artifacts (Hugging Face Hub, OpenEnv & Prime Intellect Verifiers)"]
+```
+
+---
+
+## 11. Publishing & Model Release Lifecycle (Hugging Face, OpenEnv, Prime Intellect)
+
+To support open science, collaboration, and external verification, we will publish the full stack of training outputs to public repositories:
+
+### 11.1 Hugging Face Hub Releases
+We will publish the following repositories under the project's namespace:
+
+1.  **Model Repositories:**
+    *   `humanize-rl-l2-stylistic-scorer`: The final selected and calibrated distilled Layer 2 classifier candidate (e.g., `EmbeddingGemma 300M` model with custom heads).
+    *   `gemma-4-e2b-it-direct-sft`: The base Supervised Fine-Tuned policy model checkpoint.
+    *   `gemma-4-e2b-it-humanized`: The final post-RL instruction-following model aligned for direct generative humanness.
+2.  **Dataset Repositories:**
+    *   `humanize-rl-sft-dataset`: The exact training split containing the filtered prompt-response mix (LMSYS/Alpaca filtered data + legacy gold pairs).
+    *   `humanize-rl-scorer-calibration-set`: The raw and Gemini-labeled text calibration rows used to train and calibrate the surrogate scorer.
+
+### 11.2 Prime Intellect Verifiers & OpenEnv Integration
+To validate the reinforcement learning phase on decentralized infrastructure:
+
+1.  **Reward Verifier Container:**
+    *   We will package our scoring engine (distilled Layer 2 surrogate model + Layer 1 stylistic metrics + entity/number preservation logic) into an execution-safe verifier script.
+    *   This verifier is registered to **Prime Intellect Verifiers** and **OpenEnv**, allowing nodes/workers to score policy generations deterministically in a distributed fashion.
+2.  **RL Environment Spec:**
+    *   We will publish the environment wrapper config specifying the exact reward weights, target metrics, and KL regularization scale parameters so that our RL runs are 100% reproducible on any decentralized training cluster.

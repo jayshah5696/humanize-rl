@@ -305,6 +305,71 @@ def stream_creative(target_count: int) -> Generator[Seed, None, None]:
                 break
 
 
+def stream_email_customer(target_count: int) -> Generator[Seed, None, None]:
+    print("Streaming customer email seeds from rtweera/customer_care_emails...")
+    dataset = load_dataset(
+        "rtweera/customer_care_emails", split="train", streaming=True
+    )
+    count = 0
+    roles: list[DiscourseRole] = ["request", "troubleshooting", "decision_rationale"]
+
+    for row in dataset:
+        body = clean_email(row.get("message_body", ""))
+        wc = get_word_count(body)
+        if 50 <= wc <= 200:
+            anchors = get_anchor_count(body)
+            if anchors >= 2:
+                role = roles[count % len(roles)]
+                seed_id = f"v03_scale_email_cust_{count:03d}"
+                yield Seed(
+                    id=seed_id,
+                    text=body,
+                    domain="email",
+                    discourse_role=role,
+                    source_dataset="customer_care_emails",
+                    length_band=get_length_band(wc),
+                    word_count=wc,
+                    anchors_count=anchors,
+                    instruction="Write a customer support email addressing an issue.",
+                )
+                count += 1
+                if count >= target_count:
+                    break
+
+
+def stream_creative_tiny(target_count: int) -> Generator[Seed, None, None]:
+    print("Streaming creative seeds from roneneldan/TinyStories...")
+    dataset = load_dataset("roneneldan/TinyStories", split="train", streaming=True)
+    count = 0
+    roles: list[DiscourseRole] = ["scene", "narrative_reflection", "anecdote"]
+
+    for row in dataset:
+        story = clean_creative(row.get("text", ""))
+        if not story:
+            continue
+
+        wc = get_word_count(story)
+        if 40 <= wc <= 300:
+            anchors = get_anchor_count(story)
+            if anchors >= 0:
+                role = roles[count % len(roles)]
+                seed_id = f"v03_scale_creative_tiny_{count:03d}"
+                yield Seed(
+                    id=seed_id,
+                    text=story,
+                    domain="creative",
+                    discourse_role=role,
+                    source_dataset="TinyStories",
+                    length_band=get_length_band(wc),
+                    word_count=wc,
+                    anchors_count=anchors,
+                    instruction="Write a short narrative story about a specific situation and its outcome.",
+                )
+                count += 1
+                if count >= target_count:
+                    break
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Scale up corpus seeds via HF streaming."

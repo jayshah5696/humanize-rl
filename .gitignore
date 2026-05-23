@@ -36,6 +36,12 @@ data/benchmark/v03_walking_skeleton.jsonl
 seeds/v03/*_x2.jsonl
 seeds/v03/walking_skeleton_x?.jsonl
 
+# Generated corpus/expansion datasets and seeds
+data/benchmark/*_matched.jsonl
+data/benchmark/v03_corpus_*.jsonl
+seeds/v03/corpus_seeds*.jsonl
+seeds/v03/expansion_seeds*.jsonl
+
 # Run dirs are ignored by default. Git negation requires un-ignoring each
 # parent before the leaf, hence the four rules below: runs is wholly
 # ignored except for the canonical v03 reports.
@@ -63,3 +69,4 @@ Thumbs.db
 *.swp
 *.swo
 *~
+*.pdf

@@ -249,8 +249,11 @@ def main() -> None:
                     {
                         "id": s.id,
                         "domain": triple_domains.get(s.id, "unknown"),
-                        "input": s.aiified_text,
+                        "instruction": s.instruction,
+                        "input": "",
                         "output": s.humanized_text,
+                        "human_reference": s.original_text,
+                        "aiified_text": s.aiified_text,
                         "humanize_delta": round(g.metrics["humanize_delta"], 4),
                         "aiify_delta": round(g.metrics["aiify_delta"], 4),
                         "suspicion_flags": list(g.suspicion_flags),

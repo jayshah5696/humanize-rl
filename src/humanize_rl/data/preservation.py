@@ -188,31 +188,40 @@ def extract_entities(text: str) -> set[str]:
     text = clean_system_headers(text)
     sentences = _SENT_SPLIT_RE.split(text)
     entities: set[str] = set()
-    
+
     for sentence in sentences:
         if ":" in sentence:
             prefix, suffix = sentence.split(":", 1)
             if prefix.strip().replace(" ", "").isupper():
                 sentence = suffix
-                
+
         words = _TOKEN_RE.findall(sentence)
         if not words:
             continue
-        
+
         # Check first word
         first_word = words[0]
         if _is_strongly_entity_shaped(first_word):
             entities.add(first_word)
-        elif len(words) >= 2 and first_word.istitle() and words[1].istitle() and first_word.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS}:
+        elif (
+            len(words) >= 2
+            and first_word.istitle()
+            and words[1].istitle()
+            and first_word.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS}
+        ):
             entities.add(first_word)
-            
+
         # Check remaining words
         for word in words[1:]:
-            if len(word) >= 2 and word.istitle() and word.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS}:
+            if (
+                len(word) >= 2
+                and word.istitle()
+                and word.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS}
+            ):
                 entities.add(word)
             elif _is_strongly_entity_shaped(word):
                 entities.add(word)
-                
+
     # Also add words that are capitalized and appear >= 2 times in the text
     all_words = _TOKEN_RE.findall(text)
     counts: dict[str, int] = {}
@@ -222,7 +231,7 @@ def extract_entities(text: str) -> set[str]:
         if w.lower() not in {s.lower() for s in _CAPITAL_STOPWORDS} and count >= 2:
             if w.istitle() or _is_strongly_entity_shaped(w):
                 entities.add(w)
-            
+
     return entities
 
 
@@ -295,7 +304,9 @@ def evaluate_preservation(
 
     # Perform case-insensitive token-lookup on the rewrite for entity preservation
     rewr_tokens_lower = {tok.lower() for tok in _TOKEN_RE.findall(rewrite)}
-    all_entities_dropped = {ent for ent in orig_entities if ent.lower() not in rewr_tokens_lower}
+    all_entities_dropped = {
+        ent for ent in orig_entities if ent.lower() not in rewr_tokens_lower
+    }
     all_numbers_dropped = orig_numbers - rewr_numbers
 
     def get_violating_drops(dropped_set, orig_set):
@@ -306,7 +317,9 @@ def evaluate_preservation(
             return set()
         return dropped_set
 
-    violating_entities_dropped = get_violating_drops(all_entities_dropped, orig_entities)
+    violating_entities_dropped = get_violating_drops(
+        all_entities_dropped, orig_entities
+    )
     violating_numbers_dropped = get_violating_drops(all_numbers_dropped, orig_numbers)
 
     numbers_dropped = tuple(sorted(violating_numbers_dropped))

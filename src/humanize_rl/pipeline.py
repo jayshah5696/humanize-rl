@@ -215,7 +215,7 @@ def export_sft_pairs(
     output_path: Path,
     min_delta: float = 0.15,
 ) -> int:
-    """Export SFT-ready pairs: (AIified input, humanized output).
+    """Export SFT-ready pairs: (instruction, humanized output) for direct alignment.
 
     Only pairs where humanization improved the score by min_delta.
     Returns count of exported pairs.
@@ -226,16 +226,13 @@ def export_sft_pairs(
             if triple.humanize_delta < min_delta:
                 continue
             record = {
-                "instruction": (
-                    "Rewrite the following text to sound natural and "
-                    "human-written. Remove AI writing patterns while "
-                    "preserving the meaning."
-                ),
-                "input": triple.aiified_text,
+                "instruction": triple.instruction,
+                "input": "",
                 "output": triple.humanized_text,
                 "metadata": {
                     "id": triple.id,
-                    "original_instruction": triple.instruction,
+                    "human_reference": triple.original_text,
+                    "aiified_text": triple.aiified_text,
                     "aiified_score": round(triple.aiified_score.overall, 4),
                     "humanized_score": round(triple.humanized_score.overall, 4),
                     "delta": round(triple.humanize_delta, 4),

@@ -175,9 +175,11 @@ def test_export_sft_pairs_filters_by_delta_and_returns_count(
     lines = output_path.read_text().strip().splitlines()
     assert len(lines) == 1
     record = json.loads(lines[0])
-    assert record["input"] == "AI draft"
+    assert record["instruction"] == "original instruction"
+    assert record["input"] == ""
     assert record["output"] == "Human rewrite"
     assert record["metadata"]["id"] == "keep-me"
-    assert record["metadata"]["original_instruction"] == "original instruction"
+    assert record["metadata"]["human_reference"] == "Original"
+    assert record["metadata"]["aiified_text"] == "AI draft"
     assert record["metadata"]["delta"] == 0.3
     assert record["metadata"]["recovery_ratio"] == 0.5

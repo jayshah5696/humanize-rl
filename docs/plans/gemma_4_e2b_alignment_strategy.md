@@ -64,22 +64,24 @@ Using Unsloth's `standardize_sharegpt` utility, SFT data is formatted as direct 
 
 ## 4. Reinforcement Learning (RL) Task & Environment Design
 
-If SFT behavioral cloning is insufficient to eliminate all AI tells, we run RL (using `verifiers` and `Unsloth`'s GRPO framework).
+If SFT behavioral cloning is insufficient to eliminate all AI tells, we run RL (using `verifiers` and `Unsloth`'s DAPO framework).
 
-### 4.1 Reference-Free RL Rewards
-Relying on a single human-written target response (evaluating generation $y_i$ against a gold reference $x_{\text{ref}}$ via BLEU, ROUGE, or BERTScore) in RL post-training is problematic:
-1.  **Reference Bias:** Forcing the model to align with one specific human text penalizes other creative, valid, and high-quality human-sounding answers that use different phrasing, layout, or details.
-2.  **The "Alignment Tax" on Generation:** Forcing semantic overlap with a specific reference response limits the model’s exploration space, leading to training instability and degrading its instruction-following capacity.
+### 4.1 Why DAPO over GRPO
+When training models to sound "human," they often discover that humans write longer, more conversational texts. This leads to **verbosity bias**, where the model learns to hack the "humanness" reward by generating extremely long, meandering paragraphs.
 
-#### SOTA Solution: KL Regularization over Reference Prompts
-In modern post-training (e.g., GRPO/DAPO), we prevent **semantic drift** and enforce general coherence **without** comparing the output to a reference text. 
+To combat this, we commit to **DAPO (Decoupled Clip and Dynamic Sampling Policy Optimization)** as our 2026 SOTA algorithm:
+1.  **Overlong Reward Shaping:** DAPO specifically penalizes unnecessary verbosity, forcing the model to achieve high humanness scores *concisely*.
+2.  **Dynamic Sampling:** DAPO drops uninformative batches where all generated responses are equally "human" or "AI," dramatically speeding up training stability compared to standard GRPO.
 
-Instead, we compute a token-level **Kullback-Leibler (KL) Divergence Penalty** relative to the frozen starting SFT model ($\pi_{\text{SFT}}$):
+### 4.2 Reference-Free Rewards & Semantic Guardrails
+Relying on a single human-written target response (e.g., via BLEU or BERTScore) causes **Reference Bias** and an **Alignment Tax**. We eliminate reference strings entirely.
 
-$$\text{Reward}(x, y) = R_{\text{humanness}}(y) - \beta D_{\text{KL}}(\pi_\theta(y \mid x) \parallel \pi_{\text{SFT}}(y \mid x))$$
+However, a pure stylistic reward leads to **Reward Hacking** (e.g., ignoring a coding prompt to write a highly conversational paragraph about the weather). To prevent this, we use two mechanisms:
 
-*   **How it works:** The starting SFT model already knows how to follow instructions and generate fluent text. The KL divergence acts as a regularizer, allowing the policy model ($\pi_\theta$) to change its *writing style* (humanness) while keeping it structurally anchored to its base instruction-following capabilities.
-*   **Result:** We remove all semantic reference similarity constraints from the RL loop, lowering latency and removing reference bias completely.
+1.  **KL Regularization:** We compute a token-level **KL Divergence Penalty** relative to the frozen starting SFT model ($\pi_{\text{SFT}}$) to keep the policy structurally anchored.
+2.  **Instruction Adherence Guardrail:** We implement a fast, tiny evaluator (or a rule-based check) that applies a massive penalty if the model fails to address the prompt's instruction.
+
+$$\text{Reward}(x, y) = R_{\text{humanness}}(y) + R_{\text{adherence}}(y) - \beta D_{\text{KL}}(\pi_\theta(y \mid x) \parallel \pi_{\text{SFT}}(y \mid x))$$
 
 ---
 
@@ -151,26 +153,24 @@ We expand our target domains to cover a wider breadth of tasks:
 
 ---
 
-## 8. Custom Arka Stage Design: Ingest & Filter Pipeline
+## 8. Data Ingestion: Orchestrator Pre-Processing (Keeping Arka Clean)
 
-To support this filtering in **Arka** without violating the project rules, we design these filters as **reusable Python helpers** and wire them into Arka's config using Arka's built-in **`FilterStage`** parameters.
+> **Note on Arka Philosophy:** Because Arka is designed to be a generic, config-driven framework (`DatasetIngestionStage`, `TransformGeneratorStage`), embedding highly task-specific linguistic heuristics (like spaCy POS checking for "writing tasks") natively into Arka YAML would bloat and pollute the Arka codebase.
+
+Instead of building custom Arka filter stages, we isolate this logic to an **Orchestrator Pre-Processing Step**.
+
+1.  **`scripts/prep_dataset.py`:** We run a standalone Python script that downloads `lmsys/lmsys-chat-1m`, applies the `fastText`, `Token Prior`, and `spaCy POS` dependency filters, and outputs a highly refined local JSONL file (`cleaned_lmsys_tasks.jsonl`).
+2.  **Arka Ingestion:** The Arka YAML configuration simply points its native `DatasetIngestionStage` to this cleaned local file, remaining entirely generic and rules-compliant.
 
 ```yaml
-# configs/v03/03-scaleup-filter.yaml
+# configs/v03/03-scaleup.yaml
 stages:
-  # Ingest raw dataset
+  # Ingest pre-cleaned dataset (no custom python filters required here)
   - type: DatasetIngestionStage
-    source: "lmsys/lmsys-chat-1m"
-    split: "train"
+    source: "local"
+    path: "data/processed/cleaned_lmsys_tasks.jsonl"
 
-  # Filter using our custom python hooks
-  - type: FilterStage
-    python_filters:
-      - "humanize_rl.data.filters.fasttext_quality_filter"
-      - "humanize_rl.data.filters.token_prior_perplexity_filter"
-      - "humanize_rl.data.filters.spacy_writing_dependency_filter"
-
-  # Classify domain using instruction patterns
+  # Classify domain using standard instruction patterns
   - type: DomainClassifierStage
     mappings:
       email: ["email", "memo", "professional update"]
@@ -221,7 +221,7 @@ flowchart TD
     
     A4 & C1 --> D1["Construct RL Environment & Verifier Wrapper (Prime Intellect compatible)"]
     
-    D1 --> D2["Run GRPO/DAPO RL Post-Training"]
+    D1 --> D2["Run DAPO RL Post-Training (with Adherence Guardrails)"]
     D2 --> D3["Stress-Test v03 Diagnostics Benchmarks"]
     
     D3 --> E1["Publish Artifacts (Hugging Face Hub, OpenEnv & Prime Intellect Verifiers)"]

@@ -10,6 +10,20 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
     "arka",
+    "datasets>=4.8.5",
+    "einops>=0.8.2",
+    "fasttext-wheel>=0.9.2",
+    "huggingface-hub>=1.9.2",
+    "langdetect>=1.0.9",
+    "matplotlib>=3.10.9",
+    "mlflow>=3.12.0",
+    "pandas>=2.3.3",
+    "scikit-learn>=1.8.0",
+    "seaborn>=0.13.2",
+    "sentence-transformers>=5.5.0",
+    "spacy>=3.8.14",
+    "torch>=2.12.0",
+    "transformers>=5.8.1",
 ]
 
 [project.scripts]

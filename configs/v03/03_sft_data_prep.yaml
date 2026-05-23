@@ -1,0 +1,35 @@
+# WHAT:      V-Slice 0/2 SFT Data Prep — Ingest, normalize, and format merged SFT streams.
+# WHEN:      Runs after scripts/publish_dataset.py --dry-run merges all streams.
+# REQUIRES:  data/processed/v03_combined_sharegpt.jsonl
+# RUN:       cd /Users/jshah/Documents/GitHub/humanize-rl && \
+#            uv run arka --config configs/v03/03_sft_data_prep.yaml \
+#                        --run-id v03-sft-prep
+# COST:      $0.00 (Local metadata normalization only, no LLM calls)
+
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 5
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 4
+
+pipeline:
+  - type: seed_source
+    path: ../../data/processed/v03_combined_sharegpt.jsonl
+
+  - type: normalize_conversation
+
+output:
+  format: jsonl
+  path: ../../data/processed/v03_combined_sft.jsonl

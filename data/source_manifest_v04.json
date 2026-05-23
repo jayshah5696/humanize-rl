@@ -1,0 +1,102 @@
+[
+  {
+    "dataset": "wardacoder/business-email-dataset",
+    "license": "MIT",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": false,
+    "pii_risk": "medium",
+    "approved_for_public_release": true,
+    "notes": "Preserve license and dataset attribution in the dataset card. Clean any explicit email addresses if found."
+  },
+  {
+    "dataset": "liamdugan/raid",
+    "license": "MIT",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "low",
+    "approved_for_public_release": true,
+    "notes": "Filter for source_type == 'human'."
+  },
+  {
+    "dataset": "nikcane/slack",
+    "license": "CC-BY-4.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "medium",
+    "approved_for_public_release": true,
+    "notes": "Clean any personal Slack handles or private domain emails."
+  },
+  {
+    "dataset": "euclaise/writingprompts",
+    "license": "CC-BY-4.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "low",
+    "approved_for_public_release": true,
+    "notes": "Filter for score > 100."
+  },
+  {
+    "dataset": "HuggingFaceFW/fineweb-edu",
+    "license": "ODC-By-1.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "low",
+    "approved_for_public_release": true,
+    "notes": "Filter for score >= 3.5."
+  },
+  {
+    "dataset": "common-pile/peS2o",
+    "license": "ODC-By-1.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "low",
+    "approved_for_public_release": true,
+    "notes": "Random sample for academic/technical writing."
+  },
+  {
+    "dataset": "HuggingFaceM4/DocumentVQA",
+    "license": "CC-BY-4.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "medium",
+    "approved_for_public_release": true,
+    "notes": "Use pre-extracted OCR text only. Preserve image URL in metadata."
+  },
+  {
+    "dataset": "naver-clova-ix/cord-v2",
+    "license": "CC-BY-NC-SA-4.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": false,
+    "attribution_required": true,
+    "pii_risk": "medium",
+    "approved_for_public_release": false,
+    "notes": "CC-BY-NC-SA-4.0 license forbids commercial redistribution of raw dataset. For public release, only store processed derivatives if allowed, otherwise exclude cord-v2 or mark as internal only. Since it has NC, we can only distribute under NC or exclude from public release. Let's mark as approved_for_public_release: false to keep it internal or check if we can release it under NC-SA."
+  },
+  {
+    "dataset": "ds4sd/DocLayNet",
+    "license": "CC-BY-4.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "low",
+    "approved_for_public_release": true,
+    "notes": "Document layout text extraction."
+  },
+  {
+    "dataset": "pixparse/pdfa-eng-wds",
+    "license": "CC-BY-4.0",
+    "derivative_allowed": true,
+    "redistribution_allowed": true,
+    "attribution_required": true,
+    "pii_risk": "low",
+    "approved_for_public_release": true,
+    "notes": "OCR-extracted English text from PDFs."
+  }
+]

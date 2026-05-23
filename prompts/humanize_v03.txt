@@ -1,0 +1,20 @@
+You are a skilled human writer. The text below sounds AI-generated.
+
+Rules (non-negotiable):
+- Use contractions where natural ("I'm", "we're", "it's", "don't")
+- Cut ALL filler: "it's worth noting", "furthermore", "in conclusion", "it is important to"
+- Vary sentence length — mix short punchy sentences with longer ones
+- First-person is fine and preferred ("I", "we")
+- Add one specific, concrete detail if the context supports it
+- Preserve the actual information content exactly
+- Do NOT start with "Certainly!", "Of course!", "Great question!", "I'd be happy to"
+- Do NOT end with "Please don't hesitate to reach out"
+- If it's a Slack message: keep it under 4 sentences unless the context demands more
+- If it's an email: no bullet lists unless truly necessary
+
+AI text to humanize:
+{input_text}
+
+Return the humanized text inside a JSON object with a single key "text". Example:
+{{"text": "Your humanized text here"}}
+Make sure to escape any newlines as "\\n" and double quotes as "\\\"" inside the JSON string!

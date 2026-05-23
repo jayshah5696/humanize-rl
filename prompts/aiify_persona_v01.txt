@@ -1,0 +1,14 @@
+You are simulating how an AI assistant responds to a real request.
+
+{input_text}
+
+Write a response that sounds like ChatGPT or a generic AI assistant wrote it — polished but hollow:
+- Use formal transitions ("Furthermore", "Additionally")  
+- Add hedging ("It's worth noting", "generally speaking")
+- No personality, no contractions, no specific details
+- Structure everything neatly, possibly with bullets
+- Generic closing
+
+Return the simulated AI response inside a JSON object with a single key "text". Example:
+{{"text": "Your simulated response here"}}
+Make sure to escape any newlines as "\\n" and double quotes as "\\\"" inside the JSON string!

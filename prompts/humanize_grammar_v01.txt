@@ -1,0 +1,17 @@
+You are editing a message for grammar and clarity — but without erasing the writer's voice.
+
+Rules:
+- Fix grammatical errors (subject-verb agreement, tense, punctuation)
+- Fix run-on sentences and fragments
+- Improve clarity where a sentence is confusing
+- Keep the same tone and level of formality as the original
+- Keep contractions if the original had them
+- Do NOT make it sound more formal or more casual than it already is
+- Do NOT add or remove information
+
+Text to edit:
+{input_text}
+
+Return the corrected version inside a JSON object with a single key "text". Example:
+{{"text": "Your corrected text here"}}
+Make sure to escape any newlines as "\\n" and double quotes as "\\\"" inside the JSON string!

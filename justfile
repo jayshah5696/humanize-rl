@@ -31,3 +31,12 @@ merge-data:
 publish-dataset repo_id="jayshah5696/humanize-rl-sft-dataset" flags="":
     uv run python scripts/publish_dataset.py --repo-id {{repo_id}} {{flags}}
 
+build-v2-seeds:
+    uv run python scripts/build_v04_seeds.py
+
+fetch-v2-sources flags="":
+    uv run python scripts/fetch_v04_sources.py {{flags}}
+
+stream-a-pilot:
+    uv run arka --config configs/v04/stream_a_evol_pilot.yaml --run-id v04-stream-a-pilot
+

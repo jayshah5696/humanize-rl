@@ -3,7 +3,7 @@ import os
 import argparse
 import matplotlib.pyplot as plt
 from datasets import load_dataset
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, get_token
 
 def combine_and_format_datasets():
     parser = argparse.ArgumentParser(description="Merge SFT streams, plot domain distribution, and publish to HF.")
@@ -201,10 +201,10 @@ def combine_and_format_datasets():
         print("Dry-run specified. Skipping Hugging Face upload.")
         return
 
-    hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
+    hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN") or get_token()
     if not hf_token:
-        print("Warning: HUGGING_FACE_HUB_TOKEN env var not set. Skipping Hugging Face upload.")
-        print("To upload, set the token and run again without --dry-run.")
+        print("Warning: HUGGING_FACE_HUB_TOKEN env var not set and no cached HF token found. Skipping Hugging Face upload.")
+        print("To upload, run 'huggingface-cli login' or set the HUGGING_FACE_HUB_TOKEN env var.")
         return
 
     print(f"Uploading SFT dataset to HF Hub: {args.repo_id}...")

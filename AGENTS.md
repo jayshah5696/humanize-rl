@@ -41,10 +41,10 @@ google/gemini-3.1-flash-lite-preview   # $0.25/$1.50
 google/gemini-3-flash-preview          # $0.50/$3.00
 
 # Fine-tune target
-google/gemma-4-26b-a4b-it             # Apache 2.0, 4B active
+google/gemma-4-e2b-it                 # Apache 2.0, 2B effective
 
 # Free dev/testing
-google/gemma-4-26b-a4b-it:free
+google/gemma-4-e2b-it:free
 google/gemma-4-31b-it:free
 ```
 
@@ -53,7 +53,7 @@ google/gemma-4-31b-it:free
 - **Layer 1** (deterministic, free): 8 regex/heuristic dims in `src/humanize_rl/scoring/`
 - **Layer 2** (LLM judge, paid): 8 dims via arka LabelingEngine + `rubrics/humanness_v01.yaml`
 - **Pipeline**: Two arka runs (aiify → humanize) stitched by Python orchestrator in `src/humanize_rl/pipeline.py`
-- **Training**: SFT first (Gemma 4 26B A4B, bf16 LoRA). RL only if SFT plateaus.
+- **Training**: SFT first (Gemma 4 E2B, bf16 LoRA). RL only if SFT plateaus.
 
 ## What NOT to Do
 

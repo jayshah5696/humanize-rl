@@ -6,7 +6,7 @@ Two-layer AI writing detection, scoring, and humanization training pipeline.
 
 - **Layer 1** (deterministic, free): 8 regex/heuristic dimensions — detects AI writing patterns in microseconds
 - **Layer 2** (LLM judge, paid): 8 dimensions via [arka](https://github.com/jayshah5696/arka) LabelingEngine + rubric YAML
-- **Training**: SFT on Gemma 4 26B A4B (bf16 LoRA), conditional RL via DAPO
+- **Training**: SFT on Gemma 4 E2B (bf16 LoRA), conditional RL via DAPO
 
 ## Quick Start
 

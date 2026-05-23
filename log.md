@@ -37,4 +37,6 @@
 
 - **Total Merged Rows:** 1,269 unified SFT entries.
 - **Pipeline Execution:** Successfully ran `just merge-data` end-to-end in 4.1s.
+- **Hugging Face Publication:** Successfully uploaded the unified SFT dataset and domain distribution plot metadata to Hugging Face Hub under `jayshah5696/humanize-rl-sft-dataset`.
 - **Test Integrity:** Passed all 5 general pytest checks and 3 filter-specific checks without regressions.
+

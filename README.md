@@ -72,18 +72,37 @@ Common generated artifacts:
 Input Text
     │
     ▼
-Layer 1: Deterministic Scoring (free, <10ms, deterministic)
-    8 dims: opener, hedging, lists, sentence variance,
-    contractions, closing, em-dash, transitions
+Layer 1: Deterministic Scoring (free, <1ms)
+    8 regex/heuristic dims: opener, hedging, lists,
+    sentence variance, contractions, closing, em-dash, transitions
     │
     ▼ gate: skip Layer 2 if clearly human/AI
-Layer 2: LLM Judge Scoring (paid, 2-5s, nuanced)
+Layer 2: LLM Judge Scoring (paid, 2-5s)
     8 dims: structure, specificity, formality, voice,
     rhetoric, padding, personality, copula
     │
     ▼
-Combined Score → Training Data → SFT/RL
+Track A Ridge Scorer (distilled from Layer 2 labels, 1ms)
+    TF-IDF Logistic+Ridge → binary P(AI) + 8 rubric dims
+    AUROC 0.9988, rubric MSE 0.041 on 10k labelled rows
+    │
+    ▼
+RL Reward (50/50 formula)
+    0.50 × ridge_rubric_mean  ← 8 humanness dims
+    0.50 × deterministic_mean ← faithfulness, task_following,
+                                 length, format, placeholder, clarity
+    + additive penalties      ← invented_detail, option_menu, etc.
+    → clipped to [-1, 1]
+    │
+    ▼
+SFT/RL Training → Gemma 4 E2B (bf16 LoRA)
 ```
+
+## Reward rubric
+
+See [`src/humanize_rl/reward/README.md`](src/humanize_rl/reward/README.md) for the full formula, all 8 ridge dims, 6 deterministic components, and penalty table.
+
+See [`environments/humanize_rl_env/README.md`](environments/humanize_rl_env/README.md) for the Prime Intellect environment spec.
 
 ## Repository status
 

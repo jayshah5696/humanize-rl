@@ -1,0 +1,22 @@
+[project]
+name = "humanize-rl-env"
+version = "0.1.0"
+description = "Single-turn Prime Verifiers environment for Humanize-RL rewards"
+tags = ["single-turn", "writing", "rl", "reward", "humanize"]
+requires-python = ">=3.12"
+dependencies = [
+    "datasets>=4.8.5",
+    "humanize-rl",
+    "verifiers>=0.1.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = ["humanize_rl_env.py", "pyproject.toml", "README.md"]
+
+[tool.verifiers.eval]
+num_examples = 20
+rollouts_per_example = 4

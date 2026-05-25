@@ -53,6 +53,11 @@ models/
 # Local tool state
 .antigravitycli/
 
+# One-off report/figure generation helpers
+scripts/create_track_a_summary_figures.py
+scripts/run_track_a_capped_report.py
+scripts/run_track_a_full_report.py
+
 # Generated benchmark artifacts (reproducible via `just v03-ws`).
 # Source of truth = seeds/ + code + report. Anything emitted by a stage
 # stays out of git.

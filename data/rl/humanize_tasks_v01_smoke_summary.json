@@ -1,0 +1,74 @@
+{
+  "domain": {
+    "email": 30,
+    "hiring": 10,
+    "leadership": 10,
+    "product": 10,
+    "slack": 20,
+    "support": 10,
+    "technical": 10
+  },
+  "family": {
+    "adversarial_ai_tell_removal": 10,
+    "candidate_customer_comms": 10,
+    "compression": 10,
+    "direct_email": 10,
+    "placeholder_discipline": 10,
+    "product_copy_cleanup": 10,
+    "rewrite_repair": 10,
+    "slack_chat": 10,
+    "technical_explain": 10,
+    "tone_shift": 10
+  },
+  "mode": {
+    "compress": 10,
+    "direct_generation": 50,
+    "repair": 10,
+    "rewrite": 20,
+    "tone_shift": 10
+  },
+  "register": {
+    "candid": 21,
+    "casual": 13,
+    "founder_like": 7,
+    "neutral": 24,
+    "technical": 10,
+    "terse": 8,
+    "warm_professional": 17
+  },
+  "reward_profile": {
+    "compression_update": 10,
+    "direct_workplace_message": 30,
+    "rewrite_faithful_concise": 40,
+    "sensitive_comms": 10,
+    "technical_explain_natural": 10
+  },
+  "split": {
+    "test": 10,
+    "train": 80,
+    "validation": 10
+  },
+  "trap": {
+    "ai_tell_phrase": 30,
+    "buzzword_retention": 10,
+    "corporate_filler": 20,
+    "dropped_facts": 10,
+    "email_overformat": 20,
+    "fake_technical_claim": 10,
+    "hype_retention": 10,
+    "invented_detail": 20,
+    "invented_feedback": 10,
+    "lecture_tone": 10,
+    "length_failure": 10,
+    "meaning_loss": 10,
+    "over_apology": 10,
+    "over_markdown": 10,
+    "over_polish": 30,
+    "placeholder_required": 10,
+    "register_mismatch": 10,
+    "vague_benefit": 10,
+    "vague_summary": 10,
+    "verbosity": 20,
+    "wrapper_phrase": 20
+  }
+}

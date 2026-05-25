@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="738" viewBox="0 0 1280 738">
+<rect width="1280" height="738" fill="#ffffff"/>
+<defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="arrred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c92a2a"/>
+    </marker>
+  </defs>
+<text x="36" y="52.199999999999996" font-size="26" font-family="Arial, sans-serif" fill="#1e1e1e" dominant-baseline="auto">Two-Stage Quality Gate</text>
+<text x="38" y="77" font-size="15" font-family="Arial, sans-serif" fill="#868e96" dominant-baseline="auto">Applied to every row before entering the final merge.</text>
+<rect x="30" y="106" width="220" height="70" rx="10" ry="10" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="140" y="134.25" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">Raw generated row</text>
+<text x="140" y="153.75" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">(instruction + response)</text>
+<line x1="250" y1="141" x2="330" y2="141" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<rect x="330" y="70" width="270" height="300" rx="10" ry="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="346" y="77.20000000000002" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Stage 1 · Heuristic</text>
+<text x="346" y="95.40000000000002" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="346" y="113.60000000000002" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Bad response phrases</text>
+<text x="346" y="131.8" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  certainly</text>
+<text x="346" y="150" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  it is worth noting</text>
+<text x="346" y="168.2" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  furthermore</text>
+<text x="346" y="186.39999999999998" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  please don't hesitate</text>
+<text x="346" y="204.59999999999997" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  of course,</text>
+<text x="346" y="222.79999999999995" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="346" y="240.99999999999994" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Meta-AI instruction</text>
+<text x="346" y="259.19999999999993" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  chatgpt / humanize</text>
+<text x="346" y="277.3999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  ai-generated</text>
+<text x="346" y="295.5999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="346" y="313.7999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Fake name in rewrite</text>
+<text x="346" y="331.9999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  John/Sarah not in src</text>
+<text x="346" y="350.1999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="346" y="368.39999999999986" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Length: &lt; 20 or &gt; 2,500 chars</text>
+<line x1="600" y1="141" x2="680" y2="141" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<text x="643" y="132.8" font-size="14" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">pass</text>
+<line x1="465" y1="370" x2="465" y2="440" stroke="#c92a2a" stroke-width="1.5" style="" marker-end="url(#arrred)"/>
+<text x="498" y="406.79999999999995" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" text-anchor="middle" dominant-baseline="auto">fail</text>
+<rect x="350" y="440" width="230" height="44" rx="10" ry="10" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="465" y="465" font-size="15" font-family="Arial, sans-serif" fill="#c92a2a" text-anchor="middle" dominant-baseline="auto">Dropped · heuristic reject</text>
+<rect x="680" y="70" width="270" height="300" rx="10" ry="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="696" y="68.10000000000002" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Stage 2 · Flash Lite judge</text>
+<text x="696" y="86.30000000000003" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">google/gemini-3.1-flash-lite</text>
+<text x="696" y="104.50000000000003" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="696" y="122.70000000000003" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">naturalness: 1-5</text>
+<text x="696" y="140.90000000000003" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  4 or 5 = keep</text>
+<text x="696" y="159.10000000000002" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  &lt;= 3 = drop</text>
+<text x="696" y="177.3" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="696" y="195.5" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">fact_preservation</text>
+<text x="696" y="213.7" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  fail if output changes source facts</text>
+<text x="696" y="231.89999999999998" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="696" y="250.09999999999997" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">instruction_following</text>
+<text x="696" y="268.29999999999995" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  fail if output misses the task</text>
+<text x="696" y="286.49999999999994" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="696" y="304.69999999999993" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">unsupported_details</text>
+<text x="696" y="322.8999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  fail if new names/tools/dates invented</text>
+<text x="696" y="341.0999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="696" y="359.2999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">ai_tells</text>
+<text x="696" y="377.4999999999999" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">  fail if Certainly / Of course / filler</text>
+<line x1="950" y1="141" x2="1030" y2="141" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<text x="993" y="132.8" font-size="14" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">pass</text>
+<line x1="815" y1="370" x2="815" y2="440" stroke="#c92a2a" stroke-width="1.5" style="" marker-end="url(#arrred)"/>
+<text x="848" y="406.79999999999995" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" text-anchor="middle" dominant-baseline="auto">fail</text>
+<rect x="690" y="440" width="250" height="44" rx="10" ry="10" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="815" y="465" font-size="15" font-family="Arial, sans-serif" fill="#c92a2a" text-anchor="middle" dominant-baseline="auto">Dropped · LLM judge reject</text>
+<rect x="1030" y="106" width="220" height="70" rx="10" ry="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="1140" y="134.25" font-size="15" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">Kept row</text>
+<text x="1140" y="153.75" font-size="15" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">added to final merge</text>
+<text x="730" y="535.4000000000001" font-size="17" font-family="Arial, sans-serif" fill="#1e1e1e" text-anchor="middle" dominant-baseline="auto">Overall keep rates by stream</text>
+<rect x="330" y="548" width="780" height="160" rx="10" ry="10" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="346" y="594.4" font-size="14" font-family="Arial, sans-serif" fill="#495057" dominant-baseline="auto">Stream A (base150)          149 judged    145 kept    97.3%    Rejects: tired-PM persona too polite · sprint retro invented details</text>
+<text x="346" y="612.6" font-size="14" font-family="Arial, sans-serif" fill="#495057" dominant-baseline="auto">Stream A (safe_expand_1000) 680 judged    668 kept    98.2%    Rejects: added specifics not in prompt</text>
+<text x="346" y="630.8000000000001" font-size="14" font-family="Arial, sans-serif" fill="#495057" dominant-baseline="auto">Stream A (safe_expand_3000) 1,841 judged  1,806 kept  98.1%    Rejects: invented reasons / added EOD deadline</text>
+<text x="346" y="649.0000000000001" font-size="14" font-family="Arial, sans-serif" fill="#495057" dominant-baseline="auto">Stream B (real HF)          1,912 judged  1,619 kept  84.6%    Rejects: still too formal after rewrite · hallucinated details</text>
+<text x="346" y="667.2000000000002" font-size="14" font-family="Arial, sans-serif" fill="#495057" dominant-baseline="auto">Stream C (chat_expanded)    440 judged    423 kept    96.1%    Rejects: meta-commentary · added unsupported commit detail</text>
+</svg>

@@ -5,8 +5,10 @@ Rules (non-negotiable):
 - Cut ALL filler: "it's worth noting", "furthermore", "in conclusion", "it is important to"
 - Vary sentence length — mix short punchy sentences with longer ones
 - First-person is fine and preferred ("I", "we")
-- Add one specific, concrete detail if the context supports it
-- Preserve the actual information content exactly
+- Preserve the actual information content exactly.
+- Do not add new facts, examples, names, dates, tools, metrics, reasons, or context that are not already present.
+- Only make wording more concrete when the source already contains that detail.
+- If the input is vague, keep the rewrite vague.
 - Do NOT start with "Certainly!", "Of course!", "Great question!", "I'd be happy to"
 - Do NOT end with "Please don't hesitate to reach out"
 - If it's a Slack message: keep it under 4 sentences unless the context demands more

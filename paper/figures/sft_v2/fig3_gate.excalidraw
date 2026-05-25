@@ -1,0 +1,98 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "agent",
+  "elements": [
+
+    { "type": "text", "id": "title", "x": 60, "y": 16, "width": 420, "height": 28,
+      "text": "Two-Stage Quality Gate", "fontSize": 20, "fontFamily": 1,
+      "strokeColor": "#1e1e1e", "textAlign": "left", "originalText": "Two-Stage Quality Gate", "autoResize": true },
+
+    { "type": "rectangle", "id": "raw", "x": 60, "y": 60, "width": 160, "height": 46,
+      "roundness": { "type": 3 }, "backgroundColor": "#a5d8ff", "fillStyle": "solid",
+      "boundElements": [{ "id": "traw", "type": "text" }, { "id": "arr1", "type": "arrow" }] },
+    { "type": "text", "id": "traw", "x": 68, "y": 74, "width": 144, "height": 18,
+      "text": "Generated row", "fontSize": 14, "fontFamily": 1,
+      "strokeColor": "#1864ab", "textAlign": "center", "verticalAlign": "middle",
+      "containerId": "raw", "originalText": "Generated row", "autoResize": true },
+
+    { "type": "arrow", "id": "arr1", "x": 220, "y": 83, "width": 60, "height": 0,
+      "points": [[0,0],[60,0]], "endArrowhead": "arrow",
+      "startBinding": { "elementId": "raw", "fixedPoint": [1, 0.5] },
+      "endBinding": { "elementId": "g1", "fixedPoint": [0, 0.5] } },
+
+    { "type": "rectangle", "id": "g1", "x": 280, "y": 44, "width": 160, "height": 78,
+      "roundness": { "type": 3 }, "backgroundColor": "#fff3bf", "fillStyle": "solid",
+      "boundElements": [{ "id": "tg1", "type": "text" }, { "id": "arr2", "type": "arrow" }, { "id": "arrfail1", "type": "arrow" }] },
+    { "type": "text", "id": "tg1", "x": 288, "y": 54, "width": 144, "height": 58,
+      "text": "Stage 1 · Heuristic\nbad phrases\nfake names\nmeta-AI framing", "fontSize": 12, "fontFamily": 1,
+      "strokeColor": "#e67700", "textAlign": "center", "verticalAlign": "top",
+      "containerId": "g1", "originalText": "Stage 1 · Heuristic\nbad phrases\nfake names\nmeta-AI framing", "autoResize": true },
+
+    { "type": "arrow", "id": "arr2", "x": 440, "y": 83, "width": 60, "height": 0,
+      "points": [[0,0],[60,0]], "endArrowhead": "arrow",
+      "startBinding": { "elementId": "g1", "fixedPoint": [1, 0.5] },
+      "endBinding": { "elementId": "g2", "fixedPoint": [0, 0.5] } },
+
+    { "type": "arrow", "id": "arrfail1", "x": 360, "y": 122, "width": 0, "height": 50,
+      "points": [[0,0],[0,50]], "endArrowhead": "arrow", "strokeColor": "#c92a2a",
+      "startBinding": { "elementId": "g1", "fixedPoint": [0.5, 1] },
+      "endBinding": { "elementId": "drop1", "fixedPoint": [0.5, 0] },
+      "boundElements": [{ "id": "tf1", "type": "text" }] },
+    { "type": "text", "id": "tf1", "x": 366, "y": 140, "width": 30, "height": 16, "text": "fail", "fontSize": 11, "fontFamily": 1, "strokeColor": "#c92a2a", "textAlign": "center", "containerId": "arrfail1", "originalText": "fail", "autoResize": true },
+
+    { "type": "rectangle", "id": "drop1", "x": 290, "y": 172, "width": 140, "height": 32,
+      "roundness": { "type": 3 }, "backgroundColor": "#ffc9c9", "fillStyle": "solid",
+      "boundElements": [{ "id": "tdrop1", "type": "text" }] },
+    { "type": "text", "id": "tdrop1", "x": 298, "y": 180, "width": 124, "height": 16,
+      "text": "Dropped", "fontSize": 12, "fontFamily": 1,
+      "strokeColor": "#c92a2a", "textAlign": "center", "verticalAlign": "middle",
+      "containerId": "drop1", "originalText": "Dropped", "autoResize": true },
+
+    { "type": "rectangle", "id": "g2", "x": 500, "y": 44, "width": 160, "height": 78,
+      "roundness": { "type": 3 }, "backgroundColor": "#fff3bf", "fillStyle": "solid",
+      "boundElements": [{ "id": "tg2", "type": "text" }, { "id": "arr3", "type": "arrow" }, { "id": "arrfail2", "type": "arrow" }] },
+    { "type": "text", "id": "tg2", "x": 508, "y": 54, "width": 144, "height": 58,
+      "text": "Stage 2 · Flash Lite\nnaturalness >= 4\nfact preservation\nno invented details", "fontSize": 12, "fontFamily": 1,
+      "strokeColor": "#e67700", "textAlign": "center", "verticalAlign": "top",
+      "containerId": "g2", "originalText": "Stage 2 · Flash Lite\nnaturalness >= 4\nfact preservation\nno invented details", "autoResize": true },
+
+    { "type": "arrow", "id": "arr3", "x": 660, "y": 83, "width": 60, "height": 0,
+      "points": [[0,0],[60,0]], "endArrowhead": "arrow",
+      "startBinding": { "elementId": "g2", "fixedPoint": [1, 0.5] },
+      "endBinding": { "elementId": "kept", "fixedPoint": [0, 0.5] } },
+
+    { "type": "arrow", "id": "arrfail2", "x": 580, "y": 122, "width": 0, "height": 50,
+      "points": [[0,0],[0,50]], "endArrowhead": "arrow", "strokeColor": "#c92a2a",
+      "startBinding": { "elementId": "g2", "fixedPoint": [0.5, 1] },
+      "endBinding": { "elementId": "drop2", "fixedPoint": [0.5, 0] },
+      "boundElements": [{ "id": "tf2", "type": "text" }] },
+    { "type": "text", "id": "tf2", "x": 586, "y": 140, "width": 30, "height": 16, "text": "fail", "fontSize": 11, "fontFamily": 1, "strokeColor": "#c92a2a", "textAlign": "center", "containerId": "arrfail2", "originalText": "fail", "autoResize": true },
+
+    { "type": "rectangle", "id": "drop2", "x": 510, "y": 172, "width": 140, "height": 32,
+      "roundness": { "type": 3 }, "backgroundColor": "#ffc9c9", "fillStyle": "solid",
+      "boundElements": [{ "id": "tdrop2", "type": "text" }] },
+    { "type": "text", "id": "tdrop2", "x": 518, "y": 180, "width": 124, "height": 16,
+      "text": "Dropped", "fontSize": 12, "fontFamily": 1,
+      "strokeColor": "#c92a2a", "textAlign": "center", "verticalAlign": "middle",
+      "containerId": "drop2", "originalText": "Dropped", "autoResize": true },
+
+    { "type": "rectangle", "id": "kept", "x": 720, "y": 60, "width": 140, "height": 46,
+      "roundness": { "type": 3 }, "backgroundColor": "#b2f2bb", "fillStyle": "solid",
+      "boundElements": [{ "id": "tkept", "type": "text" }] },
+    { "type": "text", "id": "tkept", "x": 728, "y": 74, "width": 124, "height": 18,
+      "text": "Kept", "fontSize": 14, "fontFamily": 1,
+      "strokeColor": "#2b8a3e", "textAlign": "center", "verticalAlign": "middle",
+      "containerId": "kept", "originalText": "Kept", "autoResize": true },
+
+    { "type": "text", "id": "ratestitle", "x": 60, "y": 230, "width": 400, "height": 20,
+      "text": "Keep rates by stream", "fontSize": 14, "fontFamily": 1,
+      "strokeColor": "#1e1e1e", "originalText": "Keep rates by stream", "autoResize": true },
+
+    { "type": "text", "id": "rates", "x": 60, "y": 254, "width": 600, "height": 90,
+      "text": "Stream A  base150         149 judged   145 kept   97.3%\nStream A  safe_expand ×2  680 judged   668 kept   98.2%\nStream A  safe_expand_3k  1,841 judged 1,806 kept  98.1%\nStream B  real HF text    1,912 judged 1,619 kept  84.6%  ← still too formal after rewrite\nStream C  chat expanded   440 judged   423 kept   96.1%", "fontSize": 12, "fontFamily": 1,
+      "strokeColor": "#343a40", "textAlign": "left", "originalText": "Stream A  base150         149 judged   145 kept   97.3%\nStream A  safe_expand ×2  680 judged   668 kept   98.2%\nStream A  safe_expand_3k  1,841 judged 1,806 kept  98.1%\nStream B  real HF text    1,912 judged 1,619 kept  84.6%  ← still too formal after rewrite\nStream C  chat expanded   440 judged   423 kept   96.1%", "autoResize": true }
+
+  ],
+  "appState": { "viewBackgroundColor": "#ffffff" }
+}

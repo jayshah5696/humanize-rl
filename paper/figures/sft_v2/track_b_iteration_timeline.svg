@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="960" viewBox="0 0 960 960">
+<rect width="960" height="960" fill="#ffffff"/>
+<defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="arrred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c92a2a"/>
+    </marker>
+  </defs>
+<text x="36" y="53.199999999999996" font-size="26" font-family="Arial, sans-serif" fill="#1e1e1e" dominant-baseline="auto">Track B Dataset — Iteration Timeline &amp; Row Count</text>
+<text x="38" y="80" font-size="15" font-family="Arial, sans-serif" fill="#868e96" dominant-baseline="auto">Each row = one dataset iteration. Colour = outcome.</text>
+<text x="150" y="114" font-size="15" font-family="Arial, sans-serif" fill="#495057" text-anchor="middle" dominant-baseline="auto">Iteration</text>
+<text x="430" y="114" font-size="15" font-family="Arial, sans-serif" fill="#495057" text-anchor="middle" dominant-baseline="auto">Action taken</text>
+<text x="640" y="114" font-size="15" font-family="Arial, sans-serif" fill="#495057" text-anchor="middle" dominant-baseline="auto">Rows added</text>
+<text x="760" y="114" font-size="15" font-family="Arial, sans-serif" fill="#495057" text-anchor="middle" dominant-baseline="auto">Running total</text>
+<rect x="30" y="126" width="830" height="56" rx="0" ry="0" fill="#ffc9c9" stroke="#ffa8a8" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="157" font-size="15" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">v1 seed pipeline (1,269 rows)   |   51 seeds recycled · 1 voice · 1 domain · AI tells in targets   |   1,269   |   1,269 — DISCARDED</text>
+<rect x="30" y="186" width="830" height="50" rx="0" ry="0" fill="#fff3bf" stroke="#ffe066" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="214" font-size="15" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">v2 redesign — dual-mode seeds, plain framing, placeholder policy   |   150 curated seeds built   |   —   |   0</text>
+<rect x="30" y="240" width="830" height="50" rx="0" ry="0" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="268" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">base150 · Arka transform_generator · Flash Lite · placeholder rule added   |   +145   |   145</text>
+<rect x="30" y="294" width="830" height="50" rx="0" ry="0" fill="#fff3bf" stroke="#ffe066" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="322" font-size="15" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">synthetic500 · template seeds · 500 generated · 367 dropped by dedup   |   +133   |   278 — dedup too high, templates too narrow</text>
+<rect x="30" y="348" width="830" height="50" rx="0" ry="0" fill="#ffc9c9" stroke="#ffa8a8" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="376" font-size="15" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">Evol pilot · v04-smoke-combined-reviewed · hallucinated 'Q3 dashboard' · fake restaurant name   |   60 generated   |   DEBUG ONLY — not added</text>
+<rect x="30" y="402" width="830" height="50" rx="0" ry="0" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="430" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">safe_expand_1000 · Arka prompt_based_generator · constraint-safe prompt   |   +668   |   946</text>
+<rect x="30" y="456" width="830" height="50" rx="0" ry="0" fill="#b2f2bb" stroke="#8ce99a" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="484" font-size="15" font-family="Arial, sans-serif" fill="#2b8a3e" dominant-baseline="auto">safe_expand_3000 · 1,841 generated (1 parse-stop) · raw recovery · 98.1% keep rate   |   +1,806   |   2,752</text>
+<rect x="30" y="510" width="830" height="50" rx="0" ry="0" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="538" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Stream B HF fetch · wardacoder, enron, RAID human, writingprompts · 1,915 source rows prepared   |   —   |   2,752</text>
+<rect x="30" y="564" width="830" height="50" rx="0" ry="0" fill="#b2f2bb" stroke="#8ce99a" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="592" font-size="15" font-family="Arial, sans-serif" fill="#2b8a3e" dominant-baseline="auto">Stream B generation · standalone Flash Lite · 1,915 generated · 84.6% keep · real text = diversity   |   +1,619   |   4,371</text>
+<rect x="30" y="618" width="830" height="50" rx="0" ry="0" fill="#fff3bf" stroke="#ffe066" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="646" font-size="15" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Domain audit — chat at 0.2% · email+chat should be 77% · gap identified   |   —   |   4,371 — domain imbalance</text>
+<rect x="30" y="672" width="830" height="50" rx="0" ry="0" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="700" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Chat seeds · 48 hand-crafted Slack/DM/channel seeds · base generation   |   +48   |   4,419</text>
+<rect x="30" y="726" width="830" height="50" rx="0" ry="0" fill="#b2f2bb" stroke="#8ce99a" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="754" font-size="15" font-family="Arial, sans-serif" fill="#2b8a3e" dominant-baseline="auto">Chat safe expansion · 800 target · 440 recovered after parse-stop · 96.1% keep   |   +423   |   4,835</text>
+<rect x="30" y="790" width="830" height="70" rx="10" ry="10" fill="#b2f2bb" stroke="#2f9e44" stroke-width="1.5" style="" opacity="1"/>
+<text x="445" y="828.2" font-size="16" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">FINAL · merge + dedup · 4,835 rows · chat 47% email 30% general 17% creative 5%  ·  avg naturalness 4.91 / 5.0  ·  bad-phrase rate 0.06%  ·  explicit-AI framing 0%</text>
+<text x="130" y="900" font-size="15" font-family="Arial, sans-serif" fill="#495057" text-anchor="middle" dominant-baseline="auto">Legend</text>
+<rect x="30" y="910" width="26" height="20" rx="0" ry="0" fill="#ffc9c9" stroke="#ffa8a8" stroke-width="1.5" style="" opacity="1"/>
+<text x="152" y="922.8" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" text-anchor="middle" dominant-baseline="auto">Failure / discarded</text>
+<rect x="250" y="910" width="26" height="20" rx="0" ry="0" fill="#fff3bf" stroke="#ffe066" stroke-width="1.5" style="" opacity="1"/>
+<text x="382" y="922.8" font-size="14" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Diagnosis / decision / gap</text>
+<rect x="490" y="910" width="26" height="20" rx="0" ry="0" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5" style="" opacity="1"/>
+<text x="582" y="922.8" font-size="14" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">Generation run</text>
+<rect x="650" y="910" width="26" height="20" rx="0" ry="0" fill="#b2f2bb" stroke="#8ce99a" stroke-width="1.5" style="" opacity="1"/>
+<text x="762" y="922.8" font-size="14" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">Major contribution</text>
+</svg>

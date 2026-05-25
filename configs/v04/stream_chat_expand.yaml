@@ -1,0 +1,71 @@
+# configs/v04/stream_chat_expand.yaml
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 4
+
+pipeline:
+  - type: seed_source
+    path: ../../seeds/v04_chat_seeds.jsonl
+
+  - type: normalize_conversation
+
+  # Step 1: generate base responses from chat seeds
+  - type: transform_generator
+    input_field: payload.instruction
+    output_field: payload.response
+    max_tokens: 512
+    llm_override:
+      model: google/gemini-3.1-flash-lite-preview
+      max_tokens: 512
+    prompt_template: |
+      You are a skilled writer. Complete the user's Slack/chat writing task.
+
+      Rules:
+      - Sound like a real competent person, not a bot.
+      - Use contractions where natural.
+      - Be direct. Cut filler.
+      - Do NOT start with "Certainly", "Of course", "I'd be happy to", "Great question".
+      - Do NOT end with "Please don't hesitate to reach out", "Let me know if you need anything further".
+      - For Slack messages: keep it brief. 1-4 sentences unless context demands more.
+      - For rewrite/edit tasks: preserve all facts. Do not add details not in the source.
+      - Do not add fake details like specific names, numbers, tools, or project names.
+      - Use [Placeholder] only when the user explicitly left a gap (name, date, etc.).
+
+      User task:
+      {input_text}
+
+      Return the response inside a JSON object with a single key "text".
+      Example: {{"text": "Your response here"}}
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 20
+    max_instruction_chars: 1500
+    min_response_chars: 10
+    max_response_chars: 800
+
+  - type: language
+    allowed: [en]
+
+output:
+  format: jsonl
+  path: ../../data/processed/v04_stream_chat_base.jsonl

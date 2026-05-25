@@ -1,0 +1,70 @@
+# configs/v04/stream_a_base_pilot.yaml
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 1
+
+pipeline:
+  - type: seed_source
+    path: ../../seeds/v04_task_seeds_pilot.jsonl
+
+  - type: normalize_conversation
+
+  - type: transform_generator
+    input_field: payload.instruction
+    output_field: payload.response
+    max_tokens: 1024
+    llm_override:
+      model: google/gemini-3.1-flash-lite-preview
+      max_tokens: 1024
+    prompt_template: |
+      You are a skilled writer. Complete the user's writing task.
+
+      Rules:
+      - Use contractions where natural.
+      - Be direct and specific without sounding stiff.
+      - Cut filler like "it's worth noting", "furthermore", "in conclusion", and "it is important to".
+      - Do not start with "Certainly", "Of course", or "I'd be happy to".
+      - Do not end with "Please don't hesitate to reach out".
+      - For rewrite/edit tasks: preserve the facts exactly. Do not add new facts, names, dates, tools, metrics, reasons, examples, or context.
+      - For direct drafting tasks: only add details that are implied by the request. Do not invent operational specifics.
+      - If the request is for Slack, keep it brief and casual.
+      - If the request is for email, keep it professional and natural.
+
+      User task:
+      {input_text}
+
+      Return the response inside a JSON object with a single key "text". Example:
+      {{"text": "Your response here"}}
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 20
+    max_instruction_chars: 1500
+    min_response_chars: 20
+    max_response_chars: 2000
+
+  - type: language
+    allowed: [en]
+
+output:
+  format: jsonl
+  path: ../../data/processed/v04_stream_a_base_pilot.jsonl

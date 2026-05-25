@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1292" viewBox="0 0 1160 1292">
+<rect width="1160" height="1292" fill="#ffffff"/>
+<defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="arrred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c92a2a"/>
+    </marker>
+  </defs>
+<text x="336" y="53.6" font-size="28" font-family="Arial, sans-serif" fill="#1e1e1e" dominant-baseline="auto">Track B: SFT Dataset v2 — Generation Pipeline</text>
+<text x="338" y="80.19999999999999" font-size="16" font-family="Arial, sans-serif" fill="#868e96" dominant-baseline="auto">humanize-rl · github.com/jayshah5696/humanize-rl</text>
+<text x="36" y="115.6" font-size="18" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">Why v1 failed</text>
+<rect x="30" y="128" width="240" height="160" rx="10" ry="10" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="46" y="159.2" font-size="16" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">v1 · 1,269 rows</text>
+<text x="46" y="180" font-size="16" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto"></text>
+<text x="46" y="200.8" font-size="16" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">51 seeds recycled</text>
+<text x="46" y="221.60000000000002" font-size="16" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">1 persona / 1 domain</text>
+<text x="46" y="242.40000000000003" font-size="16" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">"write about X" only</text>
+<text x="46" y="263.20000000000005" font-size="16" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">AI tells in targets</text>
+<line x1="274" y1="208" x2="334" y2="208" stroke="#c92a2a" stroke-width="1.5" style="stroke-dasharray:6 4" marker-end="url(#arrred)"/>
+<rect x="334" y="128" width="240" height="160" rx="10" ry="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="350" y="159.2" font-size="16" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Diagnosis</text>
+<text x="350" y="180" font-size="16" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="350" y="200.8" font-size="16" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Semantic collapse</text>
+<text x="350" y="221.60000000000002" font-size="16" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Voice / domain collapse</text>
+<text x="350" y="242.40000000000003" font-size="16" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Task collapse</text>
+<text x="350" y="263.20000000000005" font-size="16" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Target quality fails</text>
+<text x="36" y="325.6" font-size="18" font-family="Arial, sans-serif" fill="#1971c2" dominant-baseline="auto">v2 Design Principles</text>
+<rect x="30" y="338" width="544" height="110" rx="10" ry="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="48" y="375.40000000000003" font-size="16" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Dual-mode (direct generation + rewrite/repair)    ·    No meta-AI framing in instructions</text>
+<text x="48" y="396.20000000000005" font-size="16" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Placeholder discipline ([Name] not invented names)    ·    5+ source domains</text>
+<text x="48" y="417.00000000000006" font-size="16" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Two-stage gate: heuristic + Flash Lite judge</text>
+<text x="36" y="487.6" font-size="18" font-family="Arial, sans-serif" fill="#1e1e1e" dominant-baseline="auto">Seeds</text>
+<rect x="30" y="502" width="200" height="90" rx="10" ry="10" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="130" y="530.5" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">Curated seeds</text>
+<text x="130" y="550" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">150 rows</text>
+<text x="130" y="569.5" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">dual-mode · plain framing</text>
+<rect x="250" y="502" width="200" height="90" rx="10" ry="10" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="350" y="530.5" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">HF real human text</text>
+<text x="350" y="550" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">1,915 rows</text>
+<text x="350" y="569.5" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">email · chat · creative · general</text>
+<rect x="470" y="502" width="200" height="90" rx="10" ry="10" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="570" y="530.5" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">Chat seeds</text>
+<text x="570" y="550" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">48 rows</text>
+<text x="570" y="569.5" font-size="15" font-family="Arial, sans-serif" fill="#1864ab" text-anchor="middle" dominant-baseline="auto">Slack · DM · channel</text>
+<text x="36" y="641.5999999999999" font-size="18" font-family="Arial, sans-serif" fill="#1e1e1e" dominant-baseline="auto">Generation streams</text>
+<rect x="30" y="654" width="200" height="140" rx="10" ry="10" fill="#d0bfff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="130" y="678.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Stream A</text>
+<text x="130" y="697.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Safe expansion</text>
+<text x="130" y="717.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto"></text>
+<text x="130" y="736.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Arka prompt_based_</text>
+<text x="130" y="756.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">generator</text>
+<text x="130" y="775.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">+145 +668 +1,806</text>
+<line x1="130" y1="592" x2="130" y2="654" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<rect x="250" y="654" width="200" height="140" rx="10" ry="10" fill="#d0bfff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="350" y="678.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Stream B</text>
+<text x="350" y="697.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Real HF text</text>
+<text x="350" y="717.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto"></text>
+<text x="350" y="736.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Standalone generator</text>
+<text x="350" y="756.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">flash-lite · fault-tolerant</text>
+<text x="350" y="775.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">+1,619 kept</text>
+<line x1="350" y1="592" x2="350" y2="654" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<rect x="470" y="654" width="200" height="140" rx="10" ry="10" fill="#d0bfff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="570" y="678.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Stream C</text>
+<text x="570" y="697.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Chat expansion</text>
+<text x="570" y="717.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto"></text>
+<text x="570" y="736.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">Arka transform +</text>
+<text x="570" y="756.25" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">prompt_based</text>
+<text x="570" y="775.75" font-size="15" font-family="Arial, sans-serif" fill="#5f3dc4" text-anchor="middle" dominant-baseline="auto">+48 +423</text>
+<line x1="570" y1="592" x2="570" y2="654" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<text x="36" y="839.5999999999999" font-size="18" font-family="Arial, sans-serif" fill="#1e1e1e" dominant-baseline="auto">Quality gate</text>
+<rect x="30" y="852" width="200" height="100" rx="10" ry="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="130" y="875.75" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Stage 1</text>
+<text x="130" y="895.25" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Heuristic check</text>
+<text x="130" y="914.75" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">bad phrases · fake names</text>
+<text x="130" y="934.25" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">meta-AI framing · length</text>
+<line x1="130" y1="794" x2="130" y2="852" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<rect x="250" y="852" width="200" height="100" rx="10" ry="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="350" y="875.75" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Stage 2</text>
+<text x="350" y="895.25" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Flash Lite judge</text>
+<text x="350" y="914.75" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">naturalness &gt;=4</text>
+<text x="350" y="934.25" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">fact · AI-tell · details</text>
+<line x1="350" y1="794" x2="350" y2="852" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<rect x="470" y="852" width="200" height="100" rx="10" ry="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="570" y="875.75" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Keep rate</text>
+<text x="570" y="895.25" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Stream A: 97-100%</text>
+<text x="570" y="914.75" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Stream B: 84.6%</text>
+<text x="570" y="934.25" font-size="15" font-family="Arial, sans-serif" fill="#e67700" text-anchor="middle" dominant-baseline="auto">Stream C: 96.1%</text>
+<line x1="570" y1="794" x2="570" y2="852" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<line x1="130" y1="952" x2="130" y2="1012" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<line x1="350" y1="952" x2="350" y2="1012" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<line x1="570" y1="952" x2="570" y2="1012" stroke="#1e1e1e" stroke-width="1.5" style="" marker-end="url(#arr)"/>
+<rect x="30" y="1012" width="640" height="110" rx="10" ry="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="350" y="1049.3999999999999" font-size="16" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">Final dataset · 4,835 rows · deduped merge</text>
+<text x="350" y="1070.1999999999998" font-size="16" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">chat 47%  email 30%  general 17%  creative 5%  grammar+compress 1%</text>
+<text x="350" y="1090.9999999999998" font-size="16" font-family="Arial, sans-serif" fill="#2b8a3e" text-anchor="middle" dominant-baseline="auto">naturalness avg 4.91 / 5.0  ·  bad-phrase rate 0.06%  ·  explicit-AI framing 0%</text>
+<line x1="350" y1="1122" x2="350" y2="1182" stroke="#1e1e1e" stroke-width="1.5" style="stroke-dasharray:6 4" marker-end="url(#arr)"/>
+<rect x="170" y="1182" width="360" height="80" rx="10" ry="10" fill="#c3fae8" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="350" y="1214.8" font-size="16" font-family="Arial, sans-serif" fill="#0b7285" text-anchor="middle" dominant-baseline="auto">HuggingFace · jayshah5696/humanize-rl-sft-dataset</text>
+<text x="350" y="1235.6" font-size="16" font-family="Arial, sans-serif" fill="#0b7285" text-anchor="middle" dominant-baseline="auto">config: v2  ·  Apache-2.0</text>
+<text x="696" y="669.4000000000001" font-size="17" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">Why Arka Evol was NOT used</text>
+<rect x="690" y="684" width="290" height="110" rx="10" ry="10" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="706" y="696.3" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">add_constraints/deepen add fake</text>
+<text x="706" y="714.5" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">operational specifics (restaurants,</text>
+<text x="706" y="732.7" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">deadlines, names, root causes)</text>
+<text x="706" y="750.9000000000001" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto"></text>
+<text x="706" y="769.1000000000001" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">Fix: use prompt_based_generator</text>
+<text x="706" y="787.3000000000002" font-size="14" font-family="Arial, sans-serif" fill="#c92a2a" dominant-baseline="auto">with custom constraint-safe prompt</text>
+<text x="696" y="827.4000000000001" font-size="17" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Arka parse-stop workaround</text>
+<rect x="690" y="842" width="290" height="90" rx="10" ry="10" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="706" y="853.4" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">One truncated response halts the run</text>
+<text x="706" y="871.6" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto"></text>
+<text x="706" y="889.8000000000001" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">Fix: read raw_responses.jsonl,</text>
+<text x="706" y="908.0000000000001" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">parse with regex fallback,</text>
+<text x="706" y="926.2000000000002" font-size="14" font-family="Arial, sans-serif" fill="#e67700" dominant-baseline="auto">write clean file separately</text>
+<text x="696" y="967.4000000000001" font-size="17" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Key lessons</text>
+<rect x="690" y="980" width="290" height="150" rx="10" ry="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="1.5" style="" opacity="1"/>
+<text x="706" y="1021.4" font-size="14" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Instruction framing IS training signal</text>
+<text x="706" y="1039.6" font-size="14" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Evol ops wrong for style datasets</text>
+<text x="706" y="1057.8" font-size="14" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Synthetic seeds dedup aggressively</text>
+<text x="706" y="1076" font-size="14" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">PH rate 72%-&gt;42% via real text</text>
+<text x="706" y="1094.2" font-size="14" font-family="Arial, sans-serif" fill="#1864ab" dominant-baseline="auto">Real HF text = best diversity source</text>
+</svg>

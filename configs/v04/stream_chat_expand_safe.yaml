@@ -1,0 +1,80 @@
+# configs/v04/stream_chat_expand_safe.yaml
+# Expand 48 chat seeds via safe prompt_based_generator into ~800 diverse chat pairs
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 4
+
+pipeline:
+  - type: seed_source
+    path: ../../data/processed/v04_stream_chat_base.jsonl
+
+  - type: normalize_conversation
+
+  - type: prompt_based_generator
+    target_count: 800
+    generation_multiplier: 1
+    max_tokens: 512
+    temperature: 0.85
+    llm_override:
+      model: google/gemini-3.1-flash-lite-preview
+      max_tokens: 512
+    prompt_template: |
+      Create one new Slack/chat SFT pair inspired by the seed.
+
+      The dataset teaches a model to write natural, direct workplace Slack messages.
+
+      Allowed variation:
+      - Change the workplace situation: deploy, bug fix, PR, standup, incident, meeting, PTO, lunch, offboarding, onboarding, sprint, customer issue, question, handoff, etc.
+      - Change who is writing: engineer, PM, designer, manager, data analyst, support lead, etc.
+      - Vary instruction type: write from scratch, rewrite stiff draft, shorten, fix grammar, add warmth.
+      - Vary channel context: team channel, DM, #general, #incidents, #design, #data, thread reply.
+      - For rewrite tasks: include a stiff or wordy draft to rewrite.
+
+      Forbidden:
+      - Do not mention AI, ChatGPT, humanize, AI-generated, or AI-written in the instruction.
+      - Do not invent named people, company names, or specific tools unless implied.
+      - Do not make it a long essay or email — keep responses 1-4 sentences unless context requires more.
+      - Do not add filler like "it is worth noting", "furthermore", "please don't hesitate".
+      - Response must sound like a real person wrote it in a workplace Slack.
+
+      Return only JSON:
+      {{"instruction": "...", "response": "..."}}
+
+      Seed instruction:
+      {seed_instruction}
+
+      Seed response:
+      {seed_response}
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 20
+    max_instruction_chars: 1000
+    min_response_chars: 10
+    max_response_chars: 800
+
+  - type: language
+    allowed: [en]
+
+output:
+  format: jsonl
+  path: ../../data/processed/v04_stream_chat_expanded.jsonl

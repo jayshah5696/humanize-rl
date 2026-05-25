@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="368" viewBox="0 0 840 368">
+<rect width="840" height="368" fill="#ffffff"/>
+<style>text{font-family:Arial,Helvetica,sans-serif;}</style>
+<defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="arrd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="arrr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#c92a2a"/>
+    </marker>
+  </defs>
+<text x="24" y="36.9" font-size="20" fill="#1e1e1e">Two-Stage Quality Gate</text>
+<rect x="20" y="64" width="160" height="46" rx="8" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="1.5" />
+<text x="100" y="89.03" font-size="14" fill="#1864ab" text-anchor="middle">Generated row</text>
+<line x1="180" y1="87" x2="240" y2="87" stroke="#1e1e1e" stroke-width="1.5"  marker-end="url(#arr)"/>
+<rect x="240" y="48" width="160" height="78" rx="8" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" />
+<text x="320" y="64.44" font-size="12" fill="#e67700" text-anchor="middle">Stage 1 · Heuristic</text>
+<text x="320" y="80.64" font-size="12" fill="#e67700" text-anchor="middle">bad phrases</text>
+<text x="320" y="96.84" font-size="12" fill="#e67700" text-anchor="middle">fake names</text>
+<text x="320" y="113.04" font-size="12" fill="#e67700" text-anchor="middle">meta-AI framing</text>
+<line x1="400" y1="87" x2="460" y2="87" stroke="#1e1e1e" stroke-width="1.5"  marker-end="url(#arr)"/>
+<line x1="320" y1="126" x2="320" y2="176" stroke="#c92a2a" stroke-width="1.5"  marker-end="url(#arrr)"/>
+<text x="341" y="153.595" font-size="11" fill="#c92a2a" text-anchor="middle">fail</text>
+<rect x="250" y="176" width="140" height="32" rx="8" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="1.5" />
+<text x="320" y="193.74" font-size="12" fill="#c92a2a" text-anchor="middle">Dropped</text>
+<rect x="460" y="48" width="160" height="78" rx="8" fill="#fff3bf" stroke="#1e1e1e" stroke-width="1.5" />
+<text x="540" y="64.44" font-size="12" fill="#e67700" text-anchor="middle">Stage 2 · Flash Lite</text>
+<text x="540" y="80.64" font-size="12" fill="#e67700" text-anchor="middle">naturalness &gt;= 4</text>
+<text x="540" y="96.84" font-size="12" fill="#e67700" text-anchor="middle">fact preservation</text>
+<text x="540" y="113.04" font-size="12" fill="#e67700" text-anchor="middle">no invented details</text>
+<line x1="620" y1="87" x2="680" y2="87" stroke="#1e1e1e" stroke-width="1.5"  marker-end="url(#arr)"/>
+<line x1="540" y1="126" x2="540" y2="176" stroke="#c92a2a" stroke-width="1.5"  marker-end="url(#arrr)"/>
+<text x="561" y="153.595" font-size="11" fill="#c92a2a" text-anchor="middle">fail</text>
+<rect x="470" y="176" width="140" height="32" rx="8" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="1.5" />
+<text x="540" y="193.74" font-size="12" fill="#c92a2a" text-anchor="middle">Dropped</text>
+<rect x="680" y="64" width="140" height="46" rx="8" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="1.5" />
+<text x="750" y="89.03" font-size="14" fill="#2b8a3e" text-anchor="middle">Kept</text>
+<text x="24" y="246.03" font-size="14" fill="#1e1e1e">Keep rates by stream</text>
+<text x="24" y="272.34" font-size="12" fill="#343a40">Stream A  base150         149 judged   145 kept   97.3%</text>
+<text x="24" y="288.53999999999996" font-size="12" fill="#343a40">Stream A  safe_expand ×2  680 judged   668 kept   98.2%</text>
+<text x="24" y="304.73999999999995" font-size="12" fill="#343a40">Stream A  safe_expand_3k  1,841 judged 1,806 kept  98.1%</text>
+<text x="24" y="320.93999999999994" font-size="12" fill="#343a40">Stream B  real HF text    1,912 judged 1,619 kept  84.6%  ← still too formal after rewrite</text>
+<text x="24" y="337.13999999999993" font-size="12" fill="#343a40">Stream C  chat expanded   440 judged   423 kept   96.1%</text>
+</svg>

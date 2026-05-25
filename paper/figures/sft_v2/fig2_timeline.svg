@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="516" viewBox="0 0 620 516">
+<rect width="620" height="516" fill="#ffffff"/>
+<style>text{font-family:Arial,Helvetica,sans-serif;}</style>
+<defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="arrd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="arrr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#c92a2a"/>
+    </marker>
+  </defs>
+<text x="34" y="36.9" font-size="20" fill="#1e1e1e">Dataset Build — Iteration Log</text>
+<text x="34" y="66.74" font-size="12" fill="#868e96">Iteration</text>
+<text x="254" y="66.74" font-size="12" fill="#868e96">Added</text>
+<text x="364" y="66.74" font-size="12" fill="#868e96">Total</text>
+<text x="464" y="66.74" font-size="12" fill="#868e96">Outcome</text>
+<rect x="20" y="78" width="580" height="34" rx="0" fill="#ffc9c9" stroke="#ffa8a8" stroke-width="1.5" />
+<text x="34" y="96.74000000000001" font-size="12" fill="#c92a2a">v1 seed pipeline        1,269   1,269   Discarded — 1 voice, 1 domain, AI tells in targets</text>
+<rect x="20" y="116" width="580" height="34" rx="0" fill="#fff3bf" stroke="#ffe066" stroke-width="1.5" />
+<text x="34" y="134.74" font-size="12" fill="#e67700">v2 redesign             —       0       Dual-mode seeds, plain framing, placeholder policy</text>
+<rect x="20" y="154" width="580" height="34" rx="0" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5" />
+<text x="34" y="172.74" font-size="12" fill="#1864ab">base150 generated       +145    145     First clean run, prompt validated</text>
+<rect x="20" y="192" width="580" height="34" rx="0" fill="#ffc9c9" stroke="#ffa8a8" stroke-width="1.5" />
+<text x="34" y="210.74" font-size="12" fill="#c92a2a">Evol pilot              —       —       Debug only — hallucinated Q3 dashboard, fake names</text>
+<rect x="20" y="230" width="580" height="34" rx="0" fill="#e7f5ff" stroke="#a5d8ff" stroke-width="1.5" />
+<text x="34" y="248.74" font-size="12" fill="#1864ab">safe_expand ×2          +801    946     Constraint-safe prompt_based_generator</text>
+<rect x="20" y="268" width="580" height="34" rx="0" fill="#b2f2bb" stroke="#8ce99a" stroke-width="1.5" />
+<text x="34" y="286.73999999999995" font-size="12" fill="#2b8a3e">safe_expand_3000        +1,806  2,752   Main Stream A — raw recovery after parse-stop</text>
+<rect x="20" y="306" width="580" height="34" rx="0" fill="#b2f2bb" stroke="#8ce99a" stroke-width="1.5" />
+<text x="34" y="324.73999999999995" font-size="12" fill="#2b8a3e">Stream B  (real HF)     +1,619  4,371   84.6% keep — real text drives diversity</text>
+<rect x="20" y="344" width="580" height="34" rx="0" fill="#fff3bf" stroke="#ffe066" stroke-width="1.5" />
+<text x="34" y="362.73999999999995" font-size="12" fill="#e67700">Domain audit            —       4,371   Chat at 0.2% — gap found, chat stream added</text>
+<rect x="20" y="382" width="580" height="34" rx="0" fill="#b2f2bb" stroke="#8ce99a" stroke-width="1.5" />
+<text x="34" y="400.73999999999995" font-size="12" fill="#2b8a3e">Stream C  (chat)        +464    4,835   48 seeds + safe expansion — chat now 47%</text>
+<rect x="20" y="424" width="580" height="40" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2" />
+<text x="310" y="445.88500000000005" font-size="13" fill="#2b8a3e" text-anchor="middle">FINAL  4,835 rows  ·  avg naturalness 4.91/5  ·  bad-phrase 0.06%  ·  explicit-AI framing 0%</text>
+<text x="34" y="490.03000000000003" font-size="14" fill="#c92a2a">■</text>
+<text x="54" y="489.73999999999995" font-size="12" fill="#495057">Failure</text>
+<text x="154" y="490.03000000000003" font-size="14" fill="#e67700">■</text>
+<text x="174" y="489.73999999999995" font-size="12" fill="#495057">Decision / gap</text>
+<text x="304" y="490.03000000000003" font-size="14" fill="#1864ab">■</text>
+<text x="324" y="489.73999999999995" font-size="12" fill="#495057">Run</text>
+<text x="414" y="490.03000000000003" font-size="14" fill="#2b8a3e">■</text>
+<text x="434" y="489.73999999999995" font-size="12" fill="#495057">Major contribution</text>
+</svg>

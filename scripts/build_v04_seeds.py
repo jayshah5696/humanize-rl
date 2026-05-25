@@ -12,7 +12,7 @@ def build_seeds():
     task_seeds.extend([
         # Rewrite
         {
-            "instruction": "Make this Slack message sound like a human wrote it instead of ChatGPT:\n\n'Please be advised that the weekly sync has been rescheduled to tomorrow at 10 AM. Your presence would be highly appreciated. Let me know if this presents any scheduling conflicts.'",
+            "instruction": "Rewrite this Slack message to be casual and direct:\n\n'Please be advised that the weekly sync has been rescheduled to tomorrow at 10 AM. Your presence would be highly appreciated. Let me know if this presents any scheduling conflicts.'",
             "task_type": "slack_chat",
             "persona": None,
             "domain": "chat",
@@ -26,7 +26,7 @@ def build_seeds():
             "mode": "rewrite_humanize"
         },
         {
-            "instruction": "Humanize this Slack message draft:\n\n'It has come to my attention that the API endpoints are experiencing elevated latency. I am actively investigating the root cause and will keep you informed of further developments.'",
+            "instruction": "Rewrite this Slack message draft:\n\n'It has come to my attention that the API endpoints are experiencing elevated latency. I am actively investigating the root cause and will keep you informed of further developments.'",
             "task_type": "slack_chat",
             "persona": None,
             "domain": "chat",
@@ -108,7 +108,7 @@ def build_seeds():
     task_seeds.extend([
         # Rewrite
         {
-            "instruction": "This email sounds like standard ChatGPT output. Rewrite it to sound like a normal professional person:\n\n'Dear team, I hope this email finds you well. I am writing to provide an update on our quarterly milestones. We have made significant progress; however, some challenges remain. Please review the attached deck.'",
+            "instruction": "Rewrite this email to sound like a normal professional person:\n\n'Dear team, I hope this email finds you well. I am writing to provide an update on our quarterly milestones. We have made significant progress; however, some challenges remain. Please review the attached deck.'",
             "task_type": "email_rewrite",
             "persona": None,
             "domain": "email",
@@ -208,7 +208,7 @@ def build_seeds():
 
     # --- Category 4: shorten_compress (16 seeds) ---
     compress_extra = [
-        ("Shorten this long AI-written update to one concise paragraph:\n\n'In order to facilitate the progress of our current initiatives, we decided to perform an audit of our cloud infrastructure cost metrics. It is worth noting that we identified several orphaned storage volumes that are contributing to excess spend. Therefore, we are going to purge these volumes tonight.'", "rewrite_humanize", None),
+        ("Shorten this long update to one concise paragraph:\n\n'In order to facilitate the progress of our current initiatives, we decided to perform an audit of our cloud infrastructure cost metrics. It is worth noting that we identified several orphaned storage volumes that are contributing to excess spend. Therefore, we are going to purge these volumes tonight.'", "rewrite_humanize", None),
         ("Cut this Slack message to 2 sentences max:\n\n'Hi team, I wanted to follow up on the discussion we had earlier regarding the API design. I have created a document outlining the core options and would appreciate it if you could take a look and add your comments.'", "rewrite_humanize", None),
         ("Condense this status report to its core blockers and next steps:\n\n'We spent the last two days trying to debug the memory leak. We ran multiple profiles and found that the garbage collector is stalling due to excessive object allocation in the parser. We are planning to refactor the parser module. We cannot proceed with the deployment until this is fixed.'", "rewrite_humanize", None),
         ("Tighten this email draft to be brief and direct:\n\n'Dear client, I am writing to let you know that we have finalized the migration of your account to our new servers. You might notice some speed improvements. Please let us know if you spot any issues.'", "rewrite_humanize", None),
@@ -320,7 +320,7 @@ def build_seeds():
 
     # --- Category 8: product_copy (16 seeds) ---
     product_extra = [
-        ("This landing page hero section copy sounds too AI-generated. Rewrite it to sound authentic and engaging:\n\n'Welcome to the future of team collaboration. Our cutting-edge platform leverages state-of-the-art technology to synergize your workflows and maximize productivity levels.'", "rewrite_humanize", None),
+        ("This landing page hero section copy sounds too generic. Rewrite it to sound authentic and engaging:\n\n'Welcome to the future of team collaboration. Our cutting-edge platform leverages state-of-the-art technology to synergize your workflows and maximize productivity levels.'", "rewrite_humanize", None),
         ("Rewrite this robotic product announcement email to sound like a real person sharing good news:\n\n'We are thrilled to announce the release of our brand-new analytics dashboard. This feature has been meticulously crafted to provide you with actionable insights and deep visibility.'", "rewrite_humanize", None),
         ("Draft a short, punchy app store description for a simple command-line file sharing tool.", "direct_generation", None),
         ("Rewrite this feature description to be simple and user-focused:\n\n'Our platform utilizes an advanced machine learning algorithm to automatically categorize your expenses in real-time, thereby eliminating manual entry.'", "rewrite_humanize", None),
@@ -349,20 +349,20 @@ def build_seeds():
     # --- Category 9: ocr_document_text (16 seeds) ---
     ocr_extra = [
         ("Rewrite the key details from this OCR scan of a meeting agenda into clean, modern prose:\n\n[Screenshot content:]\nDATE: 2026-05-12\nATTENDEES: Alice, Bob, Charlie\nTOPIC 1: Q3 Budget review (10:00 - 10:30)\nTOPIC 2: Frontend architecture (10:30 - 11:30)\nLUNCH BREAK\nTOPIC 3: QA pipeline automation (13:00 - 14:00)", "rewrite_humanize", None),
-        ("Humanize this rough document draft extracted from a scanner:\n\n[Screenshot content:]\nMEMORANDUM\nTO: All Staff Members\nFROM: Management\nSUBJECT: Office policy amendment\nEffective immediately, all conference rooms must be reserved in advance using the scheduling application. Failure to do so will result in reservation forfeiture.", "rewrite_humanize", None),
+        ("Rewrite this rough document draft extracted from a scanner:\n\n[Screenshot content:]\nMEMORANDUM\nTO: All Staff Members\nFROM: Management\nSUBJECT: Office policy amendment\nEffective immediately, all conference rooms must be reserved in advance using the scheduling application. Failure to do so will result in reservation forfeiture.", "rewrite_humanize", None),
         ("Rewrite this scanned form text into a natural email confirmation:\n\n[Screenshot content:]\nORDER NUMBER: #94827\nSTATUS: Processing\nITEMS: 2x Wireless keyboard, 1x USB-C cable\nSHIPPING TO: Jane Doe, 123 Main St, Anytown, US\nDELIVERY EST: 3-5 business days", "rewrite_humanize", None),
-        ("Humanize the notes on this digital whiteboard OCR:\n\n[Screenshot content:]\n- migrate db from mysql to postgres\n- alice to write schema file (target wed)\n- bob needs to setup replication replica\n- charlie will run performance benchmarks on staging after migration", "rewrite_humanize", None),
-        ("Humanize this scanned legal disclaimer for a website footer:\n\n[Screenshot content:]\nDISCLAIMER: The information provided on this website is for general informational purposes only. We make no representations or warranties of any kind regarding accuracy or completeness.", "rewrite_humanize", None),
+        ("Rewrite the notes on this digital whiteboard OCR:\n\n[Screenshot content:]\n- migrate db from mysql to postgres\n- alice to write schema file (target wed)\n- bob needs to setup replication replica\n- charlie will run performance benchmarks on staging after migration", "rewrite_humanize", None),
+        ("Rewrite this scanned legal disclaimer for a website footer:\n\n[Screenshot content:]\nDISCLAIMER: The information provided on this website is for general informational purposes only. We make no representations or warranties of any kind regarding accuracy or completeness.", "rewrite_humanize", None),
         ("Rewrite this OCR receipt content into a clear expense description for a manager.", "rewrite_humanize", None),
-        ("Humanize this scanned checklist of server migration steps.", "rewrite_humanize", None),
+        ("Rewrite this scanned checklist of server migration steps.", "rewrite_humanize", None),
         ("Rewrite this OCR-extracted text from an old handbook explaining the company's dress code policy.", "rewrite_humanize", None),
-        ("Humanize this scanned flyer text welcoming people to a local developer meetup.", "rewrite_humanize", None),
+        ("Rewrite this scanned flyer text welcoming people to a local developer meetup.", "rewrite_humanize", None),
         ("Rewrite this scanned business card content into a quick note to add the contact on LinkedIn.", "rewrite_humanize", None),
-        ("Humanize this OCR text from a company announcement board.", "rewrite_humanize", None),
+        ("Rewrite this OCR text from a company announcement board.", "rewrite_humanize", None),
         ("Rewrite this scanned invoice summary into a direct Slack ping to the accounting team.", "rewrite_humanize", None),
-        ("Humanize this OCR-extracted project scope document section.", "rewrite_humanize", None),
+        ("Rewrite this OCR-extracted project scope document section.", "rewrite_humanize", None),
         ("Rewrite this scanned manual page explaining how to reset the office router.", "rewrite_humanize", None),
-        ("Humanize this scanned customer feedback form text.", "rewrite_humanize", None),
+        ("Rewrite this scanned customer feedback form text.", "rewrite_humanize", None),
         ("Rewrite this OCR-extracted text from a presentation slide summarizing Q1 sales results.", "rewrite_humanize", None)
     ]
     for inst, mode, pers in ocr_extra:
@@ -377,6 +377,32 @@ def build_seeds():
     # Assert exactly 150 seeds
     print(f"Total task seeds built: {len(task_seeds)}")
     assert len(task_seeds) == 150, f"Expected 150 seeds, got {len(task_seeds)}"
+
+    # Apply instruction_framing policy. Keep explicit anti-AI framing out of the
+    # pilot slice; most rows should look like normal user tasks.
+    for seed in task_seeds:
+        inst = seed["instruction"]
+        lower_inst = inst.lower()
+        seed["instruction"] = (
+            inst.replace("Make this Slack message sound like a natural instead of over-polished", "Rewrite this Slack message to be casual and direct")
+            .replace("This email sounds like standard over-polished output. Rewrite it to sound like a normal professional person", "Rewrite this email to sound like a normal professional person")
+            .replace("Clean up this AI-drafted reply", "Clean up this reply")
+            .replace("Shorten this long AI-written update", "Shorten this long update")
+            .replace("AI-generated", "generic")
+            .replace("AI-written", "stiff")
+            .replace("ChatGPT", "over-polished")
+        )
+        if any(w in lower_inst for w in ["robotic", "stiff", "too formal", "corporate", "cliché"]):
+            seed["instruction_framing"] = "robotic_stiff"
+        else:
+            seed["instruction_framing"] = "plain_task"
+
+    # Print distribution
+    framing_counts = {"plain_task": 0, "robotic_stiff": 0, "explicit_ai": 0}
+    for seed in task_seeds:
+        f = seed["instruction_framing"]
+        framing_counts[f] += 1
+    print(f"Instruction framing distribution: {framing_counts}")
     
     # Save seeds
     with open("seeds/v04_task_seeds.jsonl", "w") as f:
@@ -385,6 +411,39 @@ def build_seeds():
             f.write(json.dumps(seed) + "\n")
             
     print("Wrote seeds/v04_task_seeds.jsonl successfully.")
+
+    # Save pilot seeds (first 30 seeds)
+    with open("seeds/v04_task_seeds_pilot.jsonl", "w") as f:
+        for seed in task_seeds[:30]:
+            seed["response"] = ""
+            f.write(json.dumps(seed) + "\n")
+            
+    print("Wrote seeds/v04_task_seeds_pilot.jsonl successfully.")
+
+    # Save split pilot seeds
+    with open("seeds/v04_task_seeds_pilot_direct.jsonl", "w") as f_dir, \
+         open("seeds/v04_task_seeds_pilot_rewrite.jsonl", "w") as f_rew:
+        for seed in task_seeds[:30]:
+            seed["response"] = ""
+            if seed["mode"] == "direct_generation":
+                f_dir.write(json.dumps(seed) + "\n")
+            else:
+                f_rew.write(json.dumps(seed) + "\n")
+                
+    print("Wrote split pilot seeds successfully.")
+
+    # Save split full seeds
+    with open("seeds/v04_task_seeds_direct.jsonl", "w") as f_dir, \
+         open("seeds/v04_task_seeds_rewrite.jsonl", "w") as f_rew:
+        for seed in task_seeds:
+            seed["response"] = ""
+            if seed["mode"] == "direct_generation":
+                f_dir.write(json.dumps(seed) + "\n")
+            else:
+                f_rew.write(json.dumps(seed) + "\n")
+                
+    print("Wrote split full seeds successfully.")
+
 
     # 2. 300 persona synthetic tasks for Stream C
     # Combining 30 persona descriptions with 10 generic prompt/topics
@@ -450,7 +509,8 @@ def build_seeds():
                 "instruction": f"Simulate a response by {p}.\nTask: {inst_obj['instruction']}",
                 "task_type": inst_obj["task_type"],
                 "domain": inst_obj["domain"],
-                "register": "casual" if "chat" in inst_obj["task_type"] else "professional"
+                "register": "casual" if "chat" in inst_obj["task_type"] else "professional",
+                "instruction_framing": "plain_task"
             })
             
     print(f"Total persona tasks built: {len(persona_tasks)}")

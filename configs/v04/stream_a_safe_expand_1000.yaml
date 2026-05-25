@@ -1,0 +1,81 @@
+# configs/v04/stream_a_safe_expand_1000.yaml
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 4
+
+pipeline:
+  - type: seed_source
+    path: ../../data/processed/v04_stream_a_base150_kept.jsonl
+
+  - type: normalize_conversation
+
+  - type: prompt_based_generator
+    target_count: 1000
+    generation_multiplier: 1
+    max_tokens: 768
+    temperature: 0.8
+    prompt_template: |
+      Create one new high-quality SFT writing pair inspired by the seed.
+
+      The dataset teaches a small model to write naturally from scratch and rewrite stiff text into natural prose.
+
+      Allowed changes:
+      - Change the workplace situation, audience, or channel.
+      - Use Slack, email, status update, product note, support reply, or short explanation.
+      - Add simple tone/length constraints like brief, warmer, direct, casual, professional.
+      - Use placeholders like [Name], [Company], [Date], [Project], [Colleague], [Metric] when details are missing.
+
+      Forbidden:
+      - Do not mention AI, ChatGPT, humanize, AI-written, or AI-generated.
+      - Do not invent specific real names, company names, tools, metrics, dates, restaurants, project names, or root causes.
+      - Do not make the task a legal/compliance essay or a reasoning benchmark.
+      - Do not add deep technical requirements unless the seed already has them.
+      - Do not use corporate filler like "it is worth noting", "furthermore", "in conclusion", or "please don't hesitate".
+      - Do not create generic motivational or LinkedIn-style prose.
+
+      Output quality rules:
+      - Response should sound like a competent normal person wrote it.
+      - Preserve facts for rewrite/edit tasks.
+      - For direct drafting tasks, use placeholders for missing specifics.
+      - Keep Slack short. Keep email natural and concise.
+
+      Return only JSON with keys "instruction" and "response".
+
+      Seed instruction:
+      {seed_instruction}
+
+      Seed response:
+      {seed_response}
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 20
+    max_instruction_chars: 1500
+    min_response_chars: 20
+    max_response_chars: 2500
+
+  - type: language
+    allowed: [en]
+
+output:
+  format: jsonl
+  path: ../../data/processed/v04_stream_a_safe_expand_1000.jsonl

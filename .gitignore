@@ -25,6 +25,33 @@ data/raw/
 data/processed/
 scratch/
 output/
+outputs/
+outputs_gemma4_*/
+
+# Experiment tracking and logs
+mlruns/
+wandb/
+mlflow.db
+run_direct.log
+log/*.log
+*.tmp
+
+# Generated scorer intermediates
+# Keep curated scorer-ready datasets explicit via git add -f only when needed.
+data/scorer/*.bak
+data/scorer/l2_labeled_v*.jsonl
+data/scorer/l2_labeled_scorer_v01.jsonl
+data/scorer/l2_labeling_pool_v01.jsonl
+
+# Local model/checkpoint artifacts
+adapters/
+models/
+*.safetensors
+*.pkl
+*.npz
+
+# Local tool state
+.antigravitycli/
 
 # Generated benchmark artifacts (reproducible via `just v03-ws`).
 # Source of truth = seeds/ + code + report. Anything emitted by a stage
@@ -58,6 +85,7 @@ configs/state.db
 configs/runs/
 configs/v03/state.db
 configs/v03/runs/
+configs/v04/runs/
 
 # OS
 .DS_Store

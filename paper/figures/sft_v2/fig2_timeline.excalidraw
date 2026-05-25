@@ -1,0 +1,57 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "agent",
+  "elements": [
+
+    { "type": "text", "id": "title", "x": 50, "y": 16, "width": 500, "height": 28,
+      "text": "Dataset Build — Iteration Log", "fontSize": 20, "fontFamily": 1,
+      "strokeColor": "#1e1e1e", "textAlign": "left", "originalText": "Dataset Build — Iteration Log", "autoResize": true },
+
+    { "type": "text", "id": "h1", "x": 50, "y": 52, "width": 160, "height": 18, "text": "Iteration", "fontSize": 12, "fontFamily": 1, "strokeColor": "#868e96", "originalText": "Iteration", "autoResize": true },
+    { "type": "text", "id": "h2", "x": 270, "y": 52, "width": 80, "height": 18, "text": "Added", "fontSize": 12, "fontFamily": 1, "strokeColor": "#868e96", "originalText": "Added", "autoResize": true },
+    { "type": "text", "id": "h3", "x": 380, "y": 52, "width": 80, "height": 18, "text": "Total", "fontSize": 12, "fontFamily": 1, "strokeColor": "#868e96", "originalText": "Total", "autoResize": true },
+    { "type": "text", "id": "h4", "x": 480, "y": 52, "width": 100, "height": 18, "text": "Outcome", "fontSize": 12, "fontFamily": 1, "strokeColor": "#868e96", "originalText": "Outcome", "autoResize": true },
+
+    { "type": "rectangle", "id": "r1", "x": 40, "y": 74, "width": 580, "height": 34, "backgroundColor": "#ffc9c9", "fillStyle": "solid", "strokeColor": "#ffa8a8", "boundElements": [{ "id": "tr1", "type": "text" }] },
+    { "type": "text", "id": "tr1", "x": 50, "y": 83, "width": 560, "height": 16, "text": "v1 seed pipeline        1,269   1,269   Discarded — 1 voice, 1 domain, AI tells in targets", "fontSize": 12, "fontFamily": 1, "strokeColor": "#c92a2a", "textAlign": "left", "verticalAlign": "middle", "containerId": "r1", "originalText": "v1 seed pipeline        1,269   1,269   Discarded — 1 voice, 1 domain, AI tells in targets", "autoResize": true },
+
+    { "type": "rectangle", "id": "r2", "x": 40, "y": 112, "width": 580, "height": 34, "backgroundColor": "#fff3bf", "fillStyle": "solid", "strokeColor": "#ffe066", "boundElements": [{ "id": "tr2", "type": "text" }] },
+    { "type": "text", "id": "tr2", "x": 50, "y": 121, "width": 560, "height": 16, "text": "v2 redesign             —       0       Dual-mode seeds, plain framing, placeholder policy", "fontSize": 12, "fontFamily": 1, "strokeColor": "#e67700", "textAlign": "left", "verticalAlign": "middle", "containerId": "r2", "originalText": "v2 redesign             —       0       Dual-mode seeds, plain framing, placeholder policy", "autoResize": true },
+
+    { "type": "rectangle", "id": "r3", "x": 40, "y": 150, "width": 580, "height": 34, "backgroundColor": "#e7f5ff", "fillStyle": "solid", "strokeColor": "#a5d8ff", "boundElements": [{ "id": "tr3", "type": "text" }] },
+    { "type": "text", "id": "tr3", "x": 50, "y": 159, "width": 560, "height": 16, "text": "base150 generated       +145    145     First clean run, prompt validated", "fontSize": 12, "fontFamily": 1, "strokeColor": "#1864ab", "textAlign": "left", "verticalAlign": "middle", "containerId": "r3", "originalText": "base150 generated       +145    145     First clean run, prompt validated", "autoResize": true },
+
+    { "type": "rectangle", "id": "r4", "x": 40, "y": 188, "width": 580, "height": 34, "backgroundColor": "#ffc9c9", "fillStyle": "solid", "strokeColor": "#ffa8a8", "boundElements": [{ "id": "tr4", "type": "text" }] },
+    { "type": "text", "id": "tr4", "x": 50, "y": 197, "width": 560, "height": 16, "text": "Evol pilot              —       —       Debug only — hallucinated Q3 dashboard, fake names", "fontSize": 12, "fontFamily": 1, "strokeColor": "#c92a2a", "textAlign": "left", "verticalAlign": "middle", "containerId": "r4", "originalText": "Evol pilot              —       —       Debug only — hallucinated Q3 dashboard, fake names", "autoResize": true },
+
+    { "type": "rectangle", "id": "r5", "x": 40, "y": 226, "width": 580, "height": 34, "backgroundColor": "#e7f5ff", "fillStyle": "solid", "strokeColor": "#a5d8ff", "boundElements": [{ "id": "tr5", "type": "text" }] },
+    { "type": "text", "id": "tr5", "x": 50, "y": 235, "width": 560, "height": 16, "text": "safe_expand ×2          +801    946     Constraint-safe prompt_based_generator", "fontSize": 12, "fontFamily": 1, "strokeColor": "#1864ab", "textAlign": "left", "verticalAlign": "middle", "containerId": "r5", "originalText": "safe_expand ×2          +801    946     Constraint-safe prompt_based_generator", "autoResize": true },
+
+    { "type": "rectangle", "id": "r6", "x": 40, "y": 264, "width": 580, "height": 34, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#8ce99a", "boundElements": [{ "id": "tr6", "type": "text" }] },
+    { "type": "text", "id": "tr6", "x": 50, "y": 273, "width": 560, "height": 16, "text": "safe_expand_3000        +1,806  2,752   Main Stream A — raw recovery after parse-stop", "fontSize": 12, "fontFamily": 1, "strokeColor": "#2b8a3e", "textAlign": "left", "verticalAlign": "middle", "containerId": "r6", "originalText": "safe_expand_3000        +1,806  2,752   Main Stream A — raw recovery after parse-stop", "autoResize": true },
+
+    { "type": "rectangle", "id": "r7", "x": 40, "y": 302, "width": 580, "height": 34, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#8ce99a", "boundElements": [{ "id": "tr7", "type": "text" }] },
+    { "type": "text", "id": "tr7", "x": 50, "y": 311, "width": 560, "height": 16, "text": "Stream B  (real HF)     +1,619  4,371   84.6% keep — real text drives diversity", "fontSize": 12, "fontFamily": 1, "strokeColor": "#2b8a3e", "textAlign": "left", "verticalAlign": "middle", "containerId": "r7", "originalText": "Stream B  (real HF)     +1,619  4,371   84.6% keep — real text drives diversity", "autoResize": true },
+
+    { "type": "rectangle", "id": "r8", "x": 40, "y": 340, "width": 580, "height": 34, "backgroundColor": "#fff3bf", "fillStyle": "solid", "strokeColor": "#ffe066", "boundElements": [{ "id": "tr8", "type": "text" }] },
+    { "type": "text", "id": "tr8", "x": 50, "y": 349, "width": 560, "height": 16, "text": "Domain audit            —       4,371   Chat at 0.2% — gap found, chat stream added", "fontSize": 12, "fontFamily": 1, "strokeColor": "#e67700", "textAlign": "left", "verticalAlign": "middle", "containerId": "r8", "originalText": "Domain audit            —       4,371   Chat at 0.2% — gap found, chat stream added", "autoResize": true },
+
+    { "type": "rectangle", "id": "r9", "x": 40, "y": 378, "width": 580, "height": 34, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#8ce99a", "boundElements": [{ "id": "tr9", "type": "text" }] },
+    { "type": "text", "id": "tr9", "x": 50, "y": 387, "width": 560, "height": 16, "text": "Stream C  (chat)        +464    4,835   48 seeds + safe expansion — chat now 47%", "fontSize": 12, "fontFamily": 1, "strokeColor": "#2b8a3e", "textAlign": "left", "verticalAlign": "middle", "containerId": "r9", "originalText": "Stream C  (chat)        +464    4,835   48 seeds + safe expansion — chat now 47%", "autoResize": true },
+
+    { "type": "rectangle", "id": "rfinal", "x": 40, "y": 420, "width": 580, "height": 40, "roundness": { "type": 3 }, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#2f9e44", "strokeWidth": 2, "boundElements": [{ "id": "trfinal", "type": "text" }] },
+    { "type": "text", "id": "trfinal", "x": 50, "y": 432, "width": 560, "height": 16, "text": "FINAL  4,835 rows  ·  avg naturalness 4.91/5  ·  bad-phrase 0.06%  ·  explicit-AI framing 0%", "fontSize": 13, "fontFamily": 1, "strokeColor": "#2b8a3e", "textAlign": "center", "verticalAlign": "middle", "containerId": "rfinal", "originalText": "FINAL  4,835 rows  ·  avg naturalness 4.91/5  ·  bad-phrase 0.06%  ·  explicit-AI framing 0%", "autoResize": true },
+
+    { "type": "text", "id": "legA", "x": 50, "y": 476, "width": 20, "height": 16, "text": "■", "fontSize": 14, "fontFamily": 1, "strokeColor": "#c92a2a", "originalText": "■", "autoResize": true },
+    { "type": "text", "id": "legAl", "x": 70, "y": 476, "width": 100, "height": 16, "text": "Failure", "fontSize": 12, "fontFamily": 1, "strokeColor": "#495057", "originalText": "Failure", "autoResize": true },
+    { "type": "text", "id": "legB", "x": 170, "y": 476, "width": 20, "height": 16, "text": "■", "fontSize": 14, "fontFamily": 1, "strokeColor": "#e67700", "originalText": "■", "autoResize": true },
+    { "type": "text", "id": "legBl", "x": 190, "y": 476, "width": 120, "height": 16, "text": "Decision / gap", "fontSize": 12, "fontFamily": 1, "strokeColor": "#495057", "originalText": "Decision / gap", "autoResize": true },
+    { "type": "text", "id": "legC", "x": 320, "y": 476, "width": 20, "height": 16, "text": "■", "fontSize": 14, "fontFamily": 1, "strokeColor": "#1864ab", "originalText": "■", "autoResize": true },
+    { "type": "text", "id": "legCl", "x": 340, "y": 476, "width": 80, "height": 16, "text": "Run", "fontSize": 12, "fontFamily": 1, "strokeColor": "#495057", "originalText": "Run", "autoResize": true },
+    { "type": "text", "id": "legD", "x": 430, "y": 476, "width": 20, "height": 16, "text": "■", "fontSize": 14, "fontFamily": 1, "strokeColor": "#2b8a3e", "originalText": "■", "autoResize": true },
+    { "type": "text", "id": "legDl", "x": 450, "y": 476, "width": 120, "height": 16, "text": "Major contribution", "fontSize": 12, "fontFamily": 1, "strokeColor": "#495057", "originalText": "Major contribution", "autoResize": true }
+
+  ],
+  "appState": { "viewBackgroundColor": "#ffffff" }
+}

@@ -1,4 +1,4 @@
-# configs/v04/stream_a_evol_pilot.yaml
+# configs/v04/stream_a_evol_pilot_rewrite.yaml
 version: "1"
 run_id: null
 
@@ -20,12 +20,12 @@ executor:
 
 pipeline:
   - type: seed_source
-    path: ../../seeds/v04_task_seeds_pilot.jsonl
+    path: ../../seeds/v04_task_seeds_pilot_rewrite.jsonl
 
   - type: normalize_conversation
 
   - type: evol_instruct_generator
-    target_count: 50
+    target_count: 25
     generation_multiplier: 1
     rounds: 1
     branching_factor: 1
@@ -68,12 +68,6 @@ pipeline:
       AI text to humanize:
       {input_text}
 
-      CRITICAL CONSTRAINTS (STRICTLY ENFORCED):
-      1. Do NOT add, invent, or hallucinate any facts, details, names, tools, dates, projects, timelines, or reasons that are not present in the input text above.
-      2. If the input text is vague, keep the humanized version equally vague.
-      3. For example, if the input says "some challenges remain", do NOT write "database migration challenges" or "API latency challenges".
-      4. Keep the factual content 100% identical. Only rewrite the phrasing to sound natural, warm, and human.
-
       Return the humanized text inside a JSON object with a single key "text". Example:
       {{"text": "Your humanized text here"}}
       Make sure to escape any newlines as "\n" and double quotes as "\"" inside the JSON string!
@@ -95,4 +89,4 @@ pipeline:
 
 output:
   format: jsonl
-  path: ../../data/processed/v04_stream_a_pilot_v2.jsonl
+  path: ../../data/processed/v04_stream_a_pilot_rewrite.jsonl

@@ -1,0 +1,79 @@
+# configs/v04/stream_b_generate.yaml
+# Stream B: real-world human text -> instruction+response SFT pairs
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-flash-lite-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 60
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 4
+
+pipeline:
+  - type: seed_source
+    path: ../../data/raw/v04_stream_b_seeds.jsonl
+
+  - type: normalize_conversation
+
+  - type: prompt_based_generator
+    target_count: 1915
+    generation_multiplier: 1
+    max_tokens: 1024
+    temperature: 0.7
+    llm_override:
+      model: google/gemini-3.1-flash-lite-preview
+      max_tokens: 1024
+    prompt_template: |
+      You are building SFT training pairs for a model that writes naturally.
+
+      You are given a TEXT SAMPLE (as the seed instruction). Create one high-quality (instruction, response) pair using it.
+
+      How to use the sample:
+      - If it is an email: write an instruction asking a human to draft or rewrite a stiff/formal version of the same content, then provide the SAMPLE itself as the response. Vary the framing (sometimes "draft a ...", sometimes "rewrite this to sound less robotic...").
+      - If it is a Slack/chat message: write an instruction asking for a brief direct Slack message about the same topic. Response = the sample text itself (slightly cleaned if needed).
+      - If it is creative/narrative: write an instruction asking to draft a short, vivid paragraph or opening. Response = a cleaned excerpt from the sample.
+      - If it is informative/explanatory: write an instruction asking to explain a concept clearly. Response = the sample text itself.
+      - For "rewrite_source" emails (which are formal/stiff): write an instruction like "Rewrite this email to sound more direct and natural:" followed by the sample, and generate a humanized response yourself.
+
+      Rules:
+      - Do not mention AI, ChatGPT, humanize, AI-generated.
+      - Do not invent new facts not present in the sample.
+      - Use placeholders [Name], [Company], [Date] only when clearly needed.
+      - Instruction must be a natural user request (20–400 chars).
+      - Response must be 40–1200 chars.
+      - Keep email responses professional and natural.
+      - Keep Slack responses brief and casual.
+      - No filler: "it is worth noting", "furthermore", "in conclusion", "please don't hesitate".
+
+      TEXT SAMPLE:
+      {seed_instruction}
+
+      Return only JSON with keys "instruction" and "response".
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 20
+    max_instruction_chars: 800
+    min_response_chars: 40
+    max_response_chars: 2000
+
+  - type: language
+    allowed: [en]
+
+output:
+  format: jsonl
+  path: ../../data/processed/v04_stream_b_raw.jsonl

@@ -1,5 +1,22 @@
 # Gemma 4 E2B RL on Modal — $20 Budget Plan (May 2026)
 
+## Slice 1 result (2026-05-25): PASS on all probe gates, A100 cost ≈ $0.16
+
+Run: Modal app `ap-L7QVaA0mQtafbN4S9SOdcV`. 4 GRPO steps, TRL v1.1.0 +
+vLLM 0.20.2 colocate, A100-40GB. `check_rl_run_summary.py --phase probe`
+→ PASS.
+
+Key numbers from `outputs/probe_summary_v2.json`:
+- `train_samples_per_second` = 0.678 (input to slice 3 projector)
+- `train_runtime` = 35.4s for 4 optimizer steps × 6 rollouts
+- `peak_vram_gb` = 29.58 (within the [12, 38] band)
+- `final_logit_softcapping` = 30.0 (Bug A mirror confirmed working)
+- `clipped_ratio` max = 0.0, `frac_reward_zero_std` = 0/0/0/0
+- `importance_sampling_ratio` mean 0.92–1.22 (vLLM/trainer logprob parity good)
+
+Five new bugs encountered after the plan was written; each documented
+below under "May-2026 reality vs plan-time pins".
+
 ## TL;DR (revised after reading merge report 2026-05-25 + TRL bug audit + dropping the redundant Unsloth-stability slice)
 
 - **Merged SFT checkpoint is verified good.** The merge-verification report passed every gate (Transformers reload, KV-shared key audit, tokenizer eos `<turn|>` preserved, 9/10 parity). The "MISSING layers 15-34" is a benign Unsloth loader artifact. We are not re-merging.
@@ -77,6 +94,25 @@ Fixed; pin TRL ≥ 0.29.x.
 ### Bug F — vLLM 0.19 `fast_inference=True` crash for Unsloth (#4841)
 
 Doesn't matter — we drive vLLM directly, not via Unsloth's `fast_inference`.
+
+## May-2026 reality vs plan-time pins (slice 1 implementation log)
+
+The plan's pin set (`trl>=0.29.0`, `vllm==0.12.0`) does not exist in
+May 2026. Five additional Gemma 4 / TRL bugs surfaced during slice 1
+and are now defended against in `rl_gemma4_trl_vllm_modal.py`:
+
+| Bug | Symptom | Fix in our entrypoint |
+|---|---|---|
+| Plan pins infeasible | `vllm 0.12.0` caps `transformers<5`, conflicts with Bug C | Bumped to `trl>=1.0.0,<1.2.0`, `vllm>=0.19.1,<0.21.0` |
+| `max_prompt_length` removed (TRL #4300) | `GRPOConfig.__init__() got an unexpected keyword argument 'max_prompt_length'` | Dropped from the call site; YAML field kept for future pre-truncation |
+| `generation_batch_size % num_generations != 0` (TRL v1.x invariant) | `ValueError: generation_batch_size (1) must be divisible by num_generations (6)` | Probe config uses `gradient_accumulation_steps: 6` so each opt step materialises one full rollout group |
+| `Gemma4ClippableLinear` not a PEFT target | `ValueError: Target module Gemma4ClippableLinear(...) is not supported` | `_patch_peft_for_gemma4_clippable_linear`: monkey-patch `LoraModel._create_and_replace` to recurse into `target.linear` (recipe from unsloth #4807) |
+| vLLM strict-load fails on KV-shared `k_norm` (vLLM #40117 open) | `Following weights were not initialized from checkpoint: {...self_attn.k_norm.weight}` for layers 15–34 | `patch_vllm_gemma4_kv_shared_k_norm`: wrap `Gemma4Attention.__init__` so KV-shared layers replace `k_norm` with a weightless `RMSNorm(has_weight=False)` (inline equivalent of PR #40117) |
+
+Bug A (the plan's headline concern) is effectively a no-op on TRL
+v1.x because softcap is applied inside `model.forward`; we keep the
+mirror as a defensive guard and assert `final_logit_softcapping ==
+30.0` immediately after model load.
 
 ## Artifact hygiene status (DONE 2026-05-25)
 

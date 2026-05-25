@@ -67,3 +67,59 @@
 - **Run Success:** The pipeline executed successfully to completion in 0.4s on the resumed run.
 
 
+
+## [2026-05-23] Track A: 10K Layer-2 Scorer Calibration and HF-Ready Model Artifacts
+
+**Author:** Pi Coding Agent  
+**Focus:** Building a high-quality distilled Layer 2 humanness scorer from rubric-labeled data, validating false positives, and preparing model artifacts for Hugging Face release.
+
+### Accomplishments
+
+1. **Built a 10K Layer-2 labeled scorer dataset:**
+   - Created `data/scorer/l2_labeling_pool_v02_10k.jsonl` from balanced AI-generated, human-authored, and humanized-synthetic examples.
+   - Labeled all 10,000 rows with the humanness Layer 2 rubric using Gemini judge calls.
+   - Produced `data/scorer/l2_labeled_v02_10k.jsonl` and scorer-ready `data/scorer/l2_labeled_scorer_v02_10k.jsonl`.
+   - Verified 10,000 unique rows, 0 duplicates, and only 8 rows with empty `l2_per_dim`.
+
+2. **Improved the labeling infrastructure:**
+   - Added resumable L2 labeling with duplicate-safe appends in `scripts/label_l2_pool.py`.
+   - Added `scripts/dedupe_l2_labels.py` to clean duplicate IDs.
+   - Added `scripts/build_l2_labeling_pool.py` and `scripts/merge_l2_labels_into_scorer_data.py`.
+   - Fixed the previous sequential labeling bottleneck by adding real concurrent scoring with `ThreadPoolExecutor`.
+
+3. **Ran scorer model comparison:**
+   - Evaluated Ridge, fastText, dense Tiny, and dense Luxical scorer variants.
+   - Generated final reports and Tufte-style compact comparison figures in `runs/track_a_capped/`.
+   - Ridge achieved the best practical tradeoff: strong AUROC, lowest rubric MSE, small artifact size, and ~1ms/row latency.
+
+4. **Built and evaluated a human false-positive challenge set:**
+   - Created `data/scorer/false_positive_human_v01.jsonl` with 400 human-authored hard negatives from formal email, arXiv abstracts, StackExchange markdown, and local formal examples.
+   - Generated false-positive report in `runs/false_positive_eval/`.
+   - Ridge produced 0.0% false positives at threshold 0.5; fastText produced 0.25%; dense Luxical produced 18.5%.
+
+5. **Trained final local scorer artifacts:**
+   - Trained final Ridge and fastText models on the 10K L2-labeled scorer dataset.
+   - Saved artifacts under `models/track_a_10k/`:
+     - `ridge.pkl`
+     - `fasttext.pkl`
+     - `metadata.json`
+   - Dense Luxical was evaluated but not packaged because its SentenceTransformer wrapper is not pickle-safe on the current stack.
+
+6. **Paper/report integration:**
+   - Added `paper/track_a_scorer_report.md` with data construction, architecture, metric definitions, figures, false-positive analysis, shortcut analysis, limitations, and model-selection rationale.
+
+### Verification Metrics
+
+- **L2 scorer dataset:** 10,000 rows, 4,946 AI-generated, 3,308 human-authored, 1,746 humanized-synthetic.
+- **Mean L2 scores:** AI = 0.283, human-authored = 0.866, humanized-synthetic = 0.828.
+- **Selected scorer:** Ridge.
+- **Ridge capped benchmark:** AUROC ≈ 0.997-0.999, rubric MSE ≈ 0.036-0.046 depending split, latency ≈ 1ms/row.
+- **False-positive challenge:** Ridge false-positive rate = 0.0% on 400 human-authored hard negatives.
+
+### Artifacts
+
+- Dataset: `data/scorer/l2_labeled_scorer_v02_10k.jsonl`
+- Final models: `models/track_a_10k/`
+- Scorer report: `runs/track_a_capped/REPORT.md`
+- False-positive report: `runs/false_positive_eval/REPORT.md`
+- Paper section: `paper/track_a_scorer_report.md`

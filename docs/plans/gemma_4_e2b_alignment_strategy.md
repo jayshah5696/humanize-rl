@@ -113,6 +113,7 @@ To evaluate Layer 2 rubric scores (which require reading comprehension) without 
 | **Baseline 2: FastText** | Word Vectors | Character n-grams | Lightweight classifier ($<1$ms). Captures morphological tells and structural token frequencies. |
 | **Candidate A: Nomic Embed v1.5** | Dense Embedding | 768 / Matryoshka (MRL) | Supports truncation to 256/128 dims. Requires prepending prefix (`classification:`) before embedding. |
 | **Candidate B: EmbeddingGemma 300M** | Dense Embedding | 768 / Matryoshka (MRL) | Compact Gemma-lineage embedding model. Included for strong multilingual classification performance and architectural proximity, while not assuming lineage alone guarantees reward compatibility. |
+| **Candidate C: Luxical-One** | Lexical-Dense Embedding | HF remote-code encoder / CPU-optimized | DatologyAI lexical-dense embedding model optimized for high-throughput CPU embedding and English document classification. Added as a speed-oriented middle ground between TF-IDF/FastText and transformer dense encoders. |
 
 ### 5.2 Classifier Architecture
 For our dense candidates (Nomic and EmbeddingGemma), we extract the pooled sequence representation and train two parallel heads:

@@ -1,0 +1,35 @@
+{
+  "version": "track-a-ridge-scorer-v02-10k",
+  "data_path": "data/scorer/l2_labeled_scorer_v02_10k.jsonl",
+  "data_sha256": "1b86bc37a098a1aaf2f3c7b7cb4d31263604e70bab30b906ebff558089b5ac56",
+  "rubric_path": "rubrics/humanness_v01.yaml",
+  "rubric_dimensions": [
+    "structural_symmetry",
+    "specificity",
+    "formality_gradient",
+    "voice_consistency",
+    "rhetorical_sophistication",
+    "padding_density",
+    "personality_presence",
+    "copula_avoidance"
+  ],
+  "sklearn_version": "1.8.0",
+  "default_ai_probability_threshold": 0.5,
+  "summary": {
+    "samples": 10000,
+    "ai_samples": 4946,
+    "humanish_samples": 5054,
+    "rubric_samples": 10000,
+    "rows_with_empty_l2_per_dim": 8
+  },
+  "models": {
+    "ridge": {
+      "path": "models/track_a_10k/ridge.pkl",
+      "train_seconds": 35.58942500000194
+    },
+    "fasttext": {
+      "path": "models/track_a_10k/fasttext.pkl",
+      "train_seconds": 25.481394166999962
+    }
+  }
+}

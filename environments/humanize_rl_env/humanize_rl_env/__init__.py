@@ -1,12 +1,17 @@
+"""Prime Intellect Verifiers environment — Humanize-RL.
+
+Self-contained: all scoring logic is bundled in humanize_rl_env/ sub-package.
+No dependency on a separately-installed humanize-rl package.
+"""
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Any
 
-from humanize_rl.reward.env import prime_dataset_row, render_prompt
-from humanize_rl.reward.tasks import load_tasks
-from humanize_rl.reward.verifiers_adapter import (
+from humanize_rl_env.reward.env import prime_dataset_row, render_prompt
+from humanize_rl_env.reward.tasks import load_tasks
+from humanize_rl_env.reward.verifiers_adapter import (
     build_verifiers_rubric,
     clarity_metric,
     faithfulness_metric,
@@ -38,14 +43,7 @@ def load_environment(
     split: str = "train",
     task_path: str | None = None,
 ) -> Any:
-    """Load a Prime Verifiers SingleTurnEnv.
-
-    Current Verifiers docs use:
-    - `Dataset.from_list` with a `prompt` message list column;
-    - async reward functions receiving `completion` and dataset columns;
-    - `vf.Rubric(funcs=[reward_fn])`;
-    - `vf.SingleTurnEnv(dataset=dataset, rubric=rubric)`.
-    """
+    """Load a Prime Verifiers SingleTurnEnv for the Humanize-RL task."""
     try:
         import verifiers as vf
         from datasets import Dataset
@@ -60,16 +58,15 @@ def load_environment(
     return vf.SingleTurnEnv(dataset=dataset, rubric=rubric)
 
 
-# Useful for quick import smoke tests without Verifiers installed.
 def preview_dataset_row(
     task_path: str | None = None, split: str = "train"
 ) -> dict[str, object]:
+    """Return the first dataset row without requiring verifiers installed."""
     resolved_task_path = Path(task_path) if task_path is not None else DEFAULT_TASK_PATH
     rows = _load_rows(resolved_task_path, split)
     return rows[0] if rows else {}
 
 
-# Keep these names referenced so package checkers see the public contract.
 __all__ = [
     "humanize_reward",
     "style_metric",

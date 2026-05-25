@@ -25,6 +25,8 @@ This project provides: humanness-specific scoring (Layer 1 heuristics), rubric Y
 - Ask before adding major frameworks or heavy dependencies.
 - Use `ask_user` tool for clarification — do not assume.
 - Avoid destructive commands or force operations unless asked.
+- use click for CLI tools, not argparse or raw input.
+- Be concise in the reposne. Use less words and less whitespace. Do not repeat yourself. Do not explain yourself. 
 
 ## Models — Google Only
 

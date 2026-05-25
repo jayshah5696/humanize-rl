@@ -33,6 +33,103 @@ class TrackAScorer(Protocol):
     def predict_proba(self, rows: list[str]) -> Any: ...
 
 
+class RidgeScorerAdapter:
+    """Wraps RidgeScorer (predict_binary) into the TrackAScorer protocol.
+
+    predict_proba returns [[P(human), P(AI)]] per row so that
+    _track_a_human_probability picks up the last element as P(AI)
+    and 1 - P(AI) = P(human) is used to push style score up.
+    We invert: TrackAScorer convention is P(human), so we return
+    1 - predict_binary to give the human probability.
+    """
+
+    def __init__(self, ridge_scorer: Any) -> None:
+        self._scorer = ridge_scorer
+
+    def predict_proba(self, rows: list[str]) -> list[list[float]]:
+        """Returns [[P(AI), P(human)]] — last element is P(human), used as style boost."""
+        ai_probs = self._scorer.predict_binary(rows)
+        return [[float(p), 1.0 - float(p)] for p in ai_probs]
+
+
+def load_ridge_scorer(path: Path | None = None) -> "TrackAScorer | None":
+    """Load the best available ridge pkl and wrap in RidgeScorerAdapter.
+
+    Searches DEFAULT_RIDGE_PATHS in order; returns None if none found.
+    Falls back gracefully so the reward scorer runs without it.
+    """
+    import pickle
+
+    default_paths = [
+        Path(__file__).resolve().parents[1] / "ridge.pkl",  # bundled in package
+        Path("models/track_a_10k/ridge.pkl"),
+        Path("models/distilled/baseline_ridge.pkl"),
+    ]
+    candidates = [path] if path else default_paths
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            with candidate.open("rb") as fh:
+                raw = _unpickle_ridge(fh)
+            if raw is not None:
+                return RidgeScorerAdapter(raw)
+    return None
+
+
+def _unpickle_ridge(fh: Any) -> Any:
+    """Unpickle a RidgeScorer regardless of which package path it was pickled from."""
+    import importlib
+    import sys
+    import types
+
+    # Map old module paths → bundled equivalents so pickle finds the class.
+    # Covers both src layout (humanize_rl.*) and bundled layout (humanize_rl_env.*).
+    _aliases = {
+        "humanize_rl.scoring.distilled.baselines": "humanize_rl_env.scoring.distilled.baselines",
+        "humanize_rl.scoring.distilled.base": "humanize_rl_env.scoring.distilled.base",
+    }
+    # Ensure bundled modules exist under their canonical names before loading.
+    # They may not exist (the env only bundles layer1, not distilled).
+    # So we provide a minimal shim that exposes RidgeScorer directly.
+    try:
+        import pickle as _pickle
+        return _pickle.load(fh)
+    except ModuleNotFoundError:
+        pass
+
+    # Re-try with a RidgeScorerShim injected as a fake module.
+    import io
+    fh.seek(0)
+    data = fh.read()
+
+    # Build a minimal fake module containing RidgeScorer so pickle can resolve it.
+    import sklearn.feature_extraction.text as _tfidf_mod
+    import sklearn.linear_model as _sklearn_lm
+
+    class _RidgeScorer:
+        """Minimal pickle-compatible shim for the bundled RidgeScorer."""
+        def __init__(self): pass
+        def __setstate__(self, state): self.__dict__.update(state)
+        def predict_binary(self, texts):
+            feats = self.vectorizer.transform(texts)
+            return self.classifier.predict_proba(feats)[:, 1]
+
+    for old_path in [
+        "humanize_rl.scoring.distilled.baselines",
+        "humanize_rl.scoring.distilled.base",
+    ]:
+        if old_path not in sys.modules:
+            fake = types.ModuleType(old_path)
+            fake.RidgeScorer = _RidgeScorer  # type: ignore[attr-defined]
+            fake.BaseDistilledScorer = object  # type: ignore[attr-defined]
+            sys.modules[old_path] = fake
+
+    import pickle as _pickle
+    try:
+        return _pickle.load(io.BytesIO(data))
+    except Exception:
+        return None
+
+
 @dataclass(frozen=True)
 class RewardResult:
     """Scalar reward plus inspectable component diagnostics."""

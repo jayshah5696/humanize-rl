@@ -57,13 +57,12 @@ temperature: 1.0
 seed: 3407
 
 # vLLM colocate knobs
-# 2026-05-25: forced use_vllm=false. vLLM 0.20.2 refuses to load the Gemma 4
-# E2B merged checkpoint because the 20 KV-shared layers (idx 15..34) legitimately
-# omit k_norm.weight from the safetensors. Fix lives in vllm PR #40117 (open,
-# unmerged). Plan's documented fallback ("Non-OOM non-NaN integration error
-# (vLLM Gemma 4 colocate compatibility) -> Fall back to use_vllm=False on plain
-# TRL") applies. Slower per-step generation but unblocks slice 1.
-use_vllm: false
+# 2026-05-25 v2: re-enabled vLLM after monkey-patching vllm PR #40117
+# inline (patch_vllm_gemma4_kv_shared_k_norm). Without vLLM the slice 3
+# budget projection blows past $14, defeating the whole TRL-vs-Unsloth
+# pivot, so we keep the patch as a defensive guard rather than dropping
+# back to model.generate.
+use_vllm: true
 vllm_mode: colocate
 vllm_gpu_memory_utilization: 0.5
 

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from humanize_rl_env.reward.reward import RewardResult, score_response
+from humanize_rl_env.reward.reward import RewardResult, load_ridge_scorer, score_response
 from humanize_rl_env.reward.tasks import RLTask
+
+# Loaded once at import time; None if pkl not found (graceful degradation).
+_RIDGE_SCORER = load_ridge_scorer()
 
 Completion = list[dict[str, str]]
 State = dict[str, Any]
@@ -41,6 +44,7 @@ def score_for_verifiers(
     result = score_response(
         RLTask.model_validate(task),
         response_from_completion(completion),
+        _RIDGE_SCORER,
     )
     if state is not None:
         state[REWARD_STATE_KEY] = result

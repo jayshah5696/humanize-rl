@@ -181,6 +181,49 @@ def _load_config(path: str) -> GRPOProbeConfig:
     return GRPOProbeConfig(**data)
 
 
+def patch_vllm_gemma4_kv_shared_k_norm() -> bool:
+    """Bug G — vLLM 0.20.x loads Gemma 4 with strict k_norm requirement.
+
+    Gemma 4 E2B has ``num_kv_shared_layers=20``. The last 20 decoder
+    layers reuse KV from earlier layers and **never apply k_norm in
+    forward()**, so their checkpoints omit ``k_norm.weight``. vLLM
+    0.20.2's ``Gemma4Attention.__init__`` unconditionally builds a
+    learnable ``RMSNorm`` for every layer's k_norm, then the weight
+    loader strict-checks and fails:
+
+        ValueError: Following weights were not initialized from
+        checkpoint: {... .layers.<15..34>.self_attn.k_norm.weight}
+
+    Upstream fix is vLLM PR #40117 (open since 2026-04-17, unmerged).
+    We apply the 4-line equivalent inline by wrapping the constructor:
+    when ``self.is_kv_shared_layer`` is True, replace the just-built
+    ``self.k_norm`` with a weightless ``RMSNorm(has_weight=False)``.
+    Returns True if the patch was applied, False if vllm isn't
+    importable (local pytest path).
+    """
+    try:
+        from vllm.model_executor.layers.layernorm import RMSNorm
+        from vllm.model_executor.models import gemma4 as vllm_gemma4
+    except ImportError:  # pragma: no cover - local pytest path
+        return False
+
+    Gemma4Attention = vllm_gemma4.Gemma4Attention
+    if getattr(Gemma4Attention, "_humanize_rl_kv_shared_k_norm_patched", False):
+        return True
+
+    original_init = Gemma4Attention.__init__
+
+    def patched_init(self: Any, *args: Any, **kwargs: Any) -> None:
+        original_init(self, *args, **kwargs)
+        if getattr(self, "is_kv_shared_layer", False):
+            eps = self.k_norm.variance_epsilon
+            self.k_norm = RMSNorm(self.head_dim, eps=eps, has_weight=False)
+
+    Gemma4Attention.__init__ = patched_init
+    Gemma4Attention._humanize_rl_kv_shared_k_norm_patched = True
+    return True
+
+
 def mirror_gemma4_final_logit_softcap(model: Any) -> float | None:
     """Bug A guard.
 
@@ -413,6 +456,10 @@ def train_grpo(config_path: str) -> dict[str, Any]:
     pins = assert_version_pins()
     print(f"[pins] {pins}", flush=True)
 
+    # Bug G guard — must run BEFORE vLLM imports Gemma4Attention via TRL.
+    kv_shared_patched = patch_vllm_gemma4_kv_shared_k_norm()
+    print(f"[vllm-gemma4-kv-shared-k-norm-patched] {kv_shared_patched}", flush=True)
+
     config = _load_config(config_path)
     output_dir = Path("/checkpoints") / str(config.experiment_name)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -509,6 +556,7 @@ def train_grpo(config_path: str) -> dict[str, Any]:
         "gpu": gpu,
         "version_pins": pins,
         "final_logit_softcapping": softcap,
+        "vllm_gemma4_kv_shared_k_norm_patched": kv_shared_patched,
         "config": config.__dict__,
     }
     (output_dir / "summary.json").write_text(

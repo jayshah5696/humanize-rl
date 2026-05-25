@@ -196,6 +196,22 @@ def test_bug_a_mirror_promotes_text_config_softcap_to_top_level() -> None:
     assert stub_model.config.final_logit_softcapping == 30.0
 
 
+def test_vllm_kv_shared_k_norm_patch_is_safe_no_op_locally() -> None:
+    """Without vllm installed (local pytest), the patcher must return False
+    rather than erroring. The on-GPU container path is exercised via the
+    Modal run, not pytest.
+    """
+    if not MODAL_SCRIPT.exists():
+        pytest.skip(f"{MODAL_SCRIPT.name} not created yet")
+    from humanize_rl.training.rl_gemma4_trl_vllm_modal import (
+        patch_vllm_gemma4_kv_shared_k_norm,
+    )
+
+    # Local pytest env has no vllm; the patcher must swallow ImportError.
+    result = patch_vllm_gemma4_kv_shared_k_norm()
+    assert result is False
+
+
 def test_bug_a_mirror_is_no_op_when_top_level_already_set() -> None:
     if not MODAL_SCRIPT.exists():
         pytest.skip(f"{MODAL_SCRIPT.name} not created yet")

@@ -61,71 +61,78 @@ def load_ridge_scorer(path: Path | None = None) -> "TrackAScorer | None":
     import pickle
 
     default_paths = [
-        Path(__file__).resolve().parents[1] / "ridge.pkl",  # bundled in package
+        Path(__file__).resolve().parents[1] / "ridge_state.pkl",  # bundled state dict
+        Path(__file__).resolve().parents[1] / "ridge.pkl",        # bundled legacy
         Path("models/track_a_10k/ridge.pkl"),
         Path("models/distilled/baseline_ridge.pkl"),
     ]
     candidates = [path] if path else default_paths
     for candidate in candidates:
         if candidate and candidate.exists():
-            with candidate.open("rb") as fh:
-                raw = _unpickle_ridge(fh)
+            raw = _load_state_pkl(candidate)
             if raw is not None:
                 return RidgeScorerAdapter(raw)
     return None
 
 
-def _unpickle_ridge(fh: Any) -> Any:
-    """Unpickle a RidgeScorer regardless of which package path it was pickled from."""
-    import importlib
+class _BundledRidgeScorer:
+    """Minimal sklearn-only scorer reconstructed from a state-dict pkl.
+
+    Avoids any dependency on the original humanize_rl package class path.
+    Exposes predict_binary(texts) -> np.ndarray[P(AI)].
+    """
+
+    def __init__(self, state: dict) -> None:
+        self.vectorizer = state["vectorizer"]
+        self.classifier = state["classifier"]
+        self.regressors = state.get("regressors", [])
+
+    def predict_binary(self, texts: list[str]) -> Any:
+        feats = self.vectorizer.transform(texts)
+        return self.classifier.predict_proba(feats)[:, 1]  # P(AI)
+
+
+def _load_state_pkl(candidate: Path) -> Any:
+    """Load either a state-dict pkl or a legacy RidgeScorer pkl."""
+    import pickle
     import sys
     import types
 
-    # Map old module paths → bundled equivalents so pickle finds the class.
-    # Covers both src layout (humanize_rl.*) and bundled layout (humanize_rl_env.*).
-    _aliases = {
-        "humanize_rl.scoring.distilled.baselines": "humanize_rl_env.scoring.distilled.baselines",
-        "humanize_rl.scoring.distilled.base": "humanize_rl_env.scoring.distilled.base",
-    }
-    # Ensure bundled modules exist under their canonical names before loading.
-    # They may not exist (the env only bundles layer1, not distilled).
-    # So we provide a minimal shim that exposes RidgeScorer directly.
+    with candidate.open("rb") as fh:
+        data = fh.read()
+
+    import io
+    # First try: state dict (keys vectorizer/classifier/regressors)
     try:
-        import pickle as _pickle
-        return _pickle.load(fh)
+        obj = pickle.load(io.BytesIO(data))
+        if isinstance(obj, dict) and "vectorizer" in obj:
+            return _BundledRidgeScorer(obj)
+        # Legacy full RidgeScorer object — try wrapping directly
+        if hasattr(obj, "predict_binary"):
+            return obj
     except ModuleNotFoundError:
         pass
 
-    # Re-try with a RidgeScorerShim injected as a fake module.
-    import io
-    fh.seek(0)
-    data = fh.read()
-
-    # Build a minimal fake module containing RidgeScorer so pickle can resolve it.
-    import sklearn.feature_extraction.text as _tfidf_mod
-    import sklearn.linear_model as _sklearn_lm
-
-    class _RidgeScorer:
-        """Minimal pickle-compatible shim for the bundled RidgeScorer."""
-        def __init__(self): pass
-        def __setstate__(self, state): self.__dict__.update(state)
-        def predict_binary(self, texts):
-            feats = self.vectorizer.transform(texts)
-            return self.classifier.predict_proba(feats)[:, 1]
-
+    # Second try: inject fake module so pickle resolves the old class path
     for old_path in [
         "humanize_rl.scoring.distilled.baselines",
         "humanize_rl.scoring.distilled.base",
     ]:
         if old_path not in sys.modules:
             fake = types.ModuleType(old_path)
-            fake.RidgeScorer = _RidgeScorer  # type: ignore[attr-defined]
             fake.BaseDistilledScorer = object  # type: ignore[attr-defined]
+
+            class _Shim:
+                def __setstate__(self, s): self.__dict__.update(s)
+                def predict_binary(self, texts):
+                    feats = self.vectorizer.transform(texts)
+                    return self.classifier.predict_proba(feats)[:, 1]
+
+            fake.RidgeScorer = _Shim  # type: ignore[attr-defined]
             sys.modules[old_path] = fake
 
-    import pickle as _pickle
     try:
-        return _pickle.load(io.BytesIO(data))
+        return pickle.load(io.BytesIO(data))
     except Exception:
         return None
 

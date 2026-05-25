@@ -20,6 +20,22 @@ from humanize_rl_env.reward.tasks import RLTask, load_tasks
 from humanize_rl_env.scoring.aggregator import score_text
 
 TRACK_A_STYLE_CAP = 0.20
+
+# 50/50 split: ridge rubric dims vs deterministic checks
+RIDGE_WEIGHT = 0.50
+DETERMINISTIC_WEIGHT = 0.50
+
+# Rubric dim names from track_a scorer (order matches predict_rubric columns)
+RIDGE_RUBRIC_DIMS = [
+    "structural_symmetry",
+    "specificity",
+    "formality_gradient",
+    "voice_consistency",
+    "rhetorical_sophistication",
+    "padding_density",
+    "personality_presence",
+    "copula_avoidance",
+]
 CORPORATE_FILLER_RE = re.compile(
     r"\b(?:circle back|touch base|leverage|synergy|robust|seamless|unlock|empower|"
     r"mission-critical|at scale|operational excellence|transformative)\b",
@@ -47,40 +63,18 @@ class RidgeScorerAdapter:
         self._scorer = ridge_scorer
 
     def predict_proba(self, rows: list[str]) -> list[list[float]]:
-        """Returns [[P(AI), P(human)]] — last element is P(human), used as style boost."""
+        """Returns [[P(AI), P(human)]] — last element is P(human)."""
         ai_probs = self._scorer.predict_binary(rows)
         return [[float(p), 1.0 - float(p)] for p in ai_probs]
 
-
-def load_ridge_scorer(path: Path | None = None) -> "TrackAScorer | None":
-    """Load the best available ridge pkl and wrap in RidgeScorerAdapter.
-
-    Searches DEFAULT_RIDGE_PATHS in order; returns None if none found.
-    Falls back gracefully so the reward scorer runs without it.
-    """
-    import pickle
-
-    default_paths = [
-        Path(__file__).resolve().parents[1] / "ridge_state.pkl",  # bundled state dict
-        Path(__file__).resolve().parents[1] / "ridge.pkl",        # bundled legacy
-        Path("models/track_a_10k/ridge.pkl"),
-        Path("models/distilled/baseline_ridge.pkl"),
-    ]
-    candidates = [path] if path else default_paths
-    for candidate in candidates:
-        if candidate and candidate.exists():
-            raw = _load_state_pkl(candidate)
-            if raw is not None:
-                return RidgeScorerAdapter(raw)
-    return None
+    def predict_rubric(self, rows: list[str]) -> list[list[float]]:
+        """Returns 8 rubric dim scores per row via the ridge regression heads."""
+        raw = self._scorer.predict_rubric(rows)  # shape (N, 8), already clipped [0,1]
+        return [list(map(float, row)) for row in raw]
 
 
 class _BundledRidgeScorer:
-    """Minimal sklearn-only scorer reconstructed from a state-dict pkl.
-
-    Avoids any dependency on the original humanize_rl package class path.
-    Exposes predict_binary(texts) -> np.ndarray[P(AI)].
-    """
+    """Minimal sklearn-only scorer reconstructed from a state-dict pkl."""
 
     def __init__(self, state: dict) -> None:
         self.vectorizer = state["vectorizer"]
@@ -89,11 +83,20 @@ class _BundledRidgeScorer:
 
     def predict_binary(self, texts: list[str]) -> Any:
         feats = self.vectorizer.transform(texts)
-        return self.classifier.predict_proba(feats)[:, 1]  # P(AI)
+        return self.classifier.predict_proba(feats)[:, 1]
+
+    def predict_rubric(self, texts: list[str]) -> Any:
+        import numpy as np
+        feats = self.vectorizer.transform(texts)
+        preds = np.zeros((len(texts), len(self.regressors)), dtype="float32")
+        for i, reg in enumerate(self.regressors):
+            preds[:, i] = reg.predict(feats)
+        return np.clip(preds, 0.0, 1.0)
 
 
 def _load_state_pkl(candidate: Path) -> Any:
-    """Load either a state-dict pkl or a legacy RidgeScorer pkl."""
+    """Load a state-dict pkl or legacy RidgeScorer pkl safely."""
+    import io
     import pickle
     import sys
     import types
@@ -101,19 +104,15 @@ def _load_state_pkl(candidate: Path) -> Any:
     with candidate.open("rb") as fh:
         data = fh.read()
 
-    import io
-    # First try: state dict (keys vectorizer/classifier/regressors)
     try:
         obj = pickle.load(io.BytesIO(data))
         if isinstance(obj, dict) and "vectorizer" in obj:
             return _BundledRidgeScorer(obj)
-        # Legacy full RidgeScorer object — try wrapping directly
         if hasattr(obj, "predict_binary"):
             return obj
     except ModuleNotFoundError:
         pass
 
-    # Second try: inject fake module so pickle resolves the old class path
     for old_path in [
         "humanize_rl.scoring.distilled.baselines",
         "humanize_rl.scoring.distilled.base",
@@ -127,6 +126,13 @@ def _load_state_pkl(candidate: Path) -> Any:
                 def predict_binary(self, texts):
                     feats = self.vectorizer.transform(texts)
                     return self.classifier.predict_proba(feats)[:, 1]
+                def predict_rubric(self, texts):
+                    import numpy as np
+                    feats = self.vectorizer.transform(texts)
+                    preds = np.zeros((len(texts), len(self.regressors)), dtype="float32")
+                    for i, reg in enumerate(self.regressors):
+                        preds[:, i] = reg.predict(feats)
+                    return np.clip(preds, 0.0, 1.0)
 
             fake.RidgeScorer = _Shim  # type: ignore[attr-defined]
             sys.modules[old_path] = fake
@@ -135,6 +141,28 @@ def _load_state_pkl(candidate: Path) -> Any:
         return pickle.load(io.BytesIO(data))
     except Exception:
         return None
+
+
+def load_ridge_scorer(path: Path | None = None) -> "TrackAScorer | None":
+    """Load the best available ridge pkl and wrap in RidgeScorerAdapter.
+
+    Searches DEFAULT_RIDGE_PATHS in order; returns None if none found.
+    Falls back gracefully so the reward scorer runs without it.
+    """
+    import pickle
+
+    default_paths = [
+        Path(__file__).resolve().parents[1] / "ridge_state.pkl",  # bundled state dict
+        Path("models/track_a_10k/ridge.pkl"),
+        Path("models/distilled/baseline_ridge.pkl"),
+    ]
+    candidates = [path] if path else default_paths
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            raw = _load_state_pkl(candidate)
+            if raw is not None:
+                return RidgeScorerAdapter(raw)
+    return None
 
 
 @dataclass(frozen=True)
@@ -182,11 +210,42 @@ def _length_score(task: RLTask, response: str) -> float:
 
 
 def _style_score(response: str, track_a_score: float | None) -> float:
+    """Layer 1 heuristic score, optionally blended with ridge P(human) at 20% cap."""
     layer1_score = score_text(response).overall
     if track_a_score is None:
         return layer1_score
     capped = min(max(track_a_score, 0.0), 1.0) * TRACK_A_STYLE_CAP
     return clip((layer1_score * (1.0 - TRACK_A_STYLE_CAP)) + capped, 0.0, 1.0)
+
+
+def _ridge_rubric_score(
+    track_a_scorer: TrackAScorer | None, response: str
+) -> float | None:
+    """Mean of 8 rubric dim predictions from the ridge regression heads.
+
+    Returns None when no scorer is loaded (graceful degradation).
+    """
+    if track_a_scorer is None or not hasattr(track_a_scorer, "predict_rubric"):
+        return None
+    dims = track_a_scorer.predict_rubric([response])[0]  # list of 8 floats
+    return sum(dims) / len(dims)
+
+
+def _deterministic_score(report: CheckReport, task: RLTask, response: str) -> float:
+    """Equal-weight mean of all deterministic constraint-satisfaction components.
+
+    Covers: faithfulness, task_following, length, format, placeholder, clarity.
+    These are the checks the model must pass regardless of writing style.
+    """
+    components = [
+        _faithfulness_score(report),
+        _task_following_score(report),
+        _length_score(task, response),
+        _format_score(report),
+        _placeholder_score(report),
+        _clarity_score(response),
+    ]
+    return sum(components) / len(components)
 
 
 def _track_a_human_probability(
@@ -316,19 +375,52 @@ def score_response(
     response: str,
     track_a_scorer: TrackAScorer | None = None,
 ) -> RewardResult:
-    """Score one task/response pair with component breakdown and penalties."""
+    """Score one task/response pair.
+
+    Final reward = 0.50 × ridge_rubric + 0.50 × deterministic + penalties
+
+    When no ridge scorer is loaded, falls back to:
+      Final reward = deterministic + penalties
+    (i.e. ridge_weight collapses to 0 and deterministic fills 100%).
+
+    All individual components are preserved in RewardResult for diagnostics.
+    """
     report = run_deterministic_checks(task, response)
     track_a_score = _track_a_human_probability(track_a_scorer, response)
     components = _base_components(task, response, report, track_a_score)
-    profile = profile_for_task(task)
-    weighted = _weighted_components(profile, components)
+
+    # -- ridge rubric (50%) --
+    ridge_rubric = _ridge_rubric_score(track_a_scorer, response)
+    ridge_dims: dict[str, float] = {}
+    if track_a_scorer is not None and hasattr(track_a_scorer, "predict_rubric"):
+        raw_dims = track_a_scorer.predict_rubric([response])[0]
+        ridge_dims = dict(zip(RIDGE_RUBRIC_DIMS, raw_dims))
+
+    # -- deterministic (50%) --
+    det_score = _deterministic_score(report, task, response)
+
+    # -- combine --
+    if ridge_rubric is not None:
+        raw_reward_base = RIDGE_WEIGHT * ridge_rubric + DETERMINISTIC_WEIGHT * det_score
+        profile_name = "50_50_ridge_deterministic"
+    else:
+        raw_reward_base = det_score
+        profile_name = "deterministic_only"
+
     penalties = {
         diagnostic.name: diagnostic.penalty
         for diagnostic in report.diagnostics
         if diagnostic.penalty != 0.0
     }
-    raw_reward = sum(weighted.values()) + sum(penalties.values())
+    raw_reward = raw_reward_base + sum(penalties.values())
     reward = clip(raw_reward)
+
+    # weighted_components reflects the actual contribution to raw_reward_base
+    weighted = {
+        "ridge_rubric": (RIDGE_WEIGHT * ridge_rubric) if ridge_rubric is not None else 0.0,
+        "deterministic": (DETERMINISTIC_WEIGHT if ridge_rubric is not None else 1.0) * det_score,
+        **{f"ridge_{k}": v for k, v in ridge_dims.items()},
+    }
 
     return RewardResult(
         reward=reward,
@@ -346,7 +438,7 @@ def score_response(
             }
             for diagnostic in report.diagnostics
         ],
-        profile=profile.name,
+        profile=profile_name,
     )
 
 

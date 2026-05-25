@@ -102,58 +102,18 @@ def scalar_reward(completions: list[Completion], **kwargs: Any) -> list[float]:
     return [result.reward for result in score_completions(completions, **kwargs)]
 
 
-def weighted_style_reward(completions: list[Completion], **kwargs: Any) -> list[float]:
+def ridge_rubric_reward(completions: list[Completion], **kwargs: Any) -> list[float]:
+    """50% share: mean of 8 rubric dims from the ridge scorer."""
     return [
-        result.weighted_components.get("style", 0.0)
-        + result.weighted_components.get("naturalness", 0.0)
-        + result.weighted_components.get("tone_appropriateness", 0.0)
+        result.weighted_components.get("ridge_rubric", 0.0)
         for result in score_completions(completions, **kwargs)
     ]
 
 
-def weighted_task_following_reward(
-    completions: list[Completion], **kwargs: Any
-) -> list[float]:
+def deterministic_reward(completions: list[Completion], **kwargs: Any) -> list[float]:
+    """50% share: mean of faithfulness, task_following, length, format, placeholder, clarity."""
     return [
-        result.weighted_components.get("task_following", 0.0)
-        + result.weighted_components.get("correctness_adherence", 0.0)
-        for result in score_completions(completions, **kwargs)
-    ]
-
-
-def weighted_faithfulness_reward(
-    completions: list[Completion], **kwargs: Any
-) -> list[float]:
-    return [
-        result.weighted_components.get("faithfulness", 0.0)
-        + result.weighted_components.get("fact_preservation", 0.0)
-        for result in score_completions(completions, **kwargs)
-    ]
-
-
-def weighted_length_reward(completions: list[Completion], **kwargs: Any) -> list[float]:
-    return [
-        result.weighted_components.get("length", 0.0)
-        + result.weighted_components.get("concision", 0.0)
-        for result in score_completions(completions, **kwargs)
-    ]
-
-
-def weighted_format_reward(completions: list[Completion], **kwargs: Any) -> list[float]:
-    return [
-        result.weighted_components.get("format", 0.0)
-        + result.weighted_components.get("structure_restraint", 0.0)
-        + result.weighted_components.get("placeholder", 0.0)
-        for result in score_completions(completions, **kwargs)
-    ]
-
-
-def weighted_clarity_reward(
-    completions: list[Completion], **kwargs: Any
-) -> list[float]:
-    return [
-        result.weighted_components.get("clarity", 0.0)
-        + result.weighted_components.get("no_corporate_filler", 0.0)
+        result.weighted_components.get("deterministic", 0.0)
         for result in score_completions(completions, **kwargs)
     ]
 
@@ -166,12 +126,8 @@ def risk_penalty_reward(completions: list[Completion], **kwargs: Any) -> list[fl
 
 
 _RAW_REWARD_FUNCS = [
-    weighted_style_reward,
-    weighted_task_following_reward,
-    weighted_faithfulness_reward,
-    weighted_length_reward,
-    weighted_format_reward,
-    weighted_clarity_reward,
+    ridge_rubric_reward,
+    deterministic_reward,
     risk_penalty_reward,
 ]
 

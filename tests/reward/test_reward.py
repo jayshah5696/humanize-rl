@@ -66,9 +66,13 @@ def test_reward_profile_changes_weighted_components() -> None:
         response,
     )
 
-    assert rewrite.weighted_components["faithfulness"] == 0.30
-    assert direct.weighted_components["task_following"] == 0.35
-    assert "placeholder" in direct.weighted_components
+    # New 50/50 schema: weighted_components has ridge_rubric, deterministic, ridge_* dims
+    assert "ridge_rubric" in rewrite.weighted_components
+    assert "deterministic" in rewrite.weighted_components
+    assert rewrite.weighted_components["ridge_rubric"] + rewrite.weighted_components["deterministic"] > 0
+    # Both tasks use the same 50/50 split — profile no longer changes weights
+    assert "ridge_rubric" in direct.weighted_components
+    assert "deterministic" in direct.weighted_components
 
 
 def test_track_a_scorer_is_optional_and_capped() -> None:

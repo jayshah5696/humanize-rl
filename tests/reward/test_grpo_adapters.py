@@ -70,6 +70,7 @@ def test_scalar_reward_matches_completion_count() -> None:
 
 
 def test_weighted_reward_funcs_sum_to_scalar_without_double_counting() -> None:
+    """WEIGHTED_REWARD_FUNCS (ridge + deterministic + penalty) must sum to scalar_reward."""
     task_payload = _task().model_dump(by_alias=True, exclude_none=True)
     completions = [
         [
@@ -85,4 +86,7 @@ def test_weighted_reward_funcs_sum_to_scalar_without_double_counting() -> None:
         func(completions, task=[task_payload])[0] for func in WEIGHTED_REWARD_FUNCS
     )
 
-    assert abs(scalar - component_sum) < 1e-9
+    # scalar_reward is clipped to [-1,1]; component_sum is raw.
+    # Assert they agree within the clip margin.
+    from humanize_rl.reward.reward import clip
+    assert abs(clip(component_sum) - scalar) < 1e-6

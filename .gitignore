@@ -57,6 +57,15 @@ models/
 scripts/create_track_a_summary_figures.py
 scripts/run_track_a_capped_report.py
 scripts/run_track_a_full_report.py
+scripts/diagnose_scorer_shortcuts.py
+scripts/make_v04_base100.py
+scripts/make_v04_base_sample.py
+scripts/quantize_mlx_merged_linears.py
+scripts/resave_mlx_format_metadata.py
+scripts/save_mlx_gemma4_loaded_model.py
+scripts/save_mlx_gemma4_merged.py
+scripts/save_mlx_gemma4_merged_quant.py
+scripts/strip_mlx_unloadable_biases.py
 
 # Generated benchmark artifacts (reproducible via `just v03-ws`).
 # Source of truth = seeds/ + code + report. Anything emitted by a stage

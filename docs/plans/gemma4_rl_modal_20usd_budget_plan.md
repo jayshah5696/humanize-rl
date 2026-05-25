@@ -1,0 +1,303 @@
+# Gemma 4 E2B RL on Modal — $20 Budget Plan (May 2026)
+
+## TL;DR (revised after reading merge report 2026-05-25 + TRL bug audit + dropping the redundant Unsloth-stability slice)
+
+- **Merged SFT checkpoint is verified good.** The merge-verification report passed every gate (Transformers reload, KV-shared key audit, tokenizer eos `<turn|>` preserved, 9/10 parity). The "MISSING layers 15-34" is a benign Unsloth loader artifact. We are not re-merging.
+- **The NaN-grad failure is reward-design + hyperparameter, not framework choice.** Report's diagnosis is framework-agnostic: GRPO group-std collapse (`frac_reward_zero_std` up to 0.75), LR too cold vs Unsloth's reference (5e-6 vs 5e-5), and `max_completion_length=64` causing clipped_ratio 0.125-0.25 which structurally tanks rewards on clipped completions and tightens the collapse loop. **None of the v3 fixes are Unsloth-specific** — they're TRL `GRPOConfig`/`TrainingArguments` fields and a reward-side wrapper. We apply them directly on the TRL + vLLM run.
+- **No Unsloth-stability pre-slice.** Validating the same hyperparameters twice on two frameworks burns ~$1.50 and tells us nothing TRL won't tell us. If TRL NaNs after the fixes, the failure mode (Bug A guard didn't fire / dither didn't fire / something else) is what we need to diagnose — not "Unsloth was fine."
+- **Gemma 4 + TRL has its own bug pile we must guard against:**
+  1. **`final_logit_softcapping` missing-attr (Bug A).** TRL's GRPOTrainer reads `model.config.final_logit_softcapping`; for Gemma 4 this lives only on `text_config` and resolves to `None` → softcap = 0 instead of 30 → wrong logprobs → KL blowup. **Unsloth patched it in #4934. Plain TRL has not.** We mirror it at model-load time and assert in pytest.
+  2. **`mm_token_type_ids` IndexError (Bug B).** Fixed in TRL ≥ 0.29.0. Version pin asserted.
+  3. **`use_cache=False` corrupts Gemma 4 E2B (Bug C).** Fixed in transformers ≥ 5.5.0. Version pin asserted.
+  4. **TRL vLLM colocate config attr (Bug E).** Fixed in TRL ≥ 0.29.x. Same pin.
+- **A100-40GB throughout.** Verified merged repo loads in ~25s, 10GB resident — A100 is fine.
+- **Budget envelope: ~$11 expected, ~$19 worst case (inside $20).**
+- **Cross-validated SFT sibling exists.** Independent PEFT merge path produced `jayshah5696/gemma4-e2b-humanize-unsloth-merged-peft-v2` with identical 1951 safetensor keys and identical 9/10 parity vs the production merge. The probe is configured to point at either; if slice 1 surfaces a checkpoint-specific issue (we don't expect any), swap the `model_name` field and re-run — no re-merge required.
+
+## What I read
+
+`docs/plans/gemma4_model_merge_verification_plan.md`, full report section. Cited heavily below.
+
+## Stability findings from your report (verbatim relevance)
+
+> "Step 4 collapses to `grad_norm=NaN` after `rewards/weighted_faithfulness_reward/mean=0` for the whole group. A single degenerate-reward group is enough to NaN the bf16 advantage path."
+
+> "`frac_reward_zero_std` swings between 0 and 0.75 across steps. This is a reward design / group size issue, not a model issue."
+
+> "Our reward is multi-component and slow-moving... `5e-6` is too cold. Recommended starting point: `2e-5` (the original v1 value)."
+
+> "We set 64 [for `max_completion_length`]... high `completions/clipped_ratio` (we saw 0.125-0.25 per step) which is a structural reward leak: a clipped completion scores worse on most rubric dims and so widens the zero-std group rate."
+
+> "TRL default [`max_grad_norm`] is 1.0. Our step-4 NaN suggests we should set it explicitly to `0.5` to contain bf16 overflow."
+
+These four are the actual fix list. They do not depend on Unsloth vs TRL.
+
+## TRL Gemma 4 bug audit (the hidden ones)
+
+I checked: switching to plain TRL doesn't dodge every Gemma 4 trap. Two are real and ours.
+
+### Bug A — `final_logit_softcapping` missing-attr (Unsloth #4934 "Fix 2")
+
+What it is: Gemma 4 sets `final_logit_softcapping=30.0` only on `Gemma4TextConfig` (nested under `model.config.text_config`). TRL's GRPOTrainer reads it via `getattr(model.config, "final_logit_softcapping", 0)` → resolves to `0` → logits are not softcapped → policy logprobs diverge from vLLM/reference logprobs → importance ratio explodes → KL/grad blowup.
+
+Status:
+- Unsloth's `_unsloth_get_final_logit_softcapping(config)` helper (PR #4934) fixes it. **Their fix only lives inside Unsloth's compiled GRPO replacement.**
+- Plain TRL `grpo_trainer.py` on `main` and v0.29.x still uses the flat `getattr` pattern.
+
+Workaround we own: before constructing GRPOTrainer, mirror the value up:
+
+```python
+sc = getattr(getattr(model.config, "text_config", None), "final_logit_softcapping", None)
+if sc is not None and getattr(model.config, "final_logit_softcapping", None) in (None, 0):
+    model.config.final_logit_softcapping = sc
+```
+
+We add this in slice 1 and assert it in pytest. Without it, plain TRL Gemma 4 GRPO has a high probability of repeating the smoke-v1 KL=1.6e5 failure.
+
+### Bug B — `mm_token_type_ids` IndexError (TRL #5178)
+
+What it is: Gemma 4 processor returns `mm_token_type_ids`; SFT/GRPO/RLOO collators dropped them, causing IndexError downstream.
+
+Status: fixed in **TRL ≥ 0.29.0** (released 2026-02-25). Our current code already drops this kwarg in `rl_gemma4_modal.py::_drop_unused_mm_token_type_ids_for_generate`. For the new TRL path we pin `trl>=0.29.0` and remove the manual drop.
+
+### Bug C — `use_cache=False` corrupts Gemma 4 E2B (transformers #45242)
+
+What it is: Gemma 4 E2B/E4B share KV across layers (`num_kv_shared_layers=20`). The cache is the only place KV-shared layers can read parent KV; `use_cache=False` (forced by `gradient_checkpointing=True`) makes them fall through to local recompute → garbage logits → diverging loss.
+
+Status: fixed in transformers ≥ 5.5.0. Our current image already pins `transformers>=5.5.0` and Unsloth has the patch. We pin the same in the new image.
+
+### Bug D — Unsloth-only "logits as hidden states" (Unsloth #5121)
+
+Not our problem if we leave Unsloth. Listed for context only.
+
+### Bug E — TRL #5302 vLLM colocate config attribute crash
+
+Fixed; pin TRL ≥ 0.29.x.
+
+### Bug F — vLLM 0.19 `fast_inference=True` crash for Unsloth (#4841)
+
+Doesn't matter — we drive vLLM directly, not via Unsloth's `fast_inference`.
+
+## Artifact hygiene status (DONE 2026-05-25)
+
+Not part of this run's $20 budget; recording it because it changes our risk model and our fallback options.
+
+- **Both HF SFT repos carry Verification Report sections** in their model cards. Pushed via `push_model_cards_modal.push_cards` (app `ap-vGP68iFJWOhyGdHdWM5E1k`).
+  - `jayshah5696/gemma4-e2b-humanize-unsloth-merged/README.md` (4116 B)
+  - `jayshah5696/gemma4-e2b-humanize-unsloth-lora/README.md` (2288 B)
+- **Independent PEFT-merge candidate published** as `jayshah5696/gemma4-e2b-humanize-unsloth-merged-peft-v2` via `verified_merge_and_push_modal.verified_merge_and_push` (app `ap-5EfALCGYoz3yw8sTfZOCuO`). Gate result:
+
+  ```
+  gates.all_pass            : true
+  wrongly_present_shared_kv : []
+  transformers_missing_keys : []
+  transformers_unexpected_keys: []
+  safetensors_key_count     : 1951
+  parity.in_memory_mismatches: 1   (same benign Slack-rewrite word swap as production)
+  parity.reload_mismatches  : 1
+  tokenizer.eos_token       : <turn|>   (no restore needed)
+  ```
+
+  Identical 1951-key count and identical single benign parity mismatch on the same prompt as the Unsloth merge → strong cross-validation that the production merge is structurally correct on a different code path. Sibling repo is a hot backup; production repo untouched.
+
+- **Verifier-as-gate is wired.** `verified_merge_and_push_modal.py` refuses to push when any of `wrongly_present_shared_kv_keys`, `transformers_missing_keys`, `transformers_unexpected_keys` is non-empty or when reload parity exceeds tolerance. Auto-restores `<turn|>` eos if Unsloth #5386 ever regresses it. If we ever need a re-merge mid-RL:
+  ```bash
+  rtk uvx modal run --detach \
+    src/humanize_rl/training/verified_merge_and_push_modal.py \
+    --candidate-repo <user>/<repo>-vN
+  ```
+- **Processor assets resolved.** The Unsloth merged repo ships `processor_config.json`; verifier falls back to base for the legacy `preprocessor_config.json` path. No upload needed.
+- **Single source of truth for model card text:** `src/humanize_rl/training/_model_cards.py`. Both push jobs consume the same templates.
+
+Files added in this hygiene pass (already in repo, do not duplicate in slice scaffolding):
+
+- `src/humanize_rl/training/_model_cards.py`
+- `src/humanize_rl/training/push_model_cards_modal.py`
+- `src/humanize_rl/training/verified_merge_and_push_modal.py`
+- `tests/training/test_artifact_hygiene.py` (9 tests; suite total: 33 passed, 5 skipped, ruff clean)
+
+The 5 skipped tests are the TRL+vLLM pre-flight ones added in earlier revision of this plan; slice 1 unskips them.
+
+Implications for the RL plan:
+
+1. **"Don't re-merge" is even firmer.** Two independent merge code paths produced identical artifacts. The probability that the checkpoint is the cause of slice 1 NaN is effectively zero.
+2. **Fallback model name available.** Slice 1's config can swap to `jayshah5696/gemma4-e2b-humanize-unsloth-merged-peft-v2` in one line if needed.
+3. **No new merge work for $20.** All merge tooling exists and is gated. We only consume it.
+
+## Why no Unsloth-stability pre-slice
+
+Open question from review: "why not validate the v3 hyperparameters on Unsloth first?"
+
+Answer: every v3 fix is framework-agnostic.
+
+| v3 fix | Lives in | Same on Unsloth and plain TRL? |
+|---|---|---|
+| `learning_rate` 5e-6 → 2e-5 | `GRPOConfig` | Yes |
+| `epsilon_high` 0.20 → 0.28 | `GRPOConfig` | Yes |
+| `delta` 1.2 → 1.5 | `GRPOConfig` | Yes |
+| `num_generations` 6 (keep) | `GRPOConfig` | Yes |
+| `max_completion_length` 64 → 192 | `GRPOConfig` | Yes |
+| `max_grad_norm` 1.0 → 0.5 | `TrainingArguments` | Yes |
+| Reward dither at zero-std groups | `WEIGHTED_REWARD_FUNCS` | Yes |
+
+Running the same hyperparameters twice across two frameworks costs ~$1.50 and tells us nothing TRL won't tell us. If TRL NaNs after applying them, the diagnostic question is which guard didn't fire (Bug A mirror? dither? something else?) — *not* "was Unsloth fine." The latter would not change our action.
+
+So we apply v3 + the reward dither + Bug A guard inside slice 1 directly. Budget releases ~$1.50 back to the retry buffer.
+
+## Vertical slices
+
+### Slice 1 — Probe: TRL + vLLM colocate, v3 hyperparameters, all Gemma 4 guards
+
+**Goal:** 4 GRPO steps on Modal that complete, do not NaN, keep `frac_reward_zero_std` < 0.5, and produce a `train_samples_per_second` we can project from. This is the slice that simultaneously validates the framework switch *and* the v3 stability fixes — because there is no scenario where we'd want to validate only one without the other.
+
+**What ships:**
+- `src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py` — plain transformers + PEFT + TRL GRPOTrainer, `use_vllm=True`, `vllm_mode="colocate"`, `gpu="A100-40GB"`.
+- `configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml` with v3 hyperparameters baked in:
+  - `learning_rate: 2e-5`
+  - `epsilon_high: 0.28`, `delta: 1.5`
+  - `num_generations: 6`
+  - `max_completion_length: 192`
+  - `max_grad_norm: 0.5`
+  - `lora_rank: 16`, `lora_alpha: 32`, `optim: adamw_8bit`, `loss_type: bnpo`, `mask_truncated_completions: true`
+  - `max_steps: 4`
+  - `model_name: jayshah5696/gemma4-e2b-humanize-unsloth-merged` (primary). Fallback to `...-merged-peft-v2` if probe surfaces a checkpoint-specific issue — one-line config swap, no re-merge.
+- **Bug A guard at model-load time** (before GRPOTrainer construction), with a hard assertion immediately after:
+  ```python
+  sc = getattr(getattr(model.config, "text_config", None),
+               "final_logit_softcapping", None)
+  if sc is not None and getattr(model.config, "final_logit_softcapping", None) in (None, 0):
+      model.config.final_logit_softcapping = sc
+  assert model.config.final_logit_softcapping == 30.0, (
+      "Bug A mirror failed; Gemma 4 logits will not be softcapped"
+  )
+  ```
+- **Reward dither** wrapper around `score_completions`: when a group's reward std is below `1e-4`, add `~U(-0.005, 0.005)` per sample. Asserted not to change argmax ordering.
+- Version pins in the Modal image: `trl>=0.29.0` (Bug B, Bug E), `transformers>=5.5.0` (Bug C), `vllm>=0.17.1`.
+- `tests/training/test_rl_gemma4_trl_vllm_preflight.py` extended with:
+  - Bug A assertion via a stub config.
+  - Version-pin assertion against the installed packages.
+  - Reward-dither unit test (group std < 1e-4 → dither applied; otherwise no-op; argmax preserved).
+
+**Acceptance (probe, 4 steps):**
+1. No NaN in loss/grad_norm/kl.
+2. KL last < 5× KL first (or < 5.0 absolute).
+3. `completions/clipped_ratio` < 0.05.
+4. `frac_reward_zero_std` < 0.5 on at least 3 of 4 steps.
+5. `model.config.final_logit_softcapping == 30.0` recorded in `summary.json`.
+6. Peak VRAM in [12, 38] GB.
+7. `train_samples_per_second` recorded (input to slice 3 projection).
+
+Note: no "speedup vs baseline" gate. We have no Unsloth-on-this-config baseline to compare to and we are not going to spend $1.50 to manufacture one. The only baseline that matters for the budget is whether slice 3's projected cost fits $14, which `project_full_run_cost.py` already gates.
+
+**Cost cap:** $1.50 probe + retry buffer below.
+
+**Failure → fix:**
+| Symptom | Fix | Retry? |
+|---|---|---|
+| Bug A mirror failed | Fix the mirror; cheap | Yes |
+| KL explodes despite mirror | vLLM/trainer logprob divergence — try `logprobs-mode processed_logprobs`; if still: drop LR to 1e-5 | Yes |
+| `frac_reward_zero_std` ≥ 0.5 on majority of steps | Dither threshold too low or reward stack genuinely degenerate — raise dither window to U(-0.01, 0.01); if still: **STOP**, reward-design problem | Yes (once) |
+| vLLM OOM | `vllm_gpu_memory_utilization` 0.5 → 0.35 | Yes |
+| Trainer OOM | `target_modules` "all-linear" → `["q_proj","v_proj","o_proj"]` | Yes |
+| `sec/step` too high to fit $14 full run | Drop `max_completion_length` 192 → 128 OR `num_generations` 6 → 4 | Yes |
+| Non-OOM non-NaN integration error (e.g. vLLM Gemma 4 colocate compatibility) | Fall back to `use_vllm=False` on plain TRL; slower but unblocks. Slice 3 may need tighter caps. | Yes |
+
+### Slice 2 — Pilot (50 steps)
+
+**What ships:**
+- `configs/rl/gemma4_e2b_rl_a100_pilot.yaml` — same hyperparameters as the probe; only `max_steps: 50`.
+- Same Modal entrypoint as slice 1.
+
+**Acceptance:**
+1. 50 steps complete, no NaN.
+2. Reward last 10 mean > first 10 mean + 0.01.
+3. `completions/clipped_ratio` < 0.05 in the last 10 steps.
+4. KL last < 10× KL at step 5.
+5. `frac_reward_zero_std` < 0.5 on a majority of steps.
+6. `train_samples_per_second` recorded (input to slice 3 projection).
+
+**Cost cap:** $3.50.
+
+**Failure → fix:**
+| Symptom | Fix | Retry? |
+|---|---|---|
+| Reward trend flat/down | Halve LR (2e-5 → 1e-5); if still flat after retry: **STOP**; reward stack needs work, not RL. | Yes (once) |
+| Clipped ratio drifts up | Raise `max_completion_length` to 256 | Yes |
+| KL drifts up monotonically | Halve LR; confirm `delta=1.5`, `epsilon_high=0.28` | Yes |
+
+### Slice 3 — Full run + verifiers env eval gate
+
+**What ships:**
+- `configs/rl/gemma4_e2b_rl_a100_full.yaml` — possibly edited based on slice 2's cost projection.
+- `scripts/run_vf_eval_modal.py` — runs `vf-eval` against `humanize_rl_env` on Modal. Once pre-train, once post-train.
+- `outputs/baseline_eval.json`, `outputs/post_train_eval.json` — committed for the record.
+- LoRA pushed to HF only if eval gate passes.
+
+**Acceptance order:**
+1. Baseline eval runs first; `mean_reward(pre)` recorded.
+2. `project_full_run_cost.py outputs/pilot_summary.json configs/rl/gemma4_e2b_rl_a100_full.yaml` exits 0 (projected ≤ $14). If not, edit config per the script's suggestion (drop `max_completion_length`, drop `num_generations`, drop epochs) and re-project.
+3. Full training run completes (or we kill cleanly at watermark). Final LoRA saved.
+4. `check_rl_run_summary.py --phase full` exits 0. Includes `actual_cost_usd ≤ 14.00`.
+5. Post-train eval: `mean_reward(post) > mean_reward(pre) + 0.02` AND completions with `risk_penalty < 0` did not increase.
+
+**Cost cap:** $14 training + $0.50 eval.
+
+**If acceptance (5) fails:** do **not** push LoRA to HF. Write findings to `log.md`. We do not spend more budget on a re-train; the failure tells us reward shaping or task design needs work first.
+
+## Budget envelope
+
+A100-40GB at $0.000583/sec.
+
+| Slice | What it ships | Wall target | $ cap |
+|---|---|---|---|
+| 0 — Local pytest | Pre-flight + Bug A assertion + dither unit test | 0 | 0 |
+| 1 — TRL+vLLM probe with v3 hyperparameters and all Gemma 4 guards | 4 steps clean, samples/s recorded | ≤ 25 min | $1.50 |
+| 2 — Pilot (50 steps) | Reward trend up | ≤ 75 min | $3.50 |
+| 3 — Full run + pre/post eval | Train + eval gates | ≤ 4 hr | $14.50 |
+| Retry buffer (slice 1 or 2) | One redo | up to 60 min | $1.50 |
+| **Total** | | | **~$21 worst case, ~$11 expected** |
+
+Note: worst case at $21 is $1 over budget if every slice hits its cap and we use the retry buffer once. If that becomes likely after slice 1's measured `sec/step`, the projector script in slice 3 will tell us to drop `max_completion_length` 192 → 128 or `num_generations` 6 → 4, which keeps us inside $20.
+
+## Files already created (kept from earlier revision)
+
+- `scripts/check_rl_run_summary.py` ✓ (will be extended with `frac_reward_zero_std` gate for `--phase pilot`)
+- `scripts/project_full_run_cost.py` ✓
+- `tests/training/test_rl_gemma4_trl_vllm_preflight.py` ✓ (4 passed, 5 skipped — slice 1 will unskip them and add Bug A + version-pin + dither assertions)
+
+## Files slice 1 adds
+
+- `src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py`
+- `configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml`
+- Reward dither wrapper in `src/humanize_rl/reward/grpo_rewards.py` (smallest possible change: a `dither_if_unanimous` decorator applied at the WEIGHTED_REWARD_FUNCS export boundary)
+- Bug A mirror utility in the new Modal entrypoint, called immediately after `AutoModelForImageTextToText.from_pretrained`
+- Extended pytest assertions
+
+## Files slice 2 adds
+
+- `configs/rl/gemma4_e2b_rl_a100_pilot.yaml`
+
+## Files slice 3 adds
+
+- `configs/rl/gemma4_e2b_rl_a100_full.yaml`
+- `scripts/run_vf_eval_modal.py`
+
+## Why we keep the verifiers env
+
+Unchanged. `humanize_rl_env` wraps the same `score_response` that both `WEIGHTED_REWARD_FUNCS` (training) and `build_verifiers_rubric` (eval) call. Slice 3 uses `vf-eval` against it for pre/post baselines. Single source of truth, no drift.
+
+## What we do not do this run
+
+- Notebooks. Scripts only.
+- Re-merge the SFT artifact. Verified good per the merge report.
+- prime-rl orchestration. We use `vf.SingleTurnEnv` for eval only.
+- H100/H200/B200. A100-40GB.
+- Async GRPO. Single GPU.
+- Switch frameworks before proving stability on the framework we already have working.
+- Quantization. bf16 LoRA only.
+
+## Open risks we accept
+
+1. **Bug A workaround might not be the only Gemma 4 attribute lookup that breaks in TRL.** If slice 1 KL still blows up after the mirror, the fallback is `use_vllm=False` on plain TRL (slower but still TRL). We do not spend slice 3 budget debugging TRL Gemma 4 internals.
+2. **Reward dither is a stability hack, not a fix.** If dither keeps `frac_reward_zero_std` below 0.5 but reward trend stays flat in slice 2, the reward stack itself is not informative enough for GRPO. That's a research problem, out of scope for $20.
+3. **No Unsloth baseline to compare against.** If slice 1 fails in a way we can't diagnose, we have no "is this Unsloth-fine" data point. We accept this — manufacturing that data point costs $1.50 and would only matter for diagnosis, not for the path forward (which is the fallback in risk 1). The PEFT-v2 sibling repo is a *checkpoint* fallback (one-line swap), not a framework fallback.

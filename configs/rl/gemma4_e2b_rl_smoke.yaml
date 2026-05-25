@@ -1,0 +1,35 @@
+model_name: jayshah5696/gemma4-e2b-humanize-unsloth-merged
+experiment_name: gemma4-e2b-humanize-rl-smoke-v01
+hf_lora_repo: jayshah5696/gemma4-e2b-humanize-rl-smoke-lora
+
+task_path: data/rl/humanize_tasks_v01_smoke.jsonl
+train_split: train
+eval_split: validation
+
+max_seq_length: 512
+max_prompt_length: 384
+max_completion_length: 64
+
+lora_rank: 16
+lora_alpha: 32
+learning_rate: 2.0e-5
+max_steps: 2
+num_generations: 2
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 2
+warmup_ratio: 0.1
+weight_decay: 0.001
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+sample_before_after: 2
+generation_batch_size: 2
+artifact_generation_samples: 2
+push_to_hub: false
+report_to: none

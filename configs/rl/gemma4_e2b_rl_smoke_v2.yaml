@@ -1,0 +1,54 @@
+# GRPO smoke run v2 for Gemma 4 E2B humanize SFT policy.
+#
+# Changes vs gemma4_e2b_rl_smoke.yaml:
+# - num_generations: 2 -> 6  (a 2-rollout group makes reward std ~ 0 which
+#   blows up the GRPO advantage normalisation and explains the
+#   kl=193 -> 1.6e5, grad_norm=NaN we saw on step 2.)
+# - epsilon_high: 0.28 -> 0.20  (DAPO-style asymmetric clipping needs a
+#   stable signal; widen later, not on a smoke run.)
+# - delta: 1.5 -> 1.2          (tighter trust region for the smoke.)
+# - learning_rate: 2e-5 -> 5e-6 (LoRA on 2B; conservative.)
+# - gradient_accumulation_steps: 2 -> 4 to bring effective batch up.
+# - max_steps: 2 -> 5 so we see >1 KL value before declaring stable.
+#
+# The previously suspected merged-model breakage (MISSING layers 15-34
+# k_proj/v_proj) is a false alarm: Gemma 4 E2B sets
+# num_kv_shared_layers=20, so layers 15-34 share KV by design and have
+# no own k_proj/v_proj/k_norm/v_norm. See
+# huggingface/transformers#45328 and our verify_gemma4_artifacts_modal.py.
+
+model_name: jayshah5696/gemma4-e2b-humanize-unsloth-merged
+experiment_name: gemma4-e2b-humanize-rl-smoke-v02
+hf_lora_repo: jayshah5696/gemma4-e2b-humanize-rl-smoke-lora
+
+task_path: data/rl/humanize_tasks_v01_smoke.jsonl
+train_split: train
+eval_split: validation
+
+max_seq_length: 512
+max_prompt_length: 384
+max_completion_length: 64
+
+lora_rank: 16
+lora_alpha: 32
+learning_rate: 5.0e-6
+max_steps: 5
+num_generations: 6
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+warmup_ratio: 0.1
+weight_decay: 0.001
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.20
+delta: 1.2
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+sample_before_after: 4
+generation_batch_size: 2
+artifact_generation_samples: 2
+push_to_hub: false
+report_to: none

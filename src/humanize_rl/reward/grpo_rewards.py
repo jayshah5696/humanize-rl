@@ -19,8 +19,11 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from humanize_rl.reward.reward import RewardResult, score_response
+from humanize_rl.reward.reward import RewardResult, load_ridge_scorer, score_response
 from humanize_rl.reward.tasks import RLTask
+
+# Loaded once per worker process; None if pkl not found.
+_RIDGE_SCORER = load_ridge_scorer()
 
 Completion = list[dict[str, str]]
 
@@ -91,7 +94,7 @@ def score_completions(
     results: list[RewardResult] = []
     for completion, task_payload in zip(completions, task_payloads, strict=True):
         task = RLTask.model_validate(task_payload)
-        results.append(score_response(task, _response(completion)))
+        results.append(score_response(task, _response(completion), _RIDGE_SCORER))
     return results
 
 

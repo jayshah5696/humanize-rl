@@ -144,7 +144,9 @@ class GRPOProbeConfig:
     max_steps: int = 4
     num_generations: int = 6
     per_device_train_batch_size: int = 1
-    gradient_accumulation_steps: int = 1
+    # Must satisfy: (pdtbs * world * grad_accum) % num_generations == 0
+    # (TRL v1.x asserts this; see grpo_config.py __post_init__).
+    gradient_accumulation_steps: int = 6
     warmup_ratio: float = 0.1
     weight_decay: float = 0.001
     max_grad_norm: float = 0.5

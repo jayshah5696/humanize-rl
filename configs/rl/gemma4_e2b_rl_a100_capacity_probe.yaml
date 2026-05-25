@@ -39,7 +39,11 @@ learning_rate: 2.0e-5
 max_steps: 4
 num_generations: 6
 per_device_train_batch_size: 1
-gradient_accumulation_steps: 1
+# TRL v1.x requires generation_batch_size (= pdtbs * world * grad_accum) to
+# be divisible by num_generations. With pdtbs=1 we need grad_accum to be a
+# multiple of num_generations so each optimizer step sees one full rollout
+# group.
+gradient_accumulation_steps: 6
 warmup_ratio: 0.1
 weight_decay: 0.001
 max_grad_norm: 0.5

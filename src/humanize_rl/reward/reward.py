@@ -33,6 +33,46 @@ class TrackAScorer(Protocol):
     def predict_proba(self, rows: list[str]) -> Any: ...
 
 
+class RidgeScorerAdapter:
+    """Wraps RidgeScorer (predict_binary) into the TrackAScorer protocol.
+
+    predict_proba returns [[P(human), P(AI)]] per row so that
+    _track_a_human_probability picks up the last element as P(AI)
+    and 1 - P(AI) = P(human) is used to push style score up.
+    We invert: TrackAScorer convention is P(human), so we return
+    1 - predict_binary to give the human probability.
+    """
+
+    def __init__(self, ridge_scorer: Any) -> None:
+        self._scorer = ridge_scorer
+
+    def predict_proba(self, rows: list[str]) -> list[list[float]]:
+        """Returns [[P(AI), P(human)]] — last element is P(human), used as style boost."""
+        ai_probs = self._scorer.predict_binary(rows)
+        return [[float(p), 1.0 - float(p)] for p in ai_probs]
+
+
+def load_ridge_scorer(path: Path | None = None) -> "TrackAScorer | None":
+    """Load the best available ridge pkl and wrap in RidgeScorerAdapter.
+
+    Searches DEFAULT_RIDGE_PATHS in order; returns None if none found.
+    Falls back gracefully so the reward scorer runs without it.
+    """
+    import pickle
+
+    default_paths = [
+        Path("models/track_a_10k/ridge.pkl"),
+        Path("models/distilled/baseline_ridge.pkl"),
+    ]
+    candidates = [path] if path else default_paths
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            with candidate.open("rb") as fh:
+                raw = pickle.load(fh)
+            return RidgeScorerAdapter(raw)
+    return None
+
+
 @dataclass(frozen=True)
 class RewardResult:
     """Scalar reward plus inspectable component diagnostics."""

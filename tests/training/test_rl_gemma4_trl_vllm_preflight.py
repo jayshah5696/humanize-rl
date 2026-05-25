@@ -155,8 +155,10 @@ def test_modal_script_declares_version_pins_for_gemma4_bug_b_c_e() -> None:
         pytest.skip(f"{MODAL_SCRIPT.name} not created yet")
     source = MODAL_SCRIPT.read_text()
     assert "transformers>=5.5.0" in source
-    assert "trl>=0.29.0" in source
-    assert "vllm==0.12.0" in source or "vllm>=0.12" in source
+    # TRL v1.x is the first line with transformers v5 + native Gemma 4.
+    assert "trl>=1.0.0" in source
+    # vLLM 0.19.1+ ships Gemma 4 + transformers 5.5.3 compatibility.
+    assert "vllm>=0.19.1" in source
 
 
 def test_modal_script_mirrors_gemma4_final_logit_softcap_bug_a() -> None:

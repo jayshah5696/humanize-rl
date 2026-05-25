@@ -85,11 +85,14 @@ def _build_image() -> Any:
             "tokenizers>=0.22.0,<=0.23.0",
             # Bug C: use_cache=False corrupts Gemma 4 E2B before transformers 5.5.0.
             "transformers>=5.5.0",
-            # Bug B (mm_token_type_ids IndexError) and Bug E (vLLM colocate attr
-            # crash) are both fixed in trl >= 0.29.0.
-            "trl>=0.29.0,<0.30.0",
-        # TRL 0.29.x supports vllm 0.10.2 / 0.11.x / 0.12.0 only.
-            "vllm==0.12.0",
+            # TRL v1.x is the first line that supports transformers v5 and
+            # native Gemma 4 (response schema + tool-use). It also makes Bug A
+            # (final_logit_softcapping mirror) a defensive no-op because the
+            # softcap is now applied inside model.forward. Bug B / E were
+            # fixed before v1.0.0.
+            "trl>=1.0.0,<1.2.0",
+            # vLLM 0.19.1 is the first release with Gemma 4 + transformers 5.5.3.
+            "vllm>=0.19.1,<0.21.0",
             "accelerate>=0.34.0",
             "wandb>=0.21.0",
         )
@@ -208,14 +211,18 @@ def assert_version_pins() -> dict[str, str]:
     def _parse(v: str) -> tuple[int, ...]:
         return tuple(int(part) for part in v.split(".")[:3] if part.isdigit())
 
-    if _parse(pins["trl"]) < (0, 29, 0):
-        raise RuntimeError(f"trl {pins['trl']} < 0.29.0 (Bug B/E unfixed)")
+    if _parse(pins["trl"]) < (1, 0, 0):
+        raise RuntimeError(
+            f"trl {pins['trl']} < 1.0.0 (need v5 transformers + native Gemma 4)"
+        )
     if _parse(pins["transformers"]) < (5, 5, 0):
         raise RuntimeError(
             f"transformers {pins['transformers']} < 5.5.0 (Bug C unfixed)"
         )
-    if _parse(pins["vllm"]) < (0, 10, 2):
-        raise RuntimeError(f"vllm {pins['vllm']} below TRL 0.29.x supported range")
+    if _parse(pins["vllm"]) < (0, 19, 1):
+        raise RuntimeError(
+            f"vllm {pins['vllm']} < 0.19.1 (no Gemma 4 + transformers v5 support)"
+        )
     return pins
 
 

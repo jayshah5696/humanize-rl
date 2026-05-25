@@ -1,0 +1,102 @@
+model:
+  name: unsloth/gemma-4-E2B-it
+  family: gemma-4
+  base_type: instruct
+  chat_template: gemma-4
+  train_on_responses_only: true
+  enable_thinking: false
+
+lora:
+  precision: bf16
+  load_in_4bit: false
+  r: 16
+  alpha: 16
+  dropout: 0.0
+  max_seq_length: 2048
+
+training:
+  learning_rate: 2.0e-4
+  epochs: 1
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 16
+  effective_batch_size: 16
+  warmup_ratio: 0.03
+  weight_decay: 0.001
+  max_grad_norm: 0.3
+  lr_scheduler_type: cosine
+  optimizer: adamw_8bit
+  seed: 3407
+
+mlx_smoke:
+  enabled: true
+  inference_backend: mlx-vlm
+  training_backend: mlx-tune-vlm
+  inference_model: unsloth/gemma-4-E2B-it-UD-MLX-4bit
+  training_model: mlx-community/gemma-4-e2b-it-4bit
+  max_steps: 50
+  batch_size: 1
+  grad_accumulation_steps: 4
+  effective_batch_size: 4
+  max_seq_length: 512
+  lora_r: 4
+  lora_alpha: 4
+  adapter_path: adapters/gemma4_e2b_v04_mlx_benchmark
+  output_dir: outputs_gemma4_humanize_mlx_benchmark
+  data_dir: data/processed/sft/gemma4_e2b_v04_mlx_smoke
+  status: mlx_tune_vlm_50_step_benchmark_passed
+  benchmark:
+    rows: 100
+    steps: 50
+    runtime_seconds: 96.46
+    seconds_per_step: 1.93
+    final_train_loss: 1.2124
+  notes:
+    - Local hardware detected in planning: Apple M3 Pro, 18GB unified memory, macOS 26.5, arm64.
+    - E2B inference works locally and peaked around 4.6GB using mlx-vlm.
+    - Direct mlx_lm.lora failed on Gemma 4 shared-KV loader issues.
+    - MLX-Tune works when using the Gemma 4 VLM path, not generic text SFTTrainer.
+    - Use FastVisionModel + VLMSFTTrainer + UnslothVisionDataCollator with VLM-style text messages.
+
+mlx_local_full_epoch:
+  enabled: true
+  training_backend: mlx-tune-vlm
+  model: mlx-community/gemma-4-e2b-it-4bit
+  data_dir: data/processed/sft/gemma4_e2b_v04
+  output_dir: outputs_gemma4_humanize_mlx_full_r8
+  adapter_path: adapters/gemma4_e2b_v04_mlx_full_r8
+  train_rows: 3870
+  max_steps: 967
+  batch_size: 1
+  grad_accumulation_steps: 4
+  effective_batch_size: 4
+  max_seq_length: 512
+  lora_r: 8
+  lora_alpha: 8
+  learning_rate: 2.0e-4
+  warmup_steps: 5
+  weight_decay: 0.001
+  train_on_completions: true
+  estimated_runtime_hours_from_50_step_benchmark: 0.52
+  practical_runtime_budget_hours: 1.0
+
+modal:
+  app_name: humanize-rl-gemma4-e2b-sft
+  gpu_pilot: L40S
+  gpu_full: L40S
+  timeout_seconds: 21600
+  retries: 2
+  checkpoint_volume: humanize-rl-gemma4-checkpoints
+  hf_cache_volume: humanize-rl-hf-cache
+  dataset_volume: humanize-rl-datasets
+
+tracking:
+  wandb_project: humanize-rl
+  wandb_entity: null
+  run_group: gemma4-e2b-sft-v04
+  report_to: wandb
+
+artifacts:
+  input_path: data/processed/v04_sft_final.jsonl
+  output_dir: data/processed/sft/gemma4_e2b_v04
+  mlx_smoke_dir: data/processed/sft/gemma4_e2b_v04_mlx_smoke
+  track_a_ridge_path: models/track_a_10k/ridge.pkl

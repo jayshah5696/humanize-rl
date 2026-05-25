@@ -23,7 +23,7 @@ from humanize_rl.reward.verifiers_adapter import (
 )
 
 DEFAULT_TASK_PATH = (
-    Path(__file__).resolve().parents[2] / "data/rl/humanize_tasks_v01_smoke.jsonl"
+    Path(__file__).resolve().parent / "humanize_tasks_v01_smoke.jsonl"
 )
 
 

@@ -278,6 +278,73 @@ def _load_policy(
     return model, tokenizer, perf_counter() - started, softcap
 
 
+def _patch_peft_for_gemma4_clippable_linear() -> Any:
+    """Bug F (Gemma 4) — PEFT can't see ``Gemma4ClippableLinear``.
+
+    Gemma 4 wraps every ``nn.Linear`` projection in a
+    ``Gemma4ClippableLinear`` for activation clamping. The wrapper does
+    NOT inherit from ``nn.Linear`` (transformers PR #45388 was closed,
+    not merged). PEFT's LoRA ``_create_new_module`` only knows the exact
+    ``torch.nn.Linear`` class → PEFT raises
+    ``ValueError: Target module Gemma4ClippableLinear(...) is not supported``.
+
+    Recipe lifted from unslothai/unsloth#4807: monkey-patch
+    ``LoraModel._create_and_replace`` so that whenever it encounters a
+    ``Gemma4ClippableLinear`` target it recurses into the inner
+    ``target.linear`` (a plain ``nn.Linear``). Returns a callable that
+    restores the original method.
+    """
+    try:
+        from transformers.models.gemma4.modeling_gemma4 import (
+            Gemma4ClippableLinear,
+        )
+    except ImportError:  # pragma: no cover - older transformers
+        return lambda: None
+
+    from peft.tuners.lora.model import LoraModel
+
+    original = LoraModel._create_and_replace
+
+    def _patched(
+        self: Any,
+        peft_config: Any,
+        adapter_name: str,
+        target: Any,
+        target_name: str,
+        parent: Any,
+        current_key: Any = None,
+        **kwargs: Any,
+    ) -> Any:
+        if isinstance(target, Gemma4ClippableLinear):
+            return original(
+                self,
+                peft_config,
+                adapter_name,
+                target.linear,
+                "linear",
+                target,
+                current_key=current_key,
+                **kwargs,
+            )
+        return original(
+            self,
+            peft_config,
+            adapter_name,
+            target,
+            target_name,
+            parent,
+            current_key=current_key,
+            **kwargs,
+        )
+
+    LoraModel._create_and_replace = _patched
+
+    def restore() -> None:
+        LoraModel._create_and_replace = original
+
+    return restore
+
+
 def _attach_lora(config: GRPOProbeConfig, model: Any) -> Any:
     from peft import LoraConfig, get_peft_model
 
@@ -297,7 +364,11 @@ def _attach_lora(config: GRPOProbeConfig, model: Any) -> Any:
         bias="none",
         task_type="CAUSAL_LM",
     )
-    return get_peft_model(model, lora_config)
+    restore = _patch_peft_for_gemma4_clippable_linear()
+    try:
+        return get_peft_model(model, lora_config)
+    finally:
+        restore()
 
 
 def _train_grpo_decorator() -> Any:

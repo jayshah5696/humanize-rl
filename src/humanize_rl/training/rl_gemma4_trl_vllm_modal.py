@@ -444,7 +444,9 @@ def train_grpo(config_path: str) -> dict[str, Any]:
         per_device_train_batch_size=config.per_device_train_batch_size,
         gradient_accumulation_steps=config.gradient_accumulation_steps,
         num_generations=config.num_generations,
-        max_prompt_length=config.max_prompt_length,
+        # TRL v1.x removed `max_prompt_length` (PR #4300); prompts are now
+        # expected to fit naturally. We still keep `config.max_prompt_length`
+        # for the schema test + future prompt-pre-truncation logic.
         max_completion_length=config.max_completion_length,
         max_steps=config.max_steps,
         save_steps=max(config.max_steps, 1),

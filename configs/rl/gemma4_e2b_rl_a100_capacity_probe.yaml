@@ -1,0 +1,64 @@
+# Slice 1 capacity probe: TRL + vLLM colocate, v3 hyperparameters, all
+# Gemma 4 guards. 4 steps on A100-40GB. See
+# docs/plans/gemma4_rl_modal_20usd_budget_plan.md "Slice 1".
+#
+# Deviations from plan defaults (per user choice 1B 2026-05-25):
+# - max_completion_length: 192 -> 1024 (test_config_schema asserts >= 1024)
+# - probe budget envelope adjusts from ~$1.50 to ~$5-7.
+#
+# v3 stability fixes (framework-agnostic; live in GRPOConfig):
+# - learning_rate: 2e-5  (was 5e-6; report: too cold vs Unsloth ref 5e-5)
+# - epsilon_high:  0.28  (DAPO asymmetric high clip)
+# - delta:         1.5   (trust region)
+# - num_generations: 6   (avoid 2-rollout group std collapse)
+# - max_grad_norm: 0.5   (contain bf16 overflow)
+# - mask_truncated_completions: true (avoid reward leak from cropped)
+#
+# Gemma 4 guards live in the Modal entrypoint, not in config:
+# - Bug A: mirror text_config.final_logit_softcapping to top-level.
+# - Bug B: handled by trl >= 0.29.0 pin.
+# - Bug C: handled by transformers >= 5.5.0 pin.
+# - Bug E: handled by trl >= 0.29.0 pin.
+
+model_name: jayshah5696/gemma4-e2b-humanize-unsloth-merged
+experiment_name: gemma4-e2b-humanize-rl-a100-probe
+hf_lora_repo: jayshah5696/gemma4-e2b-humanize-rl-a100-probe-lora
+
+task_path: data/rl/humanize_tasks_v01_smoke.jsonl
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 1024
+
+lora_rank: 16
+lora_alpha: 32
+
+learning_rate: 2.0e-5
+max_steps: 4
+num_generations: 6
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 1
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+# vLLM colocate knobs
+use_vllm: true
+vllm_mode: colocate
+vllm_gpu_memory_utilization: 0.5
+
+sample_before_after: 4
+generation_batch_size: 2
+artifact_generation_samples: 2
+push_to_hub: false
+report_to: none

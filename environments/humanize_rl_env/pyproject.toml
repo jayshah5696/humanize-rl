@@ -1,6 +1,6 @@
 [project]
 name = "humanize-rl-env"
-version = "0.1.8"
+version = "0.1.9"
 description = "Single-turn Prime Verifiers environment for Humanize-RL rewards"
 tags = ["single-turn", "writing", "rl", "reward", "humanize"]
 requires-python = ">=3.12"

@@ -5,6 +5,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+!scripts/data/build/
 .venv/
 *.egg
 
@@ -88,9 +89,13 @@ seeds/v03/expansion_seeds*.jsonl
 # ignored except for the canonical v03 reports.
 runs/*
 !runs/v03/
+!runs/cards/
 runs/v03/*
 !runs/v03/v03_report.json
 !runs/v03/v03_report.md
+!runs/v03/slice*_verification.md
+!runs/v03/slice*_verification.json
+!runs/v03/slice5_rollout.log
 
 # Arka state
 state.db

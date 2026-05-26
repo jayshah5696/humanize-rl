@@ -1,0 +1,27 @@
+  ✓ ridge scorer loaded
+loaded 594 tasks; primary=openai/gpt-5.4-mini x3; weak=google/gemini-3.1-flash-lite-preview x1; second_strong=google/gemini-3-flash-preview x1 (first 200)
+  25/594 kept=25 broken=0 trivial=0 err=0 primary_rollouts=75 weak=25 second=25 | 2.03 task/s ETA 4.7m
+  50/594 kept=49 broken=0 trivial=1 err=0 primary_rollouts=150 weak=50 second=50 | 2.17 task/s ETA 4.2m
+  75/594 kept=71 broken=1 trivial=3 err=0 primary_rollouts=225 weak=75 second=75 | 1.46 task/s ETA 5.9m
+  100/594 kept=91 broken=1 trivial=8 err=0 primary_rollouts=300 weak=100 second=100 | 1.26 task/s ETA 6.5m
+  125/594 kept=109 broken=1 trivial=15 err=0 primary_rollouts=375 weak=125 second=125 | 1.13 task/s ETA 6.9m
+  150/594 kept=130 broken=1 trivial=19 err=0 primary_rollouts=450 weak=150 second=150 | 1.03 task/s ETA 7.2m
+  175/594 kept=150 broken=2 trivial=23 err=0 primary_rollouts=525 weak=175 second=175 | 1.03 task/s ETA 6.8m
+  200/594 kept=174 broken=2 trivial=24 err=0 primary_rollouts=600 weak=200 second=196 | 1.08 task/s ETA 6.1m
+  225/594 kept=196 broken=2 trivial=27 err=0 primary_rollouts=675 weak=225 second=199 | 1.14 task/s ETA 5.4m
+  250/594 kept=217 broken=2 trivial=31 err=0 primary_rollouts=750 weak=250 second=200 | 1.16 task/s ETA 4.9m
+  275/594 kept=239 broken=2 trivial=34 err=0 primary_rollouts=825 weak=275 second=200 | 1.17 task/s ETA 4.5m
+  300/594 kept=260 broken=5 trivial=35 err=0 primary_rollouts=900 weak=300 second=200 | 1.20 task/s ETA 4.1m
+  325/594 kept=283 broken=6 trivial=36 err=0 primary_rollouts=975 weak=325 second=200 | 1.23 task/s ETA 3.6m
+  350/594 kept=305 broken=9 trivial=36 err=0 primary_rollouts=1050 weak=350 second=200 | 1.27 task/s ETA 3.2m
+  375/594 kept=328 broken=11 trivial=36 err=0 primary_rollouts=1125 weak=375 second=200 | 1.32 task/s ETA 2.8m
+  400/594 kept=346 broken=12 trivial=42 err=0 primary_rollouts=1200 weak=400 second=200 | 1.21 task/s ETA 2.7m
+  425/594 kept=362 broken=14 trivial=49 err=0 primary_rollouts=1275 weak=424 second=200 | 1.15 task/s ETA 2.4m
+  450/594 kept=376 broken=18 trivial=56 err=0 primary_rollouts=1350 weak=449 second=200 | 1.11 task/s ETA 2.2m
+  475/594 kept=396 broken=18 trivial=61 err=0 primary_rollouts=1425 weak=474 second=200 | 1.13 task/s ETA 1.8m
+  500/594 kept=416 broken=19 trivial=65 err=0 primary_rollouts=1500 weak=499 second=200 | 1.14 task/s ETA 1.4m
+  525/594 kept=432 broken=19 trivial=74 err=0 primary_rollouts=1575 weak=523 second=200 | 1.15 task/s ETA 1.0m
+  550/594 kept=454 broken=19 trivial=77 err=0 primary_rollouts=1650 weak=548 second=200 | 1.16 task/s ETA 0.6m
+  575/594 kept=477 broken=19 trivial=79 err=0 primary_rollouts=1725 weak=573 second=200 | 1.17 task/s ETA 0.3m
+  594/594 kept=492 broken=19 trivial=83 err=0 primary_rollouts=1782 weak=592 second=200 | 1.14 task/s ETA 0.0m
+wrote 492 / 594 kept → data/rl/humanize_tasks_v03_filtered.jsonl (broken=19 trivial=83 err=0)

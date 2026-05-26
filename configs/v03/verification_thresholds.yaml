@@ -1,0 +1,77 @@
+# Verification thresholds for humanize_tasks_v03 (plan §8.4).
+# Consumed by scripts/data/build/verify_rl_task_quality.py.
+# Hard gates block publish; soft gates emit warnings.
+
+diversity:
+  A1_instruction_length:
+    hard:
+      p90_min: 200       # at least 10% of instructions ≥ 200 words
+      p10_max: 80        # at most 10% of instructions ≤ 80 words
+    soft:
+      p50_min: 110
+      p50_max: 170
+  A2_constraint_density:
+    hard_min: 4          # mean populated verifier dims per task
+    soft_min: 5
+  A3_cell_coverage:
+    cells_total: 40       # 8 domains × 5 registers
+    hard_min_filled: 25
+    soft_min_filled: 30
+    min_per_cell: 10
+  A4_embedding_distance:
+    hard_min: 0.55       # mean pairwise cosine distance (MiniLM, 1k sample)
+    soft_min: 0.62
+    sample_size: 1000
+    model: sentence-transformers/all-MiniLM-L6-v2
+  A5_author_balance:
+    # Slice 4 dropped Gemini 3.1 Pro (unusable on OpenRouter: ignores reasoning caps);
+    # 2-author plan, target ~55/45 split between gpt-5.4-mini and Flash-Lite.
+    hard_max_pp: 10      # max abs deviation from target author shares (pp)
+    soft_max_pp: 5
+    target_shares:
+      "openai/gpt-5.4-mini": 0.55
+      "google/gemini-3.1-flash-lite-preview": 0.45
+
+hardness:
+  B1_strong_reward_band:
+    hard:
+      median_min: 0.40
+      median_max: 0.85
+    soft:
+      median_min: 0.50
+      median_max: 0.80
+    strong_model: openai/gpt-5.4-mini
+  B2_strong_weak_gap:
+    # Gemma-4 not on OpenRouter; use Flash-Lite as weak vs gpt-5.4-mini as strong.
+    hard_min: 0.10
+    soft_min: 0.15
+    strong_model: openai/gpt-5.4-mini
+    weak_model: google/gemini-3.1-flash-lite-preview
+  B3_per_mode_variance:
+    hard_min: 0.12       # min across modes of reward std
+    soft_min: 0.18
+    strong_model: openai/gpt-5.4-mini
+  B4_check_firing_rate:
+    hard_min: 0.15       # min across det. checks of "fired ≥ once" rate
+    soft_min: 0.25
+  B5_penalty_concentration:
+    hard_max: 0.50       # max share of total penalty mass from any one penalty
+    soft_max: 0.40
+
+consistency:
+  C1_rollout_std:
+    hard_max: 0.25
+    soft_max: 0.18
+    strong_model: openai/gpt-5.4-mini
+  C2_cross_model_rho:
+    hard_min: 0.50
+    soft_min: 0.65
+    primary_model: openai/gpt-5.4-mini
+    second_strong_model: google/gemini-3-flash-preview
+    audit_subset_size: 200
+  C3_judge_kappa:
+    hard_min: 0.55
+    soft_min: 0.70
+    audit_subset_size: 100
+  C4_check_determinism:
+    hard: bit_exact

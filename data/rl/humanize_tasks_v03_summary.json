@@ -1,0 +1,50 @@
+{
+  "count": 492,
+  "family": {
+    "compression": 104,
+    "rewrite_repair": 178,
+    "direct_email": 113,
+    "tone_shift": 97
+  },
+  "domain": {
+    "creative_general": 436,
+    "technical": 10,
+    "product": 6,
+    "email": 12,
+    "leadership": 4,
+    "support": 2,
+    "slack": 22
+  },
+  "mode": {
+    "compression": 104,
+    "expansion": 65,
+    "long_form_generate": 62,
+    "multi_constraint_compose": 51,
+    "rewrite_humanize": 113,
+    "tone_shift": 97
+  },
+  "register": {
+    "formal": 99,
+    "direct": 211,
+    "warm": 54,
+    "literary": 17,
+    "journalistic": 29,
+    "academic": 16,
+    "casual": 66
+  },
+  "split": {
+    "train": 390,
+    "validation": 48,
+    "test": 54
+  },
+  "task_author_model": {
+    "openai/gpt-5.4-mini": 282,
+    "google/gemini-3.1-flash-lite-preview": 210
+  },
+  "reward_profile": {
+    "compression_update": 104,
+    "rewrite_faithful_concise": 275,
+    "direct_workplace_message": 113
+  },
+  "trap": {}
+}

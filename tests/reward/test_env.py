@@ -71,7 +71,7 @@ def test_prime_dataset_row_matches_verifiers_single_turn_shape() -> None:
 
     assert row.prompt == [{"role": "user", "content": render_prompt(task)}]
     assert row.task_id == task.id
-    assert row.task["id"] == task.id
+    assert json.loads(row.task)["id"] == task.id  # task is now a JSON string
     assert json.loads(row.info)["task_id"] == task.id
 
 

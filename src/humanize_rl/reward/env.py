@@ -94,11 +94,16 @@ class HumanizeRLEnv:
 
 @dataclass(frozen=True)
 class PrimeDatasetRow:
-    """Framework-neutral row that mirrors Prime Verifiers dataset fields."""
+    """Framework-neutral row that mirrors Prime Verifiers dataset fields.
+
+    task is serialised as a JSON string so Prime's display code can hash it
+    (set([o["task"] ...]) crashes on unhashable dicts).
+    Reward functions parse it back with json.loads().
+    """
 
     prompt: list[dict[str, str]]
     task_id: str
-    task: dict[str, object]
+    task: str  # JSON string — parse with json.loads() in reward functions
     info: str
 
 
@@ -125,7 +130,7 @@ def prime_dataset_row(task: RLTask) -> PrimeDatasetRow:
     return PrimeDatasetRow(
         prompt=[{"role": "user", "content": render_prompt(task)}],
         task_id=task.id,
-        task=task_payload,
+        task=json.dumps(task_payload, ensure_ascii=False),  # string — hashable
         info=json.dumps({"task_id": task.id, "task": task_payload}, ensure_ascii=False),
     )
 

@@ -83,7 +83,15 @@ def _task_payloads(kwargs: dict[str, Any], count: int) -> list[dict[str, object]
     tasks = kwargs.get("task")
     if not isinstance(tasks, list) or len(tasks) != count:
         raise ValueError("GRPO reward functions require a `task` column per completion")
-    return [dict(task) for task in tasks]
+    # task may be a JSON string (v0.1.9+) or a plain dict
+    result = []
+    for task in tasks:
+        if isinstance(task, str):
+            import json
+            result.append(json.loads(task))
+        else:
+            result.append(dict(task))
+    return result
 
 
 def score_completions(

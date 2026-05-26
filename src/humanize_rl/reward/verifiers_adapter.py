@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from humanize_rl.reward.reward import RewardResult, load_ridge_scorer, score_response
@@ -30,9 +31,16 @@ def _result_from_state(state: State) -> RewardResult | None:
     return None
 
 
+def _parse_task(task: dict[str, object] | str) -> dict[str, object]:
+    """Accept task as dict or JSON string (string since v0.1.9)."""
+    if isinstance(task, str):
+        return json.loads(task)
+    return task
+
+
 def score_for_verifiers(
     completion: Completion | None,
-    task: dict[str, object],
+    task: dict[str, object] | str,
     state: State | None = None,
 ) -> RewardResult:
     """Score a Verifiers rollout and optionally cache diagnostics in state."""
@@ -42,7 +50,7 @@ def score_for_verifiers(
             return cached
 
     result = score_response(
-        RLTask.model_validate(task),
+        RLTask.model_validate(_parse_task(task)),
         response_from_completion(completion),
         _RIDGE_SCORER,
     )

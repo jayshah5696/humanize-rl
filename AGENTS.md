@@ -28,6 +28,16 @@ This project provides: humanness-specific scoring (Layer 1 heuristics), rubric Y
 - use click for CLI tools, not argparse or raw input.
 - Be concise in the reposne. Use less words and less whitespace. Do not repeat yourself. Do not explain yourself. 
 
+## Scripts
+
+- Scripts are runnable as `uv run scripts/<script>.py --option value`; do not create a large app-style command router.
+- Before adding a new script, check `scripts/README.md` and existing common scripts.
+- Prefer common reusable scripts for repeated tasks, especially Hugging Face publishing, HF card generation, and JSONL utilities.
+- Planned common scripts: `scripts/publish_to_hf.py`, `scripts/write_hf_card.py`, `scripts/jsonl_tool.py`.
+- New or rewritten scripts must use Click for arguments.
+- Move superseded scripts to `scripts/archive/` before deleting.
+- Follow `docs/plans/scripts-consolidation-and-folder-cleanup.md` for script consolidation and folder cleanup.
+
 ## Models — Google Only
 
 All LLM calls go through OpenRouter. Only Google models.

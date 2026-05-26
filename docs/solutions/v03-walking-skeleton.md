@@ -18,7 +18,7 @@ sampling. Walking-skeleton domain: `instruction_technical` only, 10 seeds,
 |---|---|---|
 | Seed schema (Pydantic) | `src/humanize_rl/data/seed.py` | 5 domains, 14 discourse roles, length-band, anchors |
 | Walking-skeleton seeds | `seeds/v03/walking_skeleton.jsonl` (10 rows) | hand-pasted; defers HF `datasets` dep to V-Slice 1 |
-| Seed builder | `scripts/build_walking_skeleton_seeds.py` | computes word_count + anchor_count |
+| Seed builder | `scripts/data/seeds/build_walking_skeleton_seeds.py` | computes word_count + anchor_count |
 | AIify v02 prompt | `prompts/aiify_v02.txt` + `configs/v03/01-aiify-walking-skeleton.yaml` | subset of 3 patterns, intensity=medium, hardcoded |
 | Humanize v02 prompt | `prompts/humanize_v02.txt` + `configs/v03/02-humanize-walking-skeleton.yaml` | preserves discourse role |
 | Pair gate v03 (subset) | `src/humanize_rl/data/pair_gate_v03.py` | thresholds + length ratios + dim-improvement count |
@@ -225,7 +225,7 @@ enough to make the per-domain numbers meaningful.
   - Humanize mode: pick by largest `humanize_delta` while respecting the
     `humanized ≤ original + 0.05` overshoot ceiling. Two-hop lookup bridges
     AIified-text → human-original-text → score.
-- **Seed-duplication trick** (`scripts/duplicate_seeds.py`): arka's
+- **Seed-duplication trick** (`scripts/data/seeds/duplicate_seeds.py`): arka's
   `TransformGeneratorStage` ignores `generation_multiplier` (it's only used
   by prompt-generation stages). To get N candidates per seed without
   modifying arka, the seed file is duplicated upstream. AGENTS.md said no

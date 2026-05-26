@@ -1,14 +1,26 @@
-"""Slice 1 — TRL + vLLM colocate GRPO entrypoint for Gemma 4 E2B.
+"""Slices 1–3 — TRL + vLLM colocate GRPO entrypoint for Gemma 4 E2B.
 
 Plain transformers + PEFT + TRL GRPOTrainer. No Unsloth import path.
 
-See docs/plans/gemma4_rl_modal_20usd_budget_plan.md "Slice 1".
+See docs/plans/gemma4_rl_modal_20usd_budget_plan.md.
 
-Run (detached, A100-40GB):
+Slice 1 probe run (detached, A100-40GB):
     rtk uvx modal run --detach \\
       src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \\
       --mode train \\
       --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml
+
+Slice 2 pilot run (detached, A100-40GB, 50 steps, ~$3.50):
+    rtk uvx modal run --detach \\
+      src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \\
+      --mode train \\
+      --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_pilot.yaml
+
+Slice 3 full run (detached, A100-40GB):
+    rtk uvx modal run --detach \\
+      src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \\
+      --mode train \\
+      --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_full.yaml
 
 The Modal entrypoint always uses ``.spawn(...)`` so the local CLI exits
 once the remote call is registered (detached-safe).
@@ -31,6 +43,7 @@ except ModuleNotFoundError:  # pragma: no cover - local pytest path
 GPU_TYPE = "A100-40GB"
 TIMEOUT_HOURS = 4
 MAX_RETRIES = 0
+A100_40GB_USD_PER_SEC = 0.000583
 
 # Bug A — Gemma 4 final_logit_softcapping lives only on text_config; TRL
 # reads it via flat getattr and silently resolves to 0 (no softcap) which
@@ -65,6 +78,7 @@ else:  # pragma: no cover - local pytest path
     model_cache_volume = None  # type: ignore[assignment]
     checkpoint_volume = None  # type: ignore[assignment]
 
+
 def _build_image() -> Any:
     if modal is None:  # pragma: no cover - local pytest path
         return None
@@ -95,6 +109,11 @@ def _build_image() -> Any:
             "vllm>=0.19.1,<0.21.0",
             "accelerate>=0.34.0",
             "wandb>=0.21.0",
+            # Ridge scorer deps — required for 50/50 reward formula.
+            # baselines.py imports fasttext at module level; sklearn is needed
+            # for TfidfVectorizer + Ridge deserialization.
+            "scikit-learn>=1.3.0",
+            "fasttext-wheel>=0.9.2",
         )
         .env(
             {
@@ -111,6 +130,25 @@ def _build_image() -> Any:
         .add_local_file(
             "configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml",
             remote_path="/workspace/configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml",
+        )
+        .add_local_file(
+            "configs/rl/gemma4_e2b_rl_a100_pilot.yaml",
+            remote_path="/workspace/configs/rl/gemma4_e2b_rl_a100_pilot.yaml",
+        )
+        .add_local_file(
+            "configs/rl/gemma4_e2b_rl_a100_full.yaml",
+            remote_path="/workspace/configs/rl/gemma4_e2b_rl_a100_full.yaml",
+        )
+        # Ridge scorer pkls — required for 50/50 ridge+deterministic reward.
+        # Without these, load_ridge_scorer() returns None and training falls
+        # back to deterministic_only (ridge contributes 0%).
+        .add_local_file(
+            "models/track_a_10k/ridge.pkl",
+            remote_path="/workspace/models/track_a_10k/ridge.pkl",
+        )
+        .add_local_file(
+            "models/distilled/baseline_ridge.pkl",
+            remote_path="/workspace/models/distilled/baseline_ridge.pkl",
         )
     )
 
@@ -166,6 +204,10 @@ class GRPOProbeConfig:
     artifact_generation_samples: int = 2
     push_to_hub: bool = False
     report_to: str = "none"
+    wandb_project: str = "humanize-rl"
+    wandb_entity: str | None = None
+    stratify_batches: bool = False
+    stratify_by: str = "reward_profile"
 
     def __post_init__(self) -> None:
         if self.experiment_name is None:
@@ -418,6 +460,7 @@ def _attach_lora(config: GRPOProbeConfig, model: Any) -> Any:
 
 def _train_grpo_decorator() -> Any:
     if modal is None:  # pragma: no cover - local pytest path
+
         def passthrough(fn):  # type: ignore[no-untyped-def]
             return fn
 
@@ -446,14 +489,18 @@ def train_grpo(config_path: str) -> dict[str, Any]:
     import sys
 
     sys.path.insert(0, "/workspace/src")
-    os.environ.setdefault("WANDB_DISABLED", "true")
+    os.chdir("/workspace")  # make relative paths (models/*, data/*) resolve correctly
 
     from trl import GRPOConfig, GRPOTrainer
 
     from humanize_rl.reward.grpo_dataset import load_grpo_dataset, load_grpo_rows
-    from humanize_rl.reward.grpo_rewards import WEIGHTED_REWARD_FUNCS
+    from humanize_rl.reward.grpo_rewards import _RIDGE_SCORER, WEIGHTED_REWARD_FUNCS
 
     pins = assert_version_pins()
+    print(
+        f"[ridge-scorer] {'LOADED — 50/50 reward active' if _RIDGE_SCORER is not None else 'MISSING — deterministic_only fallback'}",
+        flush=True,
+    )
     print(f"[pins] {pins}", flush=True)
 
     # Bug G guard — must run BEFORE vLLM imports Gemma4Attention via TRL.
@@ -461,6 +508,16 @@ def train_grpo(config_path: str) -> dict[str, Any]:
     print(f"[vllm-gemma4-kv-shared-k-norm-patched] {kv_shared_patched}", flush=True)
 
     config = _load_config(config_path)
+    if config.report_to == "wandb":
+        os.environ.pop("WANDB_DISABLED", None)
+        os.environ.setdefault("WANDB_PROJECT", config.wandb_project)
+        os.environ.setdefault("WANDB_RUN_ID", str(config.experiment_name))
+        os.environ.setdefault("WANDB_RESUME", "allow")
+        if config.wandb_entity:
+            os.environ.setdefault("WANDB_ENTITY", config.wandb_entity)
+    else:
+        os.environ.setdefault("WANDB_DISABLED", "true")
+
     output_dir = Path("/checkpoints") / str(config.experiment_name)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -468,8 +525,7 @@ def train_grpo(config_path: str) -> dict[str, Any]:
     run_started = perf_counter()
     model, tokenizer, model_load_seconds, softcap = _load_policy(config)
     print(
-        f"Model loaded in {model_load_seconds:.1f}s, "
-        f"final_logit_softcapping={softcap}",
+        f"Model loaded in {model_load_seconds:.1f}s, final_logit_softcapping={softcap}",
         flush=True,
     )
     print(f"GPU after load: {_gpu_snapshot(torch)}", flush=True)
@@ -479,8 +535,21 @@ def train_grpo(config_path: str) -> dict[str, Any]:
     print(f"GPU after LoRA attach: {_gpu_snapshot(torch)}", flush=True)
 
     task_path = Path(config.task_path)
-    train_dataset = load_grpo_dataset(task_path, split=config.train_split)
-    train_rows = load_grpo_rows(task_path, split=config.train_split)
+    stratify_batch_size = (
+        config.gradient_accumulation_steps if config.stratify_batches else None
+    )
+    train_dataset = load_grpo_dataset(
+        task_path,
+        split=config.train_split,
+        stratify_batch_size=stratify_batch_size,
+        stratify_by=config.stratify_by,
+    )
+    train_rows = load_grpo_rows(
+        task_path,
+        split=config.train_split,
+        stratify_batch_size=stratify_batch_size,
+        stratify_by=config.stratify_by,
+    )
 
     training_args = GRPOConfig(
         temperature=config.temperature,
@@ -500,7 +569,9 @@ def train_grpo(config_path: str) -> dict[str, Any]:
         max_steps=config.max_steps,
         save_steps=max(config.max_steps, 1),
         report_to=config.report_to,
+        run_name=str(config.experiment_name),
         output_dir=str(output_dir / "trainer"),
+        train_sampling_strategy=("sequential" if config.stratify_batches else "random"),
         epsilon=config.epsilon,
         epsilon_high=config.epsilon_high,
         delta=config.delta,
@@ -530,16 +601,34 @@ def train_grpo(config_path: str) -> dict[str, Any]:
     model.save_pretrained(str(adapter_dir))
     tokenizer.save_pretrained(str(adapter_dir))
 
+    uploaded_repo: str | None = None
+    if config.push_to_hub:
+        from huggingface_hub import HfApi
+
+        token = os.environ.get("HF_TOKEN")
+        model.push_to_hub(config.hf_lora_repo, token=token)
+        tokenizer.push_to_hub(config.hf_lora_repo, token=token)
+        HfApi().upload_folder(
+            repo_id=config.hf_lora_repo,
+            folder_path=str(output_dir),
+            path_in_repo="run_artifacts",
+            token=token,
+            ignore_patterns=["trainer/checkpoint-*"],
+        )
+        uploaded_repo = config.hf_lora_repo
+
     log_history = list(getattr(trainer.state, "log_history", []))
     metrics = dict(getattr(trainer_stats, "metrics", {}) or {})
     gpu = _gpu_snapshot(torch)
+    elapsed_seconds = perf_counter() - run_started
 
     summary = {
         "experiment_name": config.experiment_name,
         "model_name": config.model_name,
         "output_dir": str(output_dir),
         "adapter_dir": str(adapter_dir),
-        "hf_lora_repo": config.hf_lora_repo if config.push_to_hub else None,
+        "lora_path": str(adapter_dir),
+        "hf_lora_repo": uploaded_repo,
         "train_rows": len(train_rows),
         "trainer_metrics": metrics,
         "log_history": log_history,
@@ -552,10 +641,21 @@ def train_grpo(config_path: str) -> dict[str, Any]:
         "train_runtime_seconds": metrics.get("train_runtime"),
         "steps_completed": config.max_steps,
         "model_load_seconds": model_load_seconds,
-        "elapsed_seconds": perf_counter() - run_started,
+        "elapsed_seconds": elapsed_seconds,
+        "actual_cost_usd": round(elapsed_seconds * A100_40GB_USD_PER_SEC, 4),
         "gpu": gpu,
         "version_pins": pins,
         "final_logit_softcapping": softcap,
+        "ridge_scorer_loaded": _RIDGE_SCORER is not None,
+        "reward_profile": "50_50_ridge_deterministic"
+        if _RIDGE_SCORER is not None
+        else "deterministic_only",
+        "stratified_batches": config.stratify_batches,
+        "stratify_by": config.stratify_by,
+        "wandb_project": config.wandb_project if config.report_to == "wandb" else None,
+        "wandb_run_id": str(config.experiment_name)
+        if config.report_to == "wandb"
+        else None,
         "vllm_gemma4_kv_shared_k_norm_patched": kv_shared_patched,
         "config": config.__dict__,
     }
@@ -569,9 +669,7 @@ def train_grpo(config_path: str) -> dict[str, Any]:
 
 @app.local_entrypoint()
 def main(
-    config_path: str = (
-        "/workspace/configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml"
-    ),
+    config_path: str = ("/workspace/configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml"),
     mode: str = "train",
 ) -> None:
     if mode != "train":

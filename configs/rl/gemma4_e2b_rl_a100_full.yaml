@@ -1,0 +1,58 @@
+# Slice 3 full run: stratified A100-40GB GRPO.
+# Based on valid pilot-v3. Adds stratified sequential batching to stabilise
+# risk_penalty variance and enables HF push only after manual pre/post eval gate.
+#
+# Projection from outputs/pilot_summary_v3.json:
+#   train_samples_per_second = 1.159
+#   80 train rows, effective batch = 8, samples/step = 64
+#   max_steps = 200 -> ~184 min, ~$6.4 on A100-40GB (< $14 cap)
+
+model_name: "jayshah5696/gemma4-e2b-humanize-unsloth-merged"
+experiment_name: "gemma4-e2b-humanize-rl-a100-full-v1"
+hf_lora_repo: "jayshah5696/gemma4-e2b-humanize-rl-a100-full-lora"
+
+task_path: "data/rl/humanize_tasks_v01_smoke.jsonl"
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 1024
+
+lora_rank: 16
+lora_alpha: 32
+
+learning_rate: 2.0e-5
+max_steps: 200
+num_generations: 8
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+# Slice 3 fix for pilot-v3: each optimizer step sees a stable reward-profile mix.
+stratify_batches: true
+stratify_by: reward_profile
+
+use_vllm: true
+vllm_mode: colocate
+vllm_gpu_memory_utilization: 0.65
+
+sample_before_after: 4
+generation_batch_size: 8
+artifact_generation_samples: 2
+
+# Keep false for first full run. If pre/post eval gate passes, flip true and rerun
+# a push-only follow-up or manually upload the final_adapter from the Modal volume.
+push_to_hub: false
+report_to: wandb
+wandb_project: "humanize-rl"

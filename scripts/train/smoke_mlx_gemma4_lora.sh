@@ -17,7 +17,7 @@ if [[ "$(uname -m)" != "arm64" ]]; then
 fi
 
 if [[ ! -f "${DATA_DIR}/train.jsonl" ]]; then
-  echo "Missing ${DATA_DIR}/train.jsonl. Run scripts/build_gemma4_sft_dataset.py first." >&2
+  echo "Missing ${DATA_DIR}/train.jsonl. Run scripts/data/build/build_gemma4_sft_dataset.py first." >&2
   exit 1
 fi
 

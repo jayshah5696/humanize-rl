@@ -35,7 +35,7 @@ The project has a working vertical slice for:
   `src/humanize_rl/data/selector.py` (group by original-seed,
   Layer-1 score each candidate, pick by band-distance / overshoot-aware
   tier ordering). Two-tier selector enforces 1.25× length cap above
-  band-distance. `scripts/duplicate_seeds.py` works around arka's
+  band-distance. `scripts/data/seeds/duplicate_seeds.py` works around arka's
   TransformGeneratorStage ignoring `generation_multiplier`. 7 selector
   tests. Best-of-4 + length-aware selector hit 4/10 acceptance.
 - **V-Slice 1 (second domain):** added 10 email/professional seeds;

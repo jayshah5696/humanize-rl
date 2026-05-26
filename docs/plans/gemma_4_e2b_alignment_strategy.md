@@ -185,7 +185,7 @@ We expand our target domains to cover a wider breadth of tasks:
 
 Instead of building custom Arka filter stages, we isolate this logic to an **Orchestrator Pre-Processing Step**.
 
-1.  **`scripts/prep_dataset.py`:** We run a standalone Python script that downloads only license-approved sources, applies governance checks, PII scanning, `fastText`, `Token Prior`, `spaCy POS`, and cheap-router filters, and outputs a highly refined local JSONL file (`cleaned_lmsys_tasks.jsonl`).
+1.  **`scripts/data/build/prep_dataset.py`:** We run a standalone Python script that downloads only license-approved sources, applies governance checks, PII scanning, `fastText`, `Token Prior`, `spaCy POS`, and cheap-router filters, and outputs a highly refined local JSONL file (`cleaned_lmsys_tasks.jsonl`).
 2.  **Arka Ingestion:** The Arka YAML configuration simply points its native `DatasetIngestionStage` to this cleaned local file, remaining entirely generic and rules-compliant.
 
 ```yaml

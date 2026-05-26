@@ -191,7 +191,7 @@ In `configs/v04/runs/v04-base-pilot-reviewed/report/samples.jsonl`, one sample a
 
 The generated response says Sarah will cover the projects, but the instruction did not provide Sarah. That is an unsupported invented name. This exact failure mode must be blocked before training.
 
-The existing `scripts/verify_v04_quality.py` already has logic for fake names and missing placeholders. Keep this gate, strengthen it, and run it over the final Track B set.
+The existing `scripts/label/verify_v04_quality.py` already has logic for fake names and missing placeholders. Keep this gate, strengthen it, and run it over the final Track B set.
 
 ### 5.4 Scorer use
 
@@ -501,8 +501,8 @@ Definition of done:
 Create:
 
 ```text
-scripts/build_gemma4_sft_dataset.py
-scripts/report_sft_dataset_quality.py
+scripts/data/build/build_gemma4_sft_dataset.py
+scripts/data/build/report_sft_dataset_quality.py
 ```
 
 Inputs:
@@ -568,7 +568,7 @@ Definition of done:
 Create:
 
 ```text
-scripts/smoke_mlx_gemma4_lora.sh
+scripts/train/smoke_mlx_gemma4_lora.sh
 ```
 
 Use a separate local MLX environment rather than adding MLX packages to the main project dependencies immediately. This avoids polluting the repo's CUDA/Modal dependency story.
@@ -590,7 +590,7 @@ uvx --python 3.12 --with 'mlx-lm[train]' mlx_lm.lora \
 If we use `mlx-tune`, keep it as an optional second script:
 
 ```text
-scripts/smoke_mlx_tune_gemma4_lora.py
+scripts/train/smoke_mlx_tune_gemma4_lora.py
 ```
 
 MLX smoke run checks:
@@ -758,10 +758,10 @@ Decision:
 
 1. Add `configs/training/gemma4_e2b_sft_v04.yaml`.
 2. Add tests for dataset row normalization and rejection rules.
-3. Implement `scripts/build_gemma4_sft_dataset.py`.
-4. Implement `scripts/report_sft_dataset_quality.py`.
+3. Implement `scripts/data/build/build_gemma4_sft_dataset.py`.
+4. Implement `scripts/data/build/report_sft_dataset_quality.py`.
 5. Generate `smoke_train.jsonl` / `smoke_valid.jsonl`.
-6. Add `scripts/smoke_mlx_gemma4_lora.sh`.
+6. Add `scripts/train/smoke_mlx_gemma4_lora.sh`.
 7. Run MLX smoke locally.
 8. Implement Modal trainer.
 9. Run Modal pilot with W&B.

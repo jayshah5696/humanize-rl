@@ -2,7 +2,7 @@
 set -e
 
 echo "1. Duplicating seeds..."
-rtk uv run python scripts/duplicate_seeds.py \
+rtk uv run python scripts/jsonl_tool.py duplicate \
     --input seeds/v03/expansion_seeds.jsonl \
     --output seeds/v03/expansion_seeds_x1.jsonl \
     --copies 1
@@ -18,7 +18,7 @@ rtk uv run python -m humanize_rl.data.selector \
     --report runs/v03/expansion-aiify-selection.json
 
 echo "4. Duplicate AIify..."
-rtk uv run python scripts/duplicate_seeds.py \
+rtk uv run python scripts/jsonl_tool.py duplicate \
     --input output/v03/expansion-aiify.jsonl \
     --output output/v03/expansion-aiify-x1.jsonl \
     --copies 1

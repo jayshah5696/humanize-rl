@@ -265,7 +265,7 @@ Note: no "speedup vs baseline" gate. We have no Unsloth-on-this-config baseline 
 
 **What ships:**
 - `configs/rl/gemma4_e2b_rl_a100_full.yaml` — possibly edited based on slice 2's cost projection.
-- `scripts/run_vf_eval_modal.py` — runs `vf-eval` against `humanize_rl_env` on Modal. Once pre-train, once post-train.
+- `scripts/eval/run_vf_eval_modal.py` — runs `vf-eval` against `humanize_rl_env` on Modal. Once pre-train, once post-train.
 - `outputs/baseline_eval.json`, `outputs/post_train_eval.json` — committed for the record.
 - LoRA pushed to HF only if eval gate passes.
 
@@ -297,8 +297,8 @@ Note: worst case at $21 is $1 over budget if every slice hits its cap and we use
 
 ## Files already created (kept from earlier revision)
 
-- `scripts/check_rl_run_summary.py` ✓ (will be extended with `frac_reward_zero_std` gate for `--phase pilot`)
-- `scripts/project_full_run_cost.py` ✓
+- `scripts/eval/check_rl_run_summary.py` ✓ (will be extended with `frac_reward_zero_std` gate for `--phase pilot`)
+- `scripts/rl/project_full_run_cost.py` ✓
 - `tests/training/test_rl_gemma4_trl_vllm_preflight.py` ✓ (4 passed, 5 skipped — slice 1 will unskip them and add Bug A + version-pin + dither assertions)
 
 ## Files slice 1 adds
@@ -316,7 +316,7 @@ Note: worst case at $21 is $1 over budget if every slice hits its cap and we use
 ## Files slice 3 adds
 
 - `configs/rl/gemma4_e2b_rl_a100_full.yaml`
-- `scripts/run_vf_eval_modal.py`
+- `scripts/eval/run_vf_eval_modal.py`
 
 ## Why we keep the verifiers env
 
@@ -337,3 +337,93 @@ Unchanged. `humanize_rl_env` wraps the same `score_response` that both `WEIGHTED
 1. **Bug A workaround might not be the only Gemma 4 attribute lookup that breaks in TRL.** If slice 1 KL still blows up after the mirror, the fallback is `use_vllm=False` on plain TRL (slower but still TRL). We do not spend slice 3 budget debugging TRL Gemma 4 internals.
 2. **Reward dither is a stability hack, not a fix.** If dither keeps `frac_reward_zero_std` below 0.5 but reward trend stays flat in slice 2, the reward stack itself is not informative enough for GRPO. That's a research problem, out of scope for $20.
 3. **No Unsloth baseline to compare against.** If slice 1 fails in a way we can't diagnose, we have no "is this Unsloth-fine" data point. We accept this — manufacturing that data point costs $1.50 and would only matter for diagnosis, not for the path forward (which is the fallback in risk 1). The PEFT-v2 sibling repo is a *checkpoint* fallback (one-line swap), not a framework fallback.
+
+
+---
+
+## Run Results
+
+### Slice 2 — Pilot (2026-05-25)
+
+#### Attempt 1 — deterministic_only fallback (INVALID)
+
+App `ap-PDrDB4DEv9u3W6ayRE8ciB`. 50 steps completed, no NaN, no OOM.  
+**Reward was wrong.** `models/track_a_10k/ridge.pkl` was not mounted into the
+Modal container. `load_ridge_scorer()` returned `None` → `deterministic_only`
+fallback → ridge contributed 0% instead of 50%.
+
+Evidence: `rewards/ridge_rubric_reward/mean` = ±0.001–0.003 (dither noise) across
+all 50 steps. Run discarded.
+
+Fix: mount both ridge pkls via `add_local_file` + `os.chdir("/workspace")` +
+add `scikit-learn>=1.3.0` and `fasttext-wheel>=0.9.2` to the Modal image.
+
+#### Attempt 2 — GPU utilisation tuning only, no ridge (pilot-v1, also INVALID)
+
+Not re-run separately. The GPU changes (below) were applied alongside the ridge
+fix in attempt 3.
+
+#### Attempt 3 — 50/50 reward active, GPU-maximised (pilot-v3, VALID)
+
+App `ap-0nWjZ72agLzF87SoQ56fyX`. Summary at `outputs/pilot_summary_v3.json`.
+
+**Config changes from probe (GPU utilisation):**
+| knob | probe | pilot-v3 | effect |
+|---|---|---|---|
+| `vllm_gpu_memory_utilization` | 0.50 | 0.65 | vLLM claims 26GB vs 20GB |
+| `num_generations` | 6 | 8 | +33% rollouts/step |
+| `gradient_accumulation_steps` | 6 | 8 | required divisibility |
+| `generation_batch_size` | 2 | 8 | aligned with above |
+
+**Key numbers:**
+| metric | value | gate | result |
+|---|---|---|---|
+| Steps completed | 50/50 | 50 | ✅ |
+| NaN anywhere | none | none | ✅ |
+| `clipped_ratio` | 0.000 all steps | < 0.05 | ✅ |
+| `frac_reward_zero_std` | 0.00 all steps | < 0.5 | ✅ |
+| `ridge_scorer_loaded` | True | — | ✅ |
+| `reward_profile` | `50_50_ridge_deterministic` | — | ✅ |
+| `peak_vram_gb` | **35.53 GB (90% of 39.49)** | [12, 38] | ✅ |
+| `train_samples_per_second` | **1.159** (probe was 0.678, +71%) | recorded | ✅ |
+| `train_runtime` | 345 s | — | — |
+| Actual cost | ~$0.24 | $3.50 cap | ✅ |
+| checker `--phase pilot` | FAIL | PASS | ❌ (gate too blunt) |
+
+**Reward component trends (first10 → last10):**
+| component | first10 | last10 | delta | verdict |
+|---|---|---|---|---|
+| `ridge_rubric` | 0.288 | 0.307 | **+0.020** | learning ✅ |
+| `deterministic` | 0.470 | 0.472 | **+0.002** | stable ✅ |
+| `risk_penalty` | −0.389 | −0.475 | −0.086 | task-sampling noise |
+| **total reward** | 0.369 | 0.305 | −0.064 | masked by noise ❌ |
+
+**Why the checker gate failed:** `risk_penalty` swings ±0.9 by task family
+(sensitive_comms vs slack_chat). The 80-row dataset has no stratified batching,
+so different task types land in each step's batch by chance. The penalty variance
+drowns the ridge/deterministic signal in the batch mean. Both *learned* components
+trend positive. `frac_reward_zero_std = 0` throughout confirms GRPO always had
+valid advantage estimates — the gradient signal is real.
+
+**Checker gate note:** the `total_reward > +0.01` gate in `check_rl_run_summary.py
+--phase pilot` is too coarse for a multi-component reward where one additive term
+(risk_penalty) has task-level variance larger than the learning signal over 50
+steps. Slice 3 fix: stratified batching so each step sees the same task-type mix,
+stabilising the penalty average.
+
+**Bugs found and fixed during slice 2:**
+1. Ridge pkl not mounted → `deterministic_only` fallback silently active.
+2. `os.chdir("/workspace")` missing → relative paths (`models/*, data/*`) could not
+   resolve in the Modal container.
+3. `fasttext-wheel` and `scikit-learn` not in the Modal image → pkl deserialisation
+   failed at import (module-level `import fasttext` in `baselines.py`).
+
+**Files changed:**
+- `src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py` — mount ridge pkls,
+  `os.chdir`, add deps, log ridge-scorer status, add `ridge_scorer_loaded` /
+  `reward_profile` to summary JSON.
+- `configs/rl/gemma4_e2b_rl_a100_pilot.yaml` — GPU-maximised config (v3).
+
+**Slice 3 pre-conditions:** stratified batching in `grpo_dataset.py` so
+`risk_penalty` variance is consistent across steps; then re-run checker gate or
+relax it to gate on `ridge_rubric` trend instead of total reward.

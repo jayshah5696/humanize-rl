@@ -21,7 +21,7 @@ Recommendation: use MLX-Tune for local tiny smoke/pilot runs, but keep Modal + U
 ### 1. Official `mlx-lm` LoRA smoke
 
 ```bash
-MAX_SEQ_LENGTH=512 NUM_LAYERS=4 ITERS=2 VAL_BATCHES=1 STEPS_PER_EVAL=1 ./scripts/smoke_mlx_gemma4_lora.sh
+MAX_SEQ_LENGTH=512 NUM_LAYERS=4 ITERS=2 VAL_BATCHES=1 STEPS_PER_EVAL=1 ./scripts/train/smoke_mlx_gemma4_lora.sh
 ```
 
 Result: failed during model load with unexpected parameters for shared-KV layers:
@@ -71,7 +71,7 @@ The issue was our code. We used the generic `SFTTrainer` / text path, but Gemma 
 Correct command:
 
 ```bash
-uvx --from mlx-tune --with datasets --python 3.12 python scripts/smoke_mlx_tune_gemma4_lora.py
+uvx --from mlx-tune --with datasets --python 3.12 python scripts/train/smoke_mlx_tune_gemma4_lora.py
 ```
 
 Correct implementation details:

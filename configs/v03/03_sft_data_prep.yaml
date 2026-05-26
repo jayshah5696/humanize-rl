@@ -1,5 +1,5 @@
 # WHAT:      V-Slice 0/2 SFT Data Prep — Ingest, normalize, and format merged SFT streams.
-# WHEN:      Runs after scripts/publish_dataset.py --dry-run merges all streams.
+# WHEN:      Runs after scripts/archive/publish_dataset.py --dry-run merges all streams.
 # REQUIRES:  data/processed/v03_combined_sharegpt.jsonl
 # RUN:       cd /Users/jshah/Documents/GitHub/humanize-rl && \
 #            uv run arka --config configs/v03/03_sft_data_prep.yaml \

@@ -1,0 +1,62 @@
+# Slice 2 pilot: 50 GRPO steps on A100-40GB — GPU-maximized.
+# Diverges from probe in three ways to push A100 utilization from 74% -> ~89%:
+#   1. vllm_gpu_memory_utilization: 0.5 -> 0.65  (vLLM claims 26GB vs 20GB)
+#   2. num_generations: 6 -> 8                   (+33% rollouts/step, better advantage)
+#   3. gradient_accumulation_steps: 6 -> 8        (required: gen_batch=8 must be divisible by num_gen=8)
+# VRAM math: 26GB vLLM + ~10GB trainer = ~36GB projected (ceiling 38GB, margin ~2GB).
+# See docs/plans/gemma4_rl_modal_20usd_budget_plan.md "Slice 2".
+#
+# Acceptance gates (check_rl_run_summary.py --phase pilot):
+#   1. 50 steps complete, no NaN.
+#   2. reward last10_mean > first10_mean + 0.01.
+#   3. completions/clipped_ratio < 0.05 (all steps).
+#   4. KL last < 10x KL at step 5.
+#   5. frac_reward_zero_std < 0.5 on majority of steps.
+#   6. train_samples_per_second recorded (input to slice 3 projector).
+#
+# Cost cap: $3.50.
+
+model_name: "jayshah5696/gemma4-e2b-humanize-unsloth-merged"
+experiment_name: "gemma4-e2b-humanize-rl-a100-pilot-v3"
+hf_lora_repo: "jayshah5696/gemma4-e2b-humanize-rl-a100-pilot-lora"
+
+task_path: "data/rl/humanize_tasks_v01_smoke.jsonl"
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 1024
+
+lora_rank: 16
+lora_alpha: 32
+
+learning_rate: 2.0e-5
+max_steps: 50
+num_generations: 8
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+# vLLM colocate — raised from probe's 0.5 to 0.65 to utilise more A100 VRAM
+# for generation. Projected peak: ~36GB (ceiling 38GB, margin ~2GB).
+use_vllm: true
+vllm_mode: colocate
+vllm_gpu_memory_utilization: 0.65
+
+sample_before_after: 4
+generation_batch_size: 8
+artifact_generation_samples: 2
+push_to_hub: false
+report_to: wandb
+wandb_project: "humanize-rl"

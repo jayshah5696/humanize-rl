@@ -550,9 +550,9 @@ src/humanize_rl/reward/checks.py
 src/humanize_rl/reward/profiles.py
 src/humanize_rl/reward/reward.py
 src/humanize_rl/reward/env.py
-scripts/build_rl_tasks_v01.py
-scripts/evaluate_reward_env.py
-scripts/run_rl_rollouts.py
+scripts/data/build/build_rl_tasks_v01.py
+scripts/eval/evaluate_reward_env.py
+scripts/rl/run_rl_rollouts.py
 configs/rl/gemma4_e2b_rl_smoke.yaml
 configs/rl/gemma4_e2b_rl_pilot.yaml
 configs/rl/gemma4_e2b_rl_full_v1.yaml
@@ -617,8 +617,8 @@ Acceptance:
 
 Deliverables:
 
-- `scripts/run_rl_rollouts.py`
-- `scripts/evaluate_reward_env.py`
+- `scripts/rl/run_rl_rollouts.py`
+- `scripts/eval/evaluate_reward_env.py`
 - base vs SFT comparison report.
 
 Acceptance:

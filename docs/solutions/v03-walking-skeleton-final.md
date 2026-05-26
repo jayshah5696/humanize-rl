@@ -19,7 +19,7 @@ $0.50, not $25.
 | `v03-walking-skeleton-done` | 0 | Schema + 10 hand-pasted instruction_technical seeds + AIify v02 + humanize v02 + minimal gate + driver + 12 tests. End-to-end works. | ~$0.55 | 0/10 |
 | `v03-ws-iter1-done` | 0.iter1 | Tightened AIify prompt (5 patterns + no-new-sentences cap) | ~$0.55 | 0/10 |
 | `v03-ws-iter2-layer1-fix` | 0.5 | **Critical bugfix:** widened hedge/opener/transition regexes to match uncontracted forms (`it is worth noting`) and openers the LLM actually emits (`when working with`). 9 regression tests pinned to live AIify outputs. | $0 | 1/10 |
-| `v03-vslice2-done` | 2 (initial) | Best-of-2 candidate selection + `scripts/duplicate_seeds.py` (works around arka transform-stage ignoring `generation_multiplier`). 6 selector tests. | ~$1.20 | 2/10 |
+| `v03-vslice2-done` | 2 (initial) | Best-of-2 candidate selection + `scripts/data/seeds/duplicate_seeds.py` (works around arka transform-stage ignoring `generation_multiplier`). 6 selector tests. | ~$1.20 | 2/10 |
 | `v03-vslice2-tuned-4-of-10` | 2.tuned | Best-of-4 AIify; two-tier selector that prefers in-cap candidates over slightly-better-scored over-cap candidates. | ~$1.40 | **4/10** |
 | `v03-vslice1-two-domains` | 1 | Added 10 email/professional seeds; per-domain AIify prompt with discourse-role list; per-domain reporting in `walking_skeleton.py`. | ~$2.50 (20 seeds × 4 + 20 × 3) | 5/20 |
 | `v03-vslice3-preservation` | 3 | `preservation.py` — entity / number / role preservation diffs. Singleton skip heuristic learned from V-Slice 1 false positives. Wired into pair gate v03. 15 tests. | $0 | 4/20 |

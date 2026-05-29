@@ -97,19 +97,22 @@ runs/v03/*
 !runs/v03/slice*_verification.json
 !runs/v03/slice5_rollout.log
 
-# Large RL mix/judge/rollout outputs (regenerable from configs)
-data/rl/humanize_tasks_v03.jsonl
-data/rl/humanize_tasks_v03_judged.jsonl
-data/rl/humanize_tasks_v03_judged_kept.jsonl
-data/rl/v03_ref_rollouts.jsonl
-data/rl/humanize_tasks_rl_mix_v1.jsonl
-data/rl/humanize_tasks_rl_mix_v1_with_v03draft.jsonl
-data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl
-data/rl/humanize_tasks_rl_mix_v2.jsonl
-data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl
+# RL datasets: ignore by default (regenerable, often multi-MB).
+# Whitelist the small curated fixtures already tracked in git.
+data/rl/*.jsonl
+!data/rl/humanize_tasks_v01_smoke.jsonl
+!data/rl/humanize_tasks_v02.jsonl
+!data/rl/humanize_tasks_v03_filtered.jsonl
+!data/rl/humanize_tasks_rl_mix_v1_filtered.jsonl
+!data/rl/eval_e5_hard_penalty_mix_v2.jsonl
+!data/rl/eval_e6_longform_mix_v2.jsonl
+!data/rl/v03_slice0_tasks.jsonl
+!data/rl/v03_slice2_tasks.jsonl
+!data/rl/v03_slice3_tasks.jsonl
 
-# Slice run logs
-logs/v03_slice*/
+# All logs are ignored except the canonical env log.
+logs/*
+!logs/humanize-rl-env.log
 
 # Arka state
 state.db

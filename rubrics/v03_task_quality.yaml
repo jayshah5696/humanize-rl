@@ -1,0 +1,90 @@
+version: "1.0"
+description: >
+  v03 RL-task quality rubric (plan §4.3). Judges the *task* itself — is the
+  instruction realistic, are the constraints layered, does it discriminate
+  strong vs weak humanizers, does it expose AI-vs-human writing failure modes,
+  is the source text useful? Used by the arka labeling_engine stage to filter
+  raw generations before assembly. Threshold: overall ≥ 3.8 (plan §4.3).
+
+dimensions:
+  - name: instruction_realism
+    description: >
+      Is this how a real user (product manager, marketer, engineer, writer)
+      would actually phrase the request in a brief, slack, or email? Or does
+      it read like a stamped synthetic prompt?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Obvious template — "Rewrite this {X} to be {Y}." Wooden, generic.
+      2: Slightly varied template; still feels machine-generated.
+      3: Plausible but a bit too tidy — a real human would be messier or more specific.
+      4: Reads like a real brief; minor template residue (e.g., "Please ensure…").
+      5: Indistinguishable from a real brief written by a working professional.
+
+  - name: constraint_richness
+    description: >
+      Does the instruction layer multiple independent constraints (length,
+      format, register, tone, must-include, must-not-include, audience,
+      persona) or does it reduce to a single "max_words" check?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: One constraint (usually length).
+      2: Two constraints, often redundant.
+      3: 3–4 non-redundant constraints across different axes.
+      4: 5–6 layered constraints; following one well doesn't trivialize the others.
+      5: 7+ constraints across length, format, register, content, persona, audience.
+
+  - name: discriminative_difficulty
+    description: >
+      Does following the instruction well require real writing skill, or can a
+      template-matcher pass it? Strong humans/models should noticeably beat
+      weak ones.
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: A template-matcher would ace it. No skill gap exposed.
+      2: Slight skill gap; mostly mechanical.
+      3: Requires care but no real craft.
+      4: Rewards craft — register control, concision, fact preservation.
+      5: Demands sustained craft across multiple dimensions; clear strong/weak gap.
+
+  - name: humanness_relevance
+    description: >
+      Does this task expose AI-vs-human writing failure modes (corporate
+      filler, em-dash overuse, tricolons, hedge stacking, copula avoidance,
+      "moving forward" / "unlock" / "seamless" vocabulary, wrapper phrases,
+      option menus)?
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Irrelevant to humanness — generic Q&A or code task.
+      2: Tangentially relevant.
+      3: Exposes 1–2 AI-tell categories.
+      4: Exposes 3+ AI-tell categories explicitly or via constraints.
+      5: Directly targets the failure modes the humanizer must learn to avoid.
+
+  - name: source_usefulness
+    description: >
+      For modes with a source text (rewrite_humanize, compression, tone_shift,
+      expansion): is the source good material for the mode? Long enough,
+      coherent, not already perfect human prose, not gibberish. Skip (score 0
+      or omit) for long_form_generate / multi_constraint_compose.
+    scale_min: 1
+    scale_max: 5
+    criteria:
+      1: Source is useless (too short, broken, already perfect, or off-topic).
+      2: Source is weak but salvageable.
+      3: Adequate source.
+      4: Good source — clear AI tells / clear opportunity for the mode.
+      5: Excellent source — exemplifies what the mode is designed to fix.
+
+overall_weights:
+  instruction_realism: 0.25
+  constraint_richness: 0.20
+  discriminative_difficulty: 0.20
+  humanness_relevance: 0.25
+  source_usefulness: 0.10
+
+# arka labeling_engine filter threshold (see configs/v03/v03_*.yaml).
+# Pass threshold lives on the LabelingFilterConfig stage as `min_overall_score`.

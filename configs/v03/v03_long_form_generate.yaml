@@ -1,0 +1,101 @@
+# configs/v03/v03_long_form_generate.yaml
+# Generate "write 200–600 word original prose from rich instruction" tasks.
+# Per Q3 decision: input_text holds a SHORT brief (30–60 words), not empty,
+# so the current env's source-required check still passes.
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-pro-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 90
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 8
+
+pipeline:
+  - type: seed_source
+    path: ../../data/raw/v03_writing_seeds.jsonl
+
+  - type: normalize_conversation
+
+  - type: transform_generator
+    # We feed the seed's instruction (when present) as input_field; the model
+    # uses it as inspiration. Falls back to input_text otherwise.
+    input_field: payload.instruction
+    output_field: payload.response
+    target_count: 1
+    generation_multiplier: 1
+    temperature: 0.8
+    max_tokens: 8000
+    prompt_template: |
+      You are designing a long-form writing task. Given the seed below, write
+      a rich, realistic brief asking a writer to produce 200–600 words of
+      original prose. The brief should layer 5–8 constraints.
+
+      Output exactly one JSON object inside {{"text": "..."}}, with inner JSON:
+
+        - instruction: 150–280 words. Use slots [ROLE]/[TASK]/[AUDIENCE]/
+          [CONTENT]/[TONE]/[FORMAT]/[MUST]/[MUST_NOT]. Fill 6–8 of them.
+          Make it sound like a real brief from a creative ops team or
+          product manager.
+        - input_text: 30–60 word "Brief context:" paragraph summarising the
+          ask. (Required by the current env; not empty.)
+        - constraints:
+            target_words (int in [200, 600]),
+            target_tolerance (0.2),
+            min_paragraphs (2),
+            max_paragraphs (6),
+            register_target (any of casual, warm, direct, formal, academic,
+              journalistic, literary),
+            must_include_phrases (≤3 concrete tokens — names, numbers,
+              specific terms),
+            must_not_include_phrases (2–3 AI-tell phrases),
+            forbidden_openers (1–2; e.g. "I'm excited to", "In today's
+              fast-paced"),
+            must_not_use_em_dash (true),
+            no_subject_line (true),
+            no_signoff (true),
+            allow_headings (false OR true; vary),
+            persona_constraint (free text: who is writing),
+            audience_constraint (free text: who is reading).
+        - domain: one of email, slack, technical, product, leadership,
+          support, hiring, creative_general.
+        - register: same as register_target.
+        - trap_tags: 3–5 of [verbosity, over_polish, ai_vocab,
+          corporate_filler, hedge_stacking, tricolon_abuse, em_dash_overuse,
+          copula_avoidance, wrapper_phrase].
+        - reward_profile: "direct_workplace_message".
+
+      Seed:
+      {input_text}
+
+      Return ONLY {{"text": "..."}} with the inner JSON correctly escaped.
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 1
+    max_instruction_chars: 50000
+    min_response_chars: 500
+    max_response_chars: 8500
+
+  - type: language
+    allowed: [en]
+
+  # Judge stage moved out of per-mode arka runs (see scripts/data/build/judge_v03_tasks.py)
+
+output:
+  format: jsonl
+  path: ../../data/processed/v03_long_form_generate.jsonl

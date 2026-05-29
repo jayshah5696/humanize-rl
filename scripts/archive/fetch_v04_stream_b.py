@@ -5,7 +5,6 @@ Sources are all MIT/Apache/CC-BY licensed (see data/source_manifest_v04.json).
 """
 import json
 import random
-import sys
 from pathlib import Path
 
 DOMAIN_TARGETS = {

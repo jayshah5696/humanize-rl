@@ -1,0 +1,101 @@
+# configs/v03/v03_multi_constraint_compose.yaml
+# Generate Suri/IFEval-style "satisfy 5–10 explicit constraints" tasks.
+# Per Q3: input_text holds a SHORT brief, not empty.
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-pro-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 90
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 8
+
+pipeline:
+  - type: seed_source
+    path: ../../data/raw/v03_writing_seeds.jsonl
+
+  - type: normalize_conversation
+
+  - type: transform_generator
+    input_field: payload.instruction
+    output_field: payload.response
+    target_count: 1
+    generation_multiplier: 1
+    temperature: 0.85
+    max_tokens: 8000
+    prompt_template: |
+      You are designing a multi-constraint composition task (IFEval / Suri
+      style). Given the seed, write a brief that stacks 7–10 verifiable
+      constraints. Following all of them well requires real craft.
+
+      Output exactly one JSON object inside {{"text": "..."}}, with inner JSON:
+
+        - instruction: 180–320 words. Use slots [ROLE]/[TASK]/[AUDIENCE]/
+          [CONTENT]/[TONE]/[FORMAT]/[MUST]/[MUST_NOT]. Spell out every
+          constraint in the prose AND duplicate the machine-verifiable ones
+          into the constraints object.
+        - input_text: 30–60 word "Brief context:" paragraph.
+        - constraints: pick 7–10 of the following (omit nulls):
+            target_words (int),
+            target_tolerance (0.15),
+            min_sentences (int),
+            max_sentences (int),
+            min_paragraphs (int),
+            max_paragraphs (int),
+            required_section_headings (1–3 short titles),
+            allow_bullets (true/false),
+            allow_headings (true/false),
+            must_include_phrases (≤3),
+            must_not_include_phrases (2–4),
+            forbidden_openers (1–2),
+            forbidden_phrases_global (2–4),
+            no_markdown (true/false),
+            must_not_use_em_dash (true),
+            register_target (one of casual, warm, direct, formal, academic,
+              journalistic, literary),
+            min_contraction_count (int),
+            max_passive_voice_pct (0–40),
+            must_contain_number_kind (percent/currency/count/date/time/any),
+            persona_constraint (free text),
+            audience_constraint (free text).
+        - domain: best fit.
+        - register: same as register_target.
+        - trap_tags: 3–5 of [verbosity, over_polish, ai_vocab,
+          corporate_filler, em_dash_overuse, register_mismatch,
+          missing_required_phrase, wrong_format, tricolon_abuse].
+        - reward_profile: "direct_workplace_message".
+
+      Seed:
+      {input_text}
+
+      Return ONLY {{"text": "..."}} with the inner JSON correctly escaped.
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 1
+    max_instruction_chars: 50000
+    min_response_chars: 600
+    max_response_chars: 9000
+
+  - type: language
+    allowed: [en]
+
+  # Judge stage moved out of per-mode arka runs (see scripts/data/build/judge_v03_tasks.py)
+
+output:
+  format: jsonl
+  path: ../../data/processed/v03_multi_constraint_compose.jsonl

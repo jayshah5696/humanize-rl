@@ -1,4 +1,5 @@
-import json, random
+import json
+import random
 from pathlib import Path
 
 # All Slack/chat focused, no AI/humanize framing, concrete situations

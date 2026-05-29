@@ -1,0 +1,36 @@
+{
+  "count": 30,
+  "skipped": {
+    "empty_response": 0,
+    "no_payload": 0,
+    "validation_error": 0
+  },
+  "split": {
+    "train": 24,
+    "validation": 3,
+    "test": 3
+  },
+  "family": {
+    "compression": 30
+  },
+  "domain": {
+    "email": 10,
+    "creative_general": 19,
+    "technical": 1
+  },
+  "mode": {
+    "compression": 30
+  },
+  "register": {
+    "direct": 30
+  },
+  "trap": {
+    "corporate_filler": 30,
+    "verbosity": 30,
+    "hedge_stacking": 2,
+    "over_polish": 1
+  },
+  "reward_profile": {
+    "compression_update": 30
+  }
+}

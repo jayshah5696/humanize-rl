@@ -68,6 +68,30 @@ image = (
         remote_path="/workspace/data/rl/humanize_tasks_v01_smoke.jsonl",
     )
     .add_local_file(
+        "data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl",
+        remote_path="/workspace/data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl",
+    )
+    .add_local_file(
+        "data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl",
+        remote_path="/workspace/data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl",
+    )
+    .add_local_file(
+        "data/rl/humanize_tasks_v02.jsonl",
+        remote_path="/workspace/data/rl/humanize_tasks_v02.jsonl",
+    )
+    .add_local_file(
+        "data/rl/humanize_tasks_v03_filtered.jsonl",
+        remote_path="/workspace/data/rl/humanize_tasks_v03_filtered.jsonl",
+    )
+    .add_local_file(
+        "data/rl/eval_e5_hard_penalty_mix_v2.jsonl",
+        remote_path="/workspace/data/rl/eval_e5_hard_penalty_mix_v2.jsonl",
+    )
+    .add_local_file(
+        "data/rl/eval_e6_longform_mix_v2.jsonl",
+        remote_path="/workspace/data/rl/eval_e6_longform_mix_v2.jsonl",
+    )
+    .add_local_file(
         "models/track_a_10k/ridge.pkl",
         remote_path="/workspace/models/track_a_10k/ridge.pkl",
     )
@@ -114,7 +138,9 @@ def run_eval_remote(
     import verifiers as vf
     from humanize_rl_env import load_environment
     from peft import PeftModel
+    from peft.tuners.lora.model import LoraModel
     from transformers import AutoModelForImageTextToText, AutoProcessor
+    from transformers.models.gemma4.modeling_gemma4 import Gemma4ClippableLinear
 
     from humanize_rl.reward.reward import load_ridge_scorer, score_response
     from humanize_rl.reward.tasks import load_tasks
@@ -132,14 +158,53 @@ def run_eval_remote(
         torch_dtype=torch.bfloat16,
         token=token,
     ).to("cuda")
-    if variant == "adapter":
-        if not adapter_dir:
-            raise ValueError("adapter variant requires --adapter-dir")
-        model = PeftModel.from_pretrained(model, adapter_dir, token=token)
-    elif variant == "hf_adapter":
-        if not adapter_repo:
-            raise ValueError("hf_adapter variant requires --adapter-repo")
-        model = PeftModel.from_pretrained(model, adapter_repo, token=token)
+
+    original_create_and_replace = LoraModel._create_and_replace
+
+    def patched_create_and_replace(
+        self: Any,
+        peft_config: Any,
+        adapter_name: str,
+        target: Any,
+        target_name: str,
+        parent: Any,
+        current_key: Any = None,
+        **kwargs: Any,
+    ) -> Any:
+        if isinstance(target, Gemma4ClippableLinear):
+            return original_create_and_replace(
+                self,
+                peft_config,
+                adapter_name,
+                target.linear,
+                "linear",
+                target,
+                current_key=current_key,
+                **kwargs,
+            )
+        return original_create_and_replace(
+            self,
+            peft_config,
+            adapter_name,
+            target,
+            target_name,
+            parent,
+            current_key=current_key,
+            **kwargs,
+        )
+
+    LoraModel._create_and_replace = patched_create_and_replace
+    try:
+        if variant == "adapter":
+            if not adapter_dir:
+                raise ValueError("adapter variant requires --adapter-dir")
+            model = PeftModel.from_pretrained(model, adapter_dir, token=token)
+        elif variant == "hf_adapter":
+            if not adapter_repo:
+                raise ValueError("hf_adapter variant requires --adapter-repo")
+            model = PeftModel.from_pretrained(model, adapter_repo, token=token)
+    finally:
+        LoraModel._create_and_replace = original_create_and_replace
     model.eval()
 
     env = load_environment(task_path=task_path, split=split)

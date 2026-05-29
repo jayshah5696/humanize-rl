@@ -1,0 +1,68 @@
+# Slice 5 Ablation A0 \u2014 baseline: current 3-function reward.
+# Plan: docs/plans/gemma4_rl_modal_stable_training_continuation.md \u00a78 / Slice 5.
+#
+# This is the reference: ``reward_mode = current_components`` reproduces
+# the Slice 3 reward shape on the new filtered mix. Treats jaggedness
+# as the baseline noise floor we want to beat with A1/A2.
+#
+# Cost projection (A100-40GB): 50 steps at ~9s/step \u2248 7.5 min \u2248 $0.27.
+
+model_name: "jayshah5696/gemma4-e2b-humanize-unsloth-merged"
+experiment_name: "gemma4-rl-ablation-a0-current-components"
+hf_lora_repo: "jayshah5696/gemma4-rl-ablation-a0-lora"
+
+# Filtered mix from Slice 4 follow-up (fixed reward, scalar_softened
+# mid-band thresholds, ~84% retention). Same for A0/A1/A2.
+task_path: "data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl"
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 768
+
+lora_rank: 16
+lora_alpha: 32
+
+# Ablation knobs frozen across A0/A1/A2.
+learning_rate: 2.0e-5
+max_steps: 50
+num_generations: 8
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+# Stratified sequential batching from Slice 3 \u2014 keep on; the variable
+# under test is only the reward mode.
+stratify_batches: true
+stratify_by: reward_profile
+
+# === The variable under test ===
+reward_mode: current_components
+penalty_cap: 1.0
+# ridge/det/risk weights are unused in this mode but kept for shape parity.
+ridge_weight: 0.45
+deterministic_weight: 0.35
+risk_weight: 0.20
+
+use_vllm: true
+vllm_mode: colocate
+vllm_gpu_memory_utilization: 0.55
+
+sample_before_after: 2
+generation_batch_size: 8
+artifact_generation_samples: 2
+
+push_to_hub: false
+report_to: wandb
+wandb_project: "humanize-rl"

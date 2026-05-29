@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, Circle
+from matplotlib.patches import Circle, FancyBboxPatch
 
 OUT = Path("paper/figures/scorer")
 OUT.mkdir(parents=True, exist_ok=True)

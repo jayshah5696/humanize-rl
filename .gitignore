@@ -97,6 +97,20 @@ runs/v03/*
 !runs/v03/slice*_verification.json
 !runs/v03/slice5_rollout.log
 
+# Large RL mix/judge/rollout outputs (regenerable from configs)
+data/rl/humanize_tasks_v03.jsonl
+data/rl/humanize_tasks_v03_judged.jsonl
+data/rl/humanize_tasks_v03_judged_kept.jsonl
+data/rl/v03_ref_rollouts.jsonl
+data/rl/humanize_tasks_rl_mix_v1.jsonl
+data/rl/humanize_tasks_rl_mix_v1_with_v03draft.jsonl
+data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl
+data/rl/humanize_tasks_rl_mix_v2.jsonl
+data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl
+
+# Slice run logs
+logs/v03_slice*/
+
 # Arka state
 state.db
 *.db-journal

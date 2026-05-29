@@ -111,3 +111,42 @@ def test_forbidden_fact_and_markdown_trigger() -> None:
 
     assert not checks["forbidden_fact"].passed
     assert not checks["wrong_format_markdown"].passed
+
+
+def test_salutation_openers_are_not_treated_as_required_entities() -> None:
+    """Slice 4 follow-up audit: words like 'Please', 'Hi', 'Hey', 'Best',
+    'Dear', 'Today' were leaking through ENTITY_RE and producing
+    missing_entity false positives when paraphrases dropped them.
+    The expanded STOP_ENTITIES set must prevent that.
+    """
+    task = _task(
+        id="rl_v01_000010",
+        input_text=(
+            "Please be advised that staging has been restored. The root cause was "
+            "a missing STRIPE_WEBHOOK_SECRET value, and we will monitor it until 3 pm."
+        ),
+        required_facts=[
+            "staging restored",
+            "missing STRIPE_WEBHOOK_SECRET",
+            "monitor until 3 pm",
+        ],
+    )
+    response = (
+        "Staging is back up at 3 pm — STRIPE_WEBHOOK_SECRET was the fix."
+    )
+    checks = _by_name(response, task)
+    # The model preserves the only real entity; "Please" must not be missed.
+    assert checks["missing_entity"].passed, checks["missing_entity"].matches
+    assert "Please" not in checks["missing_entity"].matches
+
+
+def test_salutation_openers_in_response_do_not_count_as_invented_entities() -> None:
+    """Symmetric: if the response *adds* a 'Hi' that wasn't in the source,
+    that should not trigger missing_entity either (it's not an entity)."""
+    task = _task(
+        input_text="Staging recovered at 3 pm after the STRIPE_WEBHOOK_SECRET fix.",
+        required_facts=["Staging", "3 pm", "STRIPE_WEBHOOK_SECRET"],
+    )
+    response = "Hi team — Staging recovered at 3 pm after the STRIPE_WEBHOOK_SECRET fix."
+    checks = _by_name(response, task)
+    assert checks["missing_entity"].passed

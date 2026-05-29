@@ -79,7 +79,14 @@ PENALTIES: dict[str, float] = {
     "forbidden_fact": -0.50,
 }
 
+# Stop-entities are tokens that match the ENTITY_RE [A-Z][a-z]+ heuristic
+# but are not real entities. Adding sentence-start salutations / openers
+# here prevents the missing_entity false positive documented in the
+# Slice 4 audit (docs/plans/gemma4_rl_modal_stable_training_continuation.md
+# Slice 4 follow-up): the SFT model legitimately drops "Please" or "Hi"
+# while preserving STRIPE_WEBHOOK_SECRET, and was being penalised for it.
 STOP_ENTITIES: set[str] = {
+    # Pronouns / articles
     "I",
     "We",
     "You",
@@ -91,6 +98,7 @@ STOP_ENTITIES: set[str] = {
     "A",
     "An",
     "No",
+    # Common imperative-instruction starters
     "Use",
     "Return",
     "Write",
@@ -98,6 +106,33 @@ STOP_ENTITIES: set[str] = {
     "Make",
     "Explain",
     "Subject",
+    # Email / chat salutations and sign-offs — added per Slice 4 audit.
+    "Please",
+    "Hi",
+    "Hello",
+    "Hey",
+    "Dear",
+    "Greetings",
+    "Thanks",
+    "Thank",
+    "Regards",
+    "Best",
+    "Sincerely",
+    "Cheers",
+    "Apologies",
+    "Sorry",
+    # Temporal openers commonly mis-captured as entities.
+    "Today",
+    "Yesterday",
+    "Tomorrow",
+    "Tonight",
+    "Morning",
+    "Afternoon",
+    "Evening",
+    # Other common openers.
+    "Yes",
+    "Sure",
+    "Note",
 }
 
 

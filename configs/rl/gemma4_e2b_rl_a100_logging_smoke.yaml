@@ -1,0 +1,57 @@
+# Slice 2 logging smoke: 5-step run to verify the EMA + diagnostics
+# callback emits new metric keys into the trainer log_history and W&B run.
+#
+# Plan: docs/plans/gemma4_rl_modal_stable_training_continuation.md Slice 2.
+# Cost target: tiny (~$0.20 on A100-40GB).
+
+model_name: "jayshah5696/gemma4-e2b-humanize-unsloth-merged"
+experiment_name: "gemma4-e2b-rl-logging-smoke"
+hf_lora_repo: "jayshah5696/gemma4-e2b-humanize-rl-logging-smoke-lora"
+
+task_path: "data/rl/humanize_tasks_v01_smoke.jsonl"
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 512
+
+lora_rank: 16
+lora_alpha: 32
+
+learning_rate: 2.0e-5
+max_steps: 5
+num_generations: 8
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+stratify_batches: false
+stratify_by: reward_profile
+
+# Slice 1 reward refactor: still default to current_components for the
+# logging-only smoke so the new callback is the only changing variable.
+reward_mode: current_components
+penalty_cap: 1.0
+
+use_vllm: true
+vllm_mode: colocate
+vllm_gpu_memory_utilization: 0.55
+
+sample_before_after: 0
+generation_batch_size: 8
+artifact_generation_samples: 0
+
+push_to_hub: false
+report_to: wandb
+wandb_project: "humanize-rl"

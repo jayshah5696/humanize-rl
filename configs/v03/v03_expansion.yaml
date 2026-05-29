@@ -1,0 +1,91 @@
+# configs/v03/v03_expansion.yaml
+# Generate "expand bullets/notes into 200–450 word prose" tasks.
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-pro-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 90
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 8
+
+pipeline:
+  - type: seed_source
+    path: ../../data/raw/v03_writing_seeds.jsonl
+
+  - type: normalize_conversation
+
+  - type: transform_generator
+    input_field: payload.response   # seed.response holds the source text
+    output_field: payload.response
+    target_count: 1
+    generation_multiplier: 1
+    temperature: 0.8
+    max_tokens: 8000
+    prompt_template: |
+      You are designing an expansion task. Take the source text (which may be
+      prose) and DERIVE a short bullets-or-notes brief from it (5–8 bullets,
+      60–120 words total). Then write an instruction asking a writer to
+      expand those bullets into 200–450 words of prose.
+
+      Output exactly one JSON object inside {{"text": "..."}}, with inner JSON:
+
+        - instruction: 100–200 words. Slots [ROLE]/[TASK]/[AUDIENCE]/[CONTENT]/
+          [TONE]/[FORMAT]/[MUST]/[MUST_NOT].
+        - input_text: the bullets/notes you derived (60–120 words). NOT the
+          full source. Use real "-" bullets, one per line.
+        - constraints:
+            target_words (int in [200, 450]),
+            target_tolerance (0.2),
+            min_paragraphs (2),
+            max_paragraphs (4),
+            allow_bullets (false),
+            allow_headings (false),
+            register_target (one of warm, direct, formal, journalistic,
+              literary),
+            must_include_phrases (≤3 specific entities/numbers from the
+              bullets),
+            must_not_include_phrases (1–2 AI-tell phrases),
+            must_not_use_em_dash (true),
+            no_subject_line (true),
+            no_signoff (true).
+        - domain: best fit.
+        - register: same as register_target.
+        - trap_tags: 2–4 of [verbosity, over_polish, ai_vocab,
+          corporate_filler, hedge_stacking, tricolon_abuse].
+        - reward_profile: "rewrite_faithful_concise".
+
+      Source text to derive bullets from:
+      {input_text}
+
+      Return ONLY {{"text": "..."}} with the inner JSON correctly escaped.
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 1
+    max_instruction_chars: 50000
+    min_response_chars: 350
+    max_response_chars: 7000
+
+  - type: language
+    allowed: [en]
+
+  # Judge stage moved out of per-mode arka runs (see scripts/data/build/judge_v03_tasks.py)
+
+output:
+  format: jsonl
+  path: ../../data/processed/v03_expansion.jsonl

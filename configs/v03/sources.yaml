@@ -1,0 +1,89 @@
+# Source pool for humanize_tasks_v03 (plan §5).
+# Consumed by scripts/data/fetch/fetch_hf_sources.py.
+#
+# Column mapping operators (see fetch_hf_sources.py::_resolve_value):
+#   plain "col"                         → row[col]
+#   "first_user_message:col"            → first {role:user} message content
+#   "first_assistant_message:col"       → first {role:assistant} message content
+#   "join_messages:col"                 → concat all message contents
+#
+# Each row's `tags` are merged in; assembler uses them as informational only.
+
+defaults:
+  out_schema: rl_seed
+  dedupe_on: input_text
+  min_words: 30
+
+sources:
+  # ---- instruction seeds (have a real user task description) ----
+
+  # Tulu-3 personas instruction-following: ~600 verifiable-constraint prompts.
+  - hf: allenai/tulu-3-sft-personas-instruction-following
+    split: train
+    limit: 800
+    license: ODC-BY
+    map:
+      instruction: prompt
+    tags: [seed, multi_constraint_compose, persona, long_form_generate]
+
+  # Suri: 20K multi-constraint long-form. Use main_ins (the actual instruction).
+  - hf: chtmp223/suri
+    split: train
+    limit: 800
+    sample_seed: 42
+    license: CC-BY
+    map:
+      instruction: main_ins
+    tags: [seed, multi_constraint_compose, long_form_generate]
+
+  # LongWriter-6k: extract the first user turn.
+  - hf: THUDM/LongWriter-6k
+    split: train
+    limit: 300
+    license: Apache-2.0
+    map:
+      instruction: "first_user_message:messages"
+    tags: [seed, long_form_generate, long_tail]
+
+  # ---- source texts (real human prose for rewrite/compression/tone) ----
+
+  # Cosmopedia v2: synthetic textbooks/blogs/stories with `text` field.
+  - hf: HuggingFaceTB/smollm-corpus
+    config: cosmopedia-v2
+    split: train
+    limit: 600
+    license: ODC-BY
+    filter: {}
+    map:
+      input_text: text
+      domain: format
+    tags: [source, blog, tone_shift, compression, expansion]
+
+  # Business emails: column is `output` (not `email`).
+  - hf: wardacoder/business-email-dataset
+    split: train
+    limit: 400
+    license: check
+    map:
+      input_text: output
+    tags: [source, email, rewrite_humanize, tone_shift]
+
+  # WritingPrompts: prompt + story. Use story as source.
+  - hf: euclaise/writingprompts
+    split: train
+    limit: 300
+    license: ODC-BY
+    map:
+      instruction: prompt
+      input_text: story
+    tags: [source, seed, creative, expansion, long_form_generate]
+
+  # WildBench v2 (test split): conversation_input is list-of-msg.
+  - hf: allenai/WildBench
+    config: v2
+    split: test
+    limit: 400
+    license: ODC-BY
+    map:
+      instruction: "first_user_message:conversation_input"
+    tags: [seed, long_form_generate, multi_constraint_compose]

@@ -1,0 +1,69 @@
+# Slice 7 Ablation C1 — reward scaling = "batch" (PPO Lite paper).
+# Plan: docs/plans/gemma4_rl_modal_stable_training_continuation.md §8 Ablation C / Slice 7.
+#
+# Branches from Slice 6 winner B1 (G=16, acc=16, LR=1e-5, scalar_softened).
+# scale_rewards="batch" divides advantages by the std across the entire
+# batch (not just within-group), reducing per-prompt difficulty bias
+# while still normalizing update scale. Plan's expected C-series winner
+# for shaped multi-component rewards.
+#
+# Cost projection: 50 steps at ~16s/step ≈ 14 min ≈ $0.50.
+
+model_name: "jayshah5696/gemma4-e2b-humanize-unsloth-merged"
+experiment_name: "gemma4-rl-ablation-c1-scale-batch"
+hf_lora_repo: "jayshah5696/gemma4-rl-ablation-c1-lora"
+
+task_path: "data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl"
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 768
+
+lora_rank: 16
+lora_alpha: 32
+
+# Inherit B1 winner config.
+learning_rate: 1.0e-5
+num_generations: 16
+gradient_accumulation_steps: 16
+
+# === Variable under test ===
+scale_rewards: "batch"
+
+# Held constant.
+max_steps: 50
+per_device_train_batch_size: 1
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+stratify_batches: true
+stratify_by: reward_profile
+
+reward_mode: scalar_softened
+penalty_cap: 1.0
+ridge_weight: 0.45
+deterministic_weight: 0.35
+risk_weight: 0.20
+
+use_vllm: true
+vllm_mode: colocate
+vllm_gpu_memory_utilization: 0.45
+
+sample_before_after: 0
+generation_batch_size: 8
+artifact_generation_samples: 0
+
+push_to_hub: false
+report_to: wandb
+wandb_project: "humanize-rl"

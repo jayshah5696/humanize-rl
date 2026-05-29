@@ -1,0 +1,89 @@
+# configs/v03/v03_tone_shift.yaml
+# Generate "rewrite source in target register, same length" tasks.
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-pro-preview
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 90
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 8
+
+pipeline:
+  - type: seed_source
+    path: ../../data/raw/v03_writing_seeds.jsonl
+
+  - type: normalize_conversation
+
+  - type: transform_generator
+    input_field: payload.response   # seed.response holds the source text
+    output_field: payload.response
+    target_count: 1
+    generation_multiplier: 1
+    temperature: 0.75
+    max_tokens: 8000
+    prompt_template: |
+      You are designing a tone-shift task. Given a source text in some
+      register, write a brief asking a writer to rewrite it in a DIFFERENT
+      target register while keeping length and facts roughly the same.
+
+      Output exactly one JSON object inside {{"text": "..."}}, with inner JSON:
+
+        - instruction: 80–180 words. Slots [ROLE]/[TASK]/[AUDIENCE]/[TONE]/
+          [FORMAT]/[MUST]/[MUST_NOT]. Specify the target register clearly.
+        - input_text: source text verbatim.
+        - constraints:
+            target_words (≈ source_word_count, ±15%),
+            target_tolerance (0.15),
+            register_target (PICK a register that is NOT the source's
+              current register — one of casual, warm, direct, formal,
+              academic, journalistic, literary),
+            must_not_include_phrases (2–3 phrases incompatible with target
+              register; e.g. for "casual" target, forbid "furthermore",
+              "moreover", "in conclusion"),
+            forbidden_openers (1–2),
+            must_not_use_em_dash (true),
+            min_contraction_count (only if register_target in [casual, warm,
+              direct]; set 2–4),
+            no_subject_line (true),
+            no_signoff (true).
+        - domain: best fit.
+        - register: same as register_target.
+        - trap_tags: 2–4 of [register_mismatch, over_polish, corporate_filler,
+          ai_vocab, verbosity].
+        - reward_profile: "rewrite_faithful_concise".
+
+      Source text:
+      {input_text}
+
+      Return ONLY {{"text": "..."}} with the inner JSON correctly escaped.
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    min_instruction_chars: 1
+    max_instruction_chars: 50000
+    min_response_chars: 300
+    max_response_chars: 7000
+
+  - type: language
+    allowed: [en]
+
+  # Judge stage moved out of per-mode arka runs (see scripts/data/build/judge_v03_tasks.py)
+
+output:
+  format: jsonl
+  path: ../../data/processed/v03_tone_shift.jsonl

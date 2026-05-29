@@ -1,0 +1,66 @@
+{
+  "count": 831,
+  "skipped": {
+    "empty_response": 0,
+    "no_payload": 99,
+    "validation_error": 4
+  },
+  "split": {
+    "train": 665,
+    "validation": 83,
+    "test": 83
+  },
+  "family": {
+    "compression": 149,
+    "rewrite_repair": 267,
+    "direct_email": 267,
+    "tone_shift": 148
+  },
+  "domain": {
+    "creative_general": 749,
+    "technical": 21,
+    "product": 10,
+    "email": 14,
+    "hiring": 1,
+    "leadership": 5,
+    "support": 3,
+    "slack": 28
+  },
+  "mode": {
+    "compression": 149,
+    "expansion": 123,
+    "long_form_generate": 135,
+    "multi_constraint_compose": 132,
+    "rewrite_humanize": 144,
+    "tone_shift": 148
+  },
+  "register": {
+    "formal": 161,
+    "direct": 341,
+    "warm": 88,
+    "literary": 66,
+    "journalistic": 46,
+    "academic": 27,
+    "casual": 102
+  },
+  "trap": {
+    "verbosity": 734,
+    "missing_fact": 79,
+    "corporate_filler": 561,
+    "over_polish": 334,
+    "ai_vocab": 410,
+    "hedge_stacking": 61,
+    "wrapper_phrase": 67,
+    "em_dash_overuse": 79,
+    "tricolon_abuse": 22,
+    "wrong_format": 58,
+    "missing_required_phrase": 47,
+    "register_mismatch": 181,
+    "verbose": 1
+  },
+  "reward_profile": {
+    "compression_update": 149,
+    "rewrite_faithful_concise": 415,
+    "direct_workplace_message": 267
+  }
+}

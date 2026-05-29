@@ -1,7 +1,9 @@
+import argparse
 import json
 import os
-import argparse
+
 from datasets import load_dataset
+
 
 def fetch_stream_b(limit_per_dataset=None):
     print("Starting Stream B sources fetch...")

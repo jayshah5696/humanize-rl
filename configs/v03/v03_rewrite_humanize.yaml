@@ -1,0 +1,97 @@
+# configs/v03/v03_rewrite_humanize.yaml
+# Generate rich-instruction "rewrite this AI-sounding source as human" tasks.
+# See docs/plans/v03-rl-tasks-dataset.md §2 + §4.2.
+version: "1"
+run_id: null
+
+llm:
+  provider: openai
+  model: google/gemini-3.1-pro-preview     # Author A (override via --author)
+  api_key: ${OPENROUTER_API_KEY}
+  base_url: https://openrouter.ai/api/v1
+  timeout_seconds: 90
+  max_retries: 3
+  supports_json_schema: false
+  openai_compatible:
+    referer: https://github.com/jayshah5696/humanize-rl
+    title: humanize-rl
+
+executor:
+  mode: threadpool
+  max_workers: 8
+
+pipeline:
+  - type: seed_source
+    path: ../../data/raw/v03_writing_seeds.jsonl
+    # Filter to rows tagged as 'source' AND mode-relevant via assembler;
+    # arka does not natively filter on tags so we sample all and rely on
+    # the assembler's mode-tag filter to drop irrelevant outputs.
+
+  - type: normalize_conversation
+
+  - type: transform_generator
+    input_field: payload.response   # seed.response holds the source text
+    output_field: payload.response
+    target_count: 1
+    generation_multiplier: 1
+    temperature: 0.7
+    max_tokens: 8000
+    prompt_template: |
+      You are designing a writing-rewrite task for a humanness training set.
+      You will see an AI-sounding source text. Produce ONE complete task spec
+      that asks a writer to rewrite the source to sound human.
+
+      Output exactly one JSON object inside {{"text": "..."}}, where the value
+      of "text" is itself a JSON string (escape newlines as \n and quotes
+      as \"). The inner JSON must have these keys:
+
+        - instruction: 80–180 words. Use the slot structure: [ROLE]/[TASK]/
+          [AUDIENCE]/[CONTENT]/[TONE]/[FORMAT]/[MUST]/[MUST_NOT]. Fill 5–7
+          slots. Realistic, specific, not template-stamped.
+        - input_text: copy the source text VERBATIM. Do not edit it.
+        - constraints: object with keys (omit nulls):
+            target_words (int, ≈ source_word_count × 0.6),
+            target_tolerance (0.2),
+            must_include_phrases (≤3 specific phrases from source),
+            must_not_include_phrases (1–3 AI-tell phrases like "seamless",
+              "unlock", "moving forward", "I'm excited to"),
+            forbidden_openers (1–2),
+            must_not_use_em_dash (true),
+            register_target (one of: casual, warm, direct, formal),
+            min_contraction_count (1–3),
+            no_subject_line (true),
+            no_signoff (true).
+        - domain: one of email, slack, technical, product, leadership,
+          support, hiring, creative_general.
+        - register: same value you used in register_target.
+        - trap_tags: 2–4 of [wrapper_phrase, over_polish, verbosity,
+          em_dash_overuse, ai_vocab, copula_avoidance, tricolon_abuse,
+          corporate_filler].
+        - reward_profile: "rewrite_faithful_concise".
+
+      Source text to base the task on:
+      {input_text}
+
+      Return ONLY the JSON wrapper {{"text": "..."}}.
+
+  - type: exact
+
+  - type: near
+    lsh_bands: 16
+
+  - type: length
+    # Note: payload.instruction is the seed stub; the actual rich task spec
+    # lives inside payload.response (as stringified JSON). Filter on response.
+    min_instruction_chars: 1
+    max_instruction_chars: 50000
+    min_response_chars: 300
+    max_response_chars: 8000
+
+  - type: language
+    allowed: [en]
+
+  # Judge stage moved out of per-mode arka runs (see scripts/data/build/judge_v03_tasks.py)
+
+output:
+  format: jsonl
+  path: ../../data/processed/v03_rewrite_humanize.jsonl

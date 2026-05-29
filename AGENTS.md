@@ -38,9 +38,17 @@ This project provides: humanness-specific scoring (Layer 1 heuristics), rubric Y
 - Move superseded scripts to `scripts/archive/` before deleting.
 - Follow `docs/plans/scripts-consolidation-and-folder-cleanup.md` for script consolidation and folder cleanup.
 
-## Models — Google Only
+## Models — Google Only (with one narrow exception)
 
 All LLM calls go through OpenRouter. Only Google models.
+
+**Exception (v03 RL tasks only):** the `humanize_tasks_v03` *task authorship*
+stage may use 3 different houses to avoid baking one model's phrasing into the
+task distribution. See `docs/plans/v03-rl-tasks-dataset.md` §3.1.
+Approved authors: `google/gemini-3.1-pro-preview`, `openai/gpt-5.4-mini`,
+`google/gemini-3.1-flash-lite-preview`. This exception is scoped to *task
+generation only*. The humanizer, judge, scorer, and reference-rollout code
+paths remain Google-only.
 
 ```
 # Frontier reasoning (judge, humanize)

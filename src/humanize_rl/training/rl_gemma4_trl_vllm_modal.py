@@ -139,6 +139,64 @@ def _build_image() -> Any:
             "configs/rl/gemma4_e2b_rl_a100_full.yaml",
             remote_path="/workspace/configs/rl/gemma4_e2b_rl_a100_full.yaml",
         )
+        # Slice 4 filtered mix — softened reward, mid-band thresholds.
+        .add_local_file(
+            "data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl",
+            remote_path="/workspace/data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl",
+        )
+        # Slice 5 ablation configs (A0/A1/A2).
+        .add_local_file(
+            "configs/rl/ablations/reward_a0_current_components.yaml",
+            remote_path="/workspace/configs/rl/ablations/reward_a0_current_components.yaml",
+        )
+        .add_local_file(
+            "configs/rl/ablations/reward_a1_scalar_current.yaml",
+            remote_path="/workspace/configs/rl/ablations/reward_a1_scalar_current.yaml",
+        )
+        .add_local_file(
+            "configs/rl/ablations/reward_a2_scalar_softened.yaml",
+            remote_path="/workspace/configs/rl/ablations/reward_a2_scalar_softened.yaml",
+        )
+        # Slice 6 stability ablations (B0/B1/B2).
+        .add_local_file(
+            "configs/rl/ablations/stability_b0_g8_acc8_lr2e5.yaml",
+            remote_path="/workspace/configs/rl/ablations/stability_b0_g8_acc8_lr2e5.yaml",
+        )
+        .add_local_file(
+            "configs/rl/ablations/stability_b1_g16_acc16_lr1e5.yaml",
+            remote_path="/workspace/configs/rl/ablations/stability_b1_g16_acc16_lr1e5.yaml",
+        )
+        .add_local_file(
+            "configs/rl/ablations/stability_b2_g16_acc16_lr2e5.yaml",
+            remote_path="/workspace/configs/rl/ablations/stability_b2_g16_acc16_lr2e5.yaml",
+        )
+        # Slice 7 reward-scaling ablations (C0/C1/C2).
+        .add_local_file(
+            "configs/rl/ablations/scale_c0_group.yaml",
+            remote_path="/workspace/configs/rl/ablations/scale_c0_group.yaml",
+        )
+        .add_local_file(
+            "configs/rl/ablations/scale_c1_batch.yaml",
+            remote_path="/workspace/configs/rl/ablations/scale_c1_batch.yaml",
+        )
+        .add_local_file(
+            "configs/rl/ablations/scale_c2_none.yaml",
+            remote_path="/workspace/configs/rl/ablations/scale_c2_none.yaml",
+        )
+        # Slice 8 pilot config (200-step B1 + Slice-7 winner).
+        .add_local_file(
+            "configs/rl/gemma4_e2b_rl_a100_mix_v1_pilot.yaml",
+            remote_path="/workspace/configs/rl/gemma4_e2b_rl_a100_mix_v1_pilot.yaml",
+        )
+        # Full run — mix_v2 (v01+v02+v03 filtered) + 600-step config.
+        .add_local_file(
+            "data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl",
+            remote_path="/workspace/data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl",
+        )
+        .add_local_file(
+            "configs/rl/gemma4_e2b_rl_a100_full_v2.yaml",
+            remote_path="/workspace/configs/rl/gemma4_e2b_rl_a100_full_v2.yaml",
+        )
         # Ridge scorer pkls — required for 50/50 ridge+deterministic reward.
         # Without these, load_ridge_scorer() returns None and training falls
         # back to deterministic_only (ridge contributes 0%).
@@ -208,6 +266,16 @@ class GRPOProbeConfig:
     wandb_entity: str | None = None
     stratify_batches: bool = False
     stratify_by: str = "reward_profile"
+    # Reward-mode refactor (plan §6 / Slice 1).
+    reward_mode: str = "current_components"
+    penalty_cap: float = 1.0
+    ridge_weight: float = 0.45
+    deterministic_weight: float = 0.35
+    risk_weight: float = 0.20
+    # Slice 7 — reward scaling strategy (plan §8 Ablation C).
+    # TRL v1.x GRPOConfig accepts: True/"group" (default), "batch",
+    # False/"none". YAML can pass any of these; we forward verbatim.
+    scale_rewards: str | bool = "group"
 
     def __post_init__(self) -> None:
         if self.experiment_name is None:
@@ -494,7 +562,11 @@ def train_grpo(config_path: str) -> dict[str, Any]:
     from trl import GRPOConfig, GRPOTrainer
 
     from humanize_rl.reward.grpo_dataset import load_grpo_dataset, load_grpo_rows
-    from humanize_rl.reward.grpo_rewards import _RIDGE_SCORER, WEIGHTED_REWARD_FUNCS
+    from humanize_rl.reward.grpo_rewards import (
+        _RIDGE_SCORER,
+        RewardModeConfig,
+        build_reward_funcs,
+    )
 
     pins = assert_version_pins()
     print(
@@ -585,14 +657,45 @@ def train_grpo(config_path: str) -> dict[str, Any]:
         use_vllm=config.use_vllm,
         vllm_mode=config.vllm_mode,
         vllm_gpu_memory_utilization=config.vllm_gpu_memory_utilization,
+        # Slice 7 — reward-scaling ablation (plan §8 Ablation C).
+        scale_rewards=config.scale_rewards,
+    )
+    print(
+        f"[scale-rewards] {config.scale_rewards!r}",
+        flush=True,
+    )
+
+    reward_cfg = RewardModeConfig(
+        mode=config.reward_mode,  # type: ignore[arg-type]
+        penalty_cap=config.penalty_cap,
+        ridge_weight=config.ridge_weight,
+        deterministic_weight=config.deterministic_weight,
+        risk_weight=config.risk_weight,
+    )
+    reward_funcs = build_reward_funcs(reward_cfg)
+    print(
+        f"[reward-mode] {reward_cfg.mode} (n_funcs={len(reward_funcs)}, "
+        f"penalty_cap={reward_cfg.penalty_cap})",
+        flush=True,
+    )
+
+    from humanize_rl.training.wandb_ema_callback import EMATracker, build_callback
+
+    ema_tracker = EMATracker()
+    ema_callback = build_callback(ema_tracker)
+    callbacks = [ema_callback] if ema_callback is not None else None
+    print(
+        f"[ema-callback] {'attached' if ema_callback is not None else 'unavailable'}",
+        flush=True,
     )
 
     trainer = GRPOTrainer(
         model=model,
         processing_class=tokenizer,
-        reward_funcs=WEIGHTED_REWARD_FUNCS,
+        reward_funcs=reward_funcs,
         args=training_args,
         train_dataset=train_dataset,
+        callbacks=callbacks,
     )
 
     trainer_stats = trainer.train()
@@ -650,6 +753,7 @@ def train_grpo(config_path: str) -> dict[str, Any]:
         "reward_profile": "50_50_ridge_deterministic"
         if _RIDGE_SCORER is not None
         else "deterministic_only",
+        "final_ema": ema_tracker.snapshot(),
         "stratified_batches": config.stratify_batches,
         "stratify_by": config.stratify_by,
         "wandb_project": config.wandb_project if config.report_to == "wandb" else None,

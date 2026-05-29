@@ -1,9 +1,11 @@
+import argparse
 import json
 import os
-import argparse
+
 import matplotlib.pyplot as plt
 from datasets import load_dataset
 from huggingface_hub import HfApi, get_token
+
 
 def combine_and_format_datasets():
     parser = argparse.ArgumentParser(description="Merge SFT streams, plot domain distribution, and publish to HF.")
@@ -35,7 +37,7 @@ def combine_and_format_datasets():
     if os.path.exists(legacy_file):
         print(f"Loading legacy gold pairs from {legacy_file}...")
         count = 0
-        with open(legacy_file, "r") as f:
+        with open(legacy_file) as f:
             for line in f:
                 row = json.loads(line)
                 metadata = row.get("metadata", {})
@@ -77,7 +79,7 @@ def combine_and_format_datasets():
     if os.path.exists(corpus_file):
         print(f"Loading corpus SFT dataset from {corpus_file}...")
         count = 0
-        with open(corpus_file, "r") as f:
+        with open(corpus_file) as f:
             for line in f:
                 row = json.loads(line)
                 domain = row.get("domain", "blog_opinion")
@@ -110,7 +112,7 @@ def combine_and_format_datasets():
     if os.path.exists(expansion_file):
         print(f"Loading expansion SFT dataset from {expansion_file}...")
         count = 0
-        with open(expansion_file, "r") as f:
+        with open(expansion_file) as f:
             for line in f:
                 row = json.loads(line)
                 domain = row.get("domain", "instruction_technical")
@@ -146,7 +148,7 @@ def combine_and_format_datasets():
     if os.path.exists(ws_file):
         print(f"Loading walking skeleton SFT dataset from {ws_file}...")
         count = 0
-        with open(ws_file, "r") as f:
+        with open(ws_file) as f:
             for line in f:
                 row = json.loads(line)
                 domain = row.get("domain", "instruction_technical")

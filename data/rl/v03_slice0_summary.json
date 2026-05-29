@@ -1,0 +1,31 @@
+{
+  "count": 1,
+  "skipped": {
+    "empty_response": 0,
+    "no_payload": 0,
+    "validation_error": 0
+  },
+  "split": {
+    "train": 1
+  },
+  "family": {
+    "rewrite_repair": 1
+  },
+  "domain": {
+    "slack": 1
+  },
+  "mode": {
+    "rewrite_humanize": 1
+  },
+  "register": {
+    "casual": 1
+  },
+  "trap": {
+    "corporate_filler": 1,
+    "ai_vocab": 1,
+    "verbosity": 1
+  },
+  "reward_profile": {
+    "rewrite_faithful_concise": 1
+  }
+}

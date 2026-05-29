@@ -1,0 +1,67 @@
+# Slice 6 Ablation B1 \u2014 Prime-style larger group + LR drop.
+# Plan: docs/plans/gemma4_rl_modal_stable_training_continuation.md \u00a78 Ablation B / Slice 6.
+#
+# Doubles num_generations and gradient_accumulation_steps; halves LR.
+# Effective rollout batch per optimizer step = 1 * 1 * 16 * 16 = 256
+# (vs B0's 64). This is the plan's predicted winner if it fits.
+#
+# vllm_gpu_memory_utilization dropped to 0.45 to leave headroom for the
+# larger group; if OOM, fall back to B2 (G=16, grad_accum=8).
+#
+# Cost projection: 50 steps at ~18s/step \u2248 15 min \u2248 $0.53.
+
+model_name: "jayshah5696/gemma4-e2b-humanize-unsloth-merged"
+experiment_name: "gemma4-rl-ablation-b1-g16-acc16-lr1e5"
+hf_lora_repo: "jayshah5696/gemma4-rl-ablation-b1-lora"
+
+task_path: "data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl"
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 768
+
+lora_rank: 16
+lora_alpha: 32
+
+# === Variables under test ===
+learning_rate: 1.0e-5
+num_generations: 16
+gradient_accumulation_steps: 16
+
+# Held constant.
+max_steps: 50
+per_device_train_batch_size: 1
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+stratify_batches: true
+stratify_by: reward_profile
+
+reward_mode: scalar_softened
+penalty_cap: 1.0
+ridge_weight: 0.45
+deterministic_weight: 0.35
+risk_weight: 0.20
+
+use_vllm: true
+vllm_mode: colocate
+vllm_gpu_memory_utilization: 0.45
+
+sample_before_after: 0
+generation_batch_size: 8
+artifact_generation_samples: 0
+
+push_to_hub: false
+report_to: wandb
+wandb_project: "humanize-rl"

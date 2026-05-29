@@ -1,0 +1,82 @@
+# Slice 8 — filtered v01+v02 200-step pilot.
+# Plan: docs/plans/gemma4_rl_modal_stable_training_continuation.md §8 / Slice 8.
+#
+# Uses B1 winner config (D6.D1.1) + Slice 7 reward-scaling winner
+# (TBD after C0/C1/C2 finish — defaults to "group" pending Slice 7 result;
+# override `scale_rewards` here when Slice 7 picks batch or none).
+#
+# This is the longer-horizon validation run that 50-step ablations cannot
+# resolve (all D6 deltas were sub-noise). 200 steps × B1's 16s/step ≈ 53min
+# ≈ $1.90.
+#
+# Acceptance gates (plan §8 Slice 8):
+#   - training completes, no NaN
+#   - eval mean reward delta > +0.02 on mixed validation
+#   - v01 control eval does not regress
+#   - per-family drops investigated
+#   - clipped ratio < 0.05, zero-std rate < 0.10
+
+model_name: "jayshah5696/gemma4-e2b-humanize-unsloth-merged"
+experiment_name: "gemma4-rl-slice8-mix-v1-pilot"
+hf_lora_repo: "jayshah5696/gemma4-rl-slice8-pilot-lora"
+
+task_path: "data/rl/humanize_tasks_rl_mix_v1_filtered_softened_midband.jsonl"
+train_split: train
+eval_split: validation
+
+max_seq_length: 2048
+max_prompt_length: 512
+max_completion_length: 768
+
+lora_rank: 16
+lora_alpha: 32
+
+# B1 winner.
+learning_rate: 1.0e-5
+num_generations: 16
+gradient_accumulation_steps: 16
+
+# Slice 7 winner — UPDATE after C0/C1/C2 results land.
+# Plan §10 target: "batch"; Slice 7 to confirm.
+scale_rewards: "group"
+
+# 4× the ablation horizon. Plan §10 final-run target is 400-800 steps;
+# this is the 200-step pilot before committing the bigger budget.
+max_steps: 200
+
+# vllm_gpu_memory_utilization=0.55 per D6.D1.2 (the 0.45 in B1 was
+# unneeded; this is the final-recipe target).
+vllm_gpu_memory_utilization: 0.55
+
+per_device_train_batch_size: 1
+warmup_ratio: 0.1
+weight_decay: 0.001
+max_grad_norm: 0.5
+optim: adamw_8bit
+loss_type: bnpo
+epsilon: 0.2
+epsilon_high: 0.28
+delta: 1.5
+mask_truncated_completions: true
+temperature: 1.0
+seed: 3407
+
+stratify_batches: true
+stratify_by: reward_profile
+
+reward_mode: scalar_softened
+penalty_cap: 1.0
+ridge_weight: 0.45
+deterministic_weight: 0.35
+risk_weight: 0.20
+
+use_vllm: true
+vllm_mode: colocate
+
+sample_before_after: 0
+generation_batch_size: 8
+artifact_generation_samples: 0
+
+push_to_hub: false
+report_to: wandb
+wandb_project: "humanize-rl"

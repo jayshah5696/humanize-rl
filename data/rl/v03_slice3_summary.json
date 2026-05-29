@@ -1,0 +1,57 @@
+{
+  "count": 99,
+  "skipped": {
+    "empty_response": 0,
+    "no_payload": 6,
+    "validation_error": 0
+  },
+  "split": {
+    "train": 79,
+    "test": 10,
+    "validation": 10
+  },
+  "family": {
+    "compression": 30,
+    "rewrite_repair": 26,
+    "direct_email": 30,
+    "tone_shift": 13
+  },
+  "domain": {
+    "creative_general": 58,
+    "email": 10,
+    "technical": 5,
+    "leadership": 9,
+    "product": 2,
+    "slack": 15
+  },
+  "mode": {
+    "compression": 30,
+    "expansion": 10,
+    "long_form_generate": 15,
+    "multi_constraint_compose": 15,
+    "rewrite_humanize": 16,
+    "tone_shift": 13
+  },
+  "register": {
+    "direct": 64,
+    "formal": 10,
+    "casual": 25
+  },
+  "trap": {
+    "verbosity": 72,
+    "corporate_filler": 97,
+    "hedge_stacking": 17,
+    "over_polish": 23,
+    "copula_avoidance": 3,
+    "em_dash_overuse": 13,
+    "ai_vocab": 33,
+    "wrapper_phrase": 6,
+    "missing_required_phrase": 2,
+    "register_mismatch": 3
+  },
+  "reward_profile": {
+    "compression_update": 30,
+    "rewrite_faithful_concise": 39,
+    "direct_workplace_message": 30
+  }
+}

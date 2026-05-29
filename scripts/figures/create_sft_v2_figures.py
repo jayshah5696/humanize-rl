@@ -7,15 +7,16 @@ Tufte principles applied:
 - Small multiples for multi-panel comparisons.
 - Bars over pies; horizontal bars for long category names.
 """
-import json
-import re
 import collections
+import json
+
 import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 ACCENT = "#2171B5"
 LIGHT   = "#BDD7E7"

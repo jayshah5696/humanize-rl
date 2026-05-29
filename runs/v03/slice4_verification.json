@@ -1,0 +1,141 @@
+{
+  "n_tasks": 594,
+  "n_rollouts": 0,
+  "hard_pass": 1,
+  "hard_warn": 10,
+  "hard_fail": 3,
+  "gates": [
+    {
+      "gate": "A1_instruction_length",
+      "status": "FAIL",
+      "value": {
+        "p10": 82,
+        "p50": 123,
+        "p90": 182
+      },
+      "hard": {
+        "p90_min": 200,
+        "p10_max": 80
+      },
+      "soft": {
+        "p50_min": 110,
+        "p50_max": 170
+      },
+      "note": ""
+    },
+    {
+      "gate": "A2_constraint_density",
+      "status": "PASS",
+      "value": 8.49,
+      "hard": 4,
+      "soft": 5,
+      "note": ""
+    },
+    {
+      "gate": "A3_cell_coverage",
+      "status": "FAIL",
+      "value": {
+        "filled": 8,
+        "cells_total": 40,
+        "unique_cells": 21
+      },
+      "hard": 25,
+      "soft": 30,
+      "note": ""
+    },
+    {
+      "gate": "A4_embedding_distance",
+      "status": "WARN",
+      "value": 0.578,
+      "hard": 0.55,
+      "soft": 0.62,
+      "note": ""
+    },
+    {
+      "gate": "A5_author_balance",
+      "status": "FAIL",
+      "value": 40.0,
+      "hard": 10,
+      "soft": 5,
+      "note": "observed={'openai/gpt-5.4-mini': 0.551, 'google/gemini-3.1-flash-lite-preview': 0.449}"
+    },
+    {
+      "gate": "B1_strong_reward_band",
+      "status": "WARN",
+      "value": null,
+      "hard": {
+        "median_min": 0.4,
+        "median_max": 0.85
+      },
+      "soft": {
+        "median_min": 0.5,
+        "median_max": 0.8
+      },
+      "note": "no strong-model rollouts"
+    },
+    {
+      "gate": "B2_strong_weak_gap",
+      "status": "WARN",
+      "value": null,
+      "hard": 0.1,
+      "soft": 0.15,
+      "note": "missing rollouts"
+    },
+    {
+      "gate": "B3_per_mode_variance",
+      "status": "WARN",
+      "value": null,
+      "hard": 0.12,
+      "soft": 0.18,
+      "note": "no rollouts"
+    },
+    {
+      "gate": "B4_check_firing_rate",
+      "status": "WARN",
+      "value": null,
+      "hard": 0.15,
+      "soft": 0.25,
+      "note": "no penalties recorded"
+    },
+    {
+      "gate": "B5_penalty_concentration",
+      "status": "WARN",
+      "value": null,
+      "hard": 0.5,
+      "soft": 0.4,
+      "note": "no penalty mass"
+    },
+    {
+      "gate": "C1_rollout_std",
+      "status": "WARN",
+      "value": null,
+      "hard": 0.25,
+      "soft": 0.18,
+      "note": "not enough rollouts per task"
+    },
+    {
+      "gate": "C2_cross_model_rho",
+      "status": "WARN",
+      "value": null,
+      "hard": 0.5,
+      "soft": 0.65,
+      "note": "only 0 paired tasks (<30); skipped"
+    },
+    {
+      "gate": "C3_judge_kappa",
+      "status": "WARN",
+      "value": null,
+      "hard": 0.55,
+      "soft": 0.7,
+      "note": "judge re-score requires a separate audit run; not computed here"
+    },
+    {
+      "gate": "C4_check_determinism",
+      "status": "WARN",
+      "value": null,
+      "hard": "bit_exact",
+      "soft": "bit_exact",
+      "note": "deterministic-check parity test requires 2 runs; see slice gate"
+    }
+  ]
+}

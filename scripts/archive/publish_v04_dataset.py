@@ -1,13 +1,12 @@
-import json
-import re
-import os
 import collections
+import json
+import os
 import tempfile
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from huggingface_hub import HfApi, get_token
 from datasets import Dataset
+from huggingface_hub import HfApi, get_token
 
 
 def infer_domain(row: dict) -> str:

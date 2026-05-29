@@ -427,3 +427,103 @@ stabilising the penalty average.
 **Slice 3 pre-conditions:** stratified batching in `grpo_dataset.py` so
 `risk_penalty` variance is consistent across steps; then re-run checker gate or
 relax it to gate on `ridge_rubric` trend instead of total reward.
+
+
+### Slice 3 — Full run + verifier eval gate (2026-05-25): PASS
+
+#### Baseline eval (pre-train)
+
+App `ap-N8d24yyy41YwN2JalPjQcj`. Output committed locally at
+`outputs/baseline_eval.json`.
+
+| metric | value |
+|---|---:|
+| `mean_reward(pre)` | 0.4398 |
+| `mean_risk_penalty(pre)` | -0.3600 |
+| `risk_penalty_negative_count(pre)` | 6 |
+| `ridge_scorer_loaded` | True |
+
+#### Full GRPO run
+
+App `ap-Rrlabs8l56m0eRc3bcepZx`; function call
+`fc-01KSH1PNC3TEQKZ98B502QTD7B`. Summary downloaded to
+`outputs/full_run/summary.json`; adapter downloaded to
+`outputs/full_run/final_adapter` and remains on Modal at
+`/checkpoints/gemma4-e2b-humanize-rl-a100-full-v1/final_adapter`.
+
+**Config shipped:** `configs/rl/gemma4_e2b_rl_a100_full.yaml`.
+
+Key config deltas vs pilot-v3:
+- `max_steps: 200`
+- `stratify_batches: true`
+- `stratify_by: reward_profile`
+- `report_to: wandb`
+- `wandb_project: humanize-rl`
+- `push_to_hub: false` (kept off until eval gate passed)
+
+**Run telemetry:**
+
+| metric | value | gate | result |
+|---|---:|---:|---|
+| Steps completed | 200/200 | 200 | ✅ |
+| `check_rl_run_summary.py --phase full` | PASS | PASS | ✅ |
+| Actual cost | $1.3169 | ≤ $14.00 | ✅ |
+| Wall elapsed | 2258.8 s | — | — |
+| Trainer runtime | 1950.6 s | — | — |
+| `train_samples_per_second` | 0.820 | recorded | ✅ |
+| Peak VRAM | 35.53 GB | [12, 38] | ✅ |
+| Max `completions/clipped_ratio` | 0.000 | < 0.05 | ✅ |
+| Max `frac_reward_zero_std` | 0.000 | < 0.5 | ✅ |
+| W&B run | `humanize-rl/gemma4-e2b-humanize-rl-a100-full-v1` | logged | ✅ |
+
+**Training reward trend:**
+
+| window | reward | ridge | deterministic | risk penalty |
+|---|---:|---:|---:|---:|
+| first 10 | 0.5886 | 0.3751 | 0.4829 | -0.2693 |
+| last 10 | 0.6373 | 0.3653 | 0.4869 | -0.2149 |
+| delta | +0.0487 | -0.0098 | +0.0040 | +0.0544 |
+| first 100 | 0.4823 | 0.3440 | 0.4779 | -0.3395 |
+| last 100 | 0.5863 | 0.3607 | 0.4831 | -0.2576 |
+| delta | +0.1040 | +0.0167 | +0.0053 | +0.0820 |
+
+Linear reward slope across 200 steps: `+0.000698` reward/step, or `+0.1396`
+over the full run. Learning was real but noisy. Most of the gain came from the
+model triggering fewer / smaller risk penalties; ridge rubric and deterministic
+components also improved slightly on first-half vs second-half averages.
+
+#### Post-train eval
+
+First post-train eval attempt failed on the same PEFT/Gemma4ClippableLinear issue
+seen during training. `scripts/eval/run_vf_eval_modal.py` was patched with the
+same `_create_and_replace` recursion into `target.linear`; retry passed.
+
+Successful app: `ap-tnHSr5SgGLIAk53sBheZdA`. Output committed locally at
+`outputs/post_train_eval.json`.
+
+| metric | pre | post | delta | gate | result |
+|---|---:|---:|---:|---|---|
+| `mean_reward` | 0.4398 | 0.6143 | +0.1745 | post > pre + 0.02 | ✅ |
+| `risk_penalty_negative_count` | 6 | 6 | 0 | did not increase | ✅ |
+| `mean_risk_penalty` | -0.3600 | -0.2500 | +0.1100 | diagnostic | ✅ |
+| `ridge_scorer_loaded` | True | True | — | True | ✅ |
+
+**Slice 3 acceptance result:** PASS. The final LoRA is eligible for push, but was
+not pushed during the run because `push_to_hub: false` was intentionally kept
+until this eval gate passed.
+
+#### Slice 3 files / fixes
+
+- `configs/rl/gemma4_e2b_rl_a100_full.yaml` — full-run config, W&B enabled,
+  stratified sequential batching enabled.
+- `src/humanize_rl/reward/grpo_dataset.py` — `stratify_rows_by_key(...)` and
+  `load_grpo_dataset(..., stratify_batch_size=..., stratify_by=...)` to keep
+  reward-profile mix stable across optimizer-step blocks.
+- `src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py` — full config mount,
+  W&B env/run-name wiring, actual cost recording, `lora_path` recording, optional
+  HF upload path.
+- `scripts/eval/run_vf_eval_modal.py` — baseline/post eval on Modal using
+  `humanize_rl_env`; patched for Gemma4ClippableLinear LoRA loading.
+- `tests/reward/test_grpo_dataset_stratification.py` and
+  `tests/training/test_slice3_full_config.py` — preflight coverage for the new
+  slice-3 behavior.

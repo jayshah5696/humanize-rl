@@ -1,6 +1,7 @@
 import json
 import os
 
+
 def build_seeds():
     os.makedirs("seeds", exist_ok=True)
     

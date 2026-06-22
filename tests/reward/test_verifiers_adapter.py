@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from humanize_rl.reward.tasks import RLTask
 from humanize_rl.reward.verifiers_adapter import (
     build_verifiers_rubric,
     humanize_reward,
     option_menu_penalty_metric,
+    response_from_completion,
+    score_for_verifiers,
     style_metric,
     task_following_metric,
 )
@@ -58,6 +61,40 @@ def test_verifiers_reward_caches_result_and_metrics_read_state() -> None:
     assert "humanize_reward_result" in state
     assert "humanize_components" in state
     assert "humanize_penalties" in state
+
+
+def test_completion_without_content_scores_as_empty_string() -> None:
+    task = _task_payload()
+
+    assert response_from_completion(None) == ""
+    assert response_from_completion([None]) == ""
+    assert response_from_completion([{"role": "assistant", "content": None}]) == ""
+    assert (
+        response_from_completion(
+            [{"role": "assistant", "reasoning_content": "hidden reasoning"}]
+        )
+        == ""
+    )
+
+    result = score_for_verifiers([{"role": "assistant", "content": None}], task, {})
+    assert isinstance(result.reward, float)
+
+
+def test_score_for_verifiers_reads_task_from_v014_state_info() -> None:
+    task = _task_payload()
+    completion = [{"role": "assistant", "content": "Staging recovered at 3 pm."}]
+    state = {
+        "input": {
+            "info": json.dumps(
+                {"task_id": task["id"], "task": task}, ensure_ascii=False
+            )
+        }
+    }
+
+    result = score_for_verifiers(completion, None, state)
+
+    assert isinstance(result.reward, float)
+    assert state["humanize_reward_mode"] == "strict"
 
 
 class FakeRubric:

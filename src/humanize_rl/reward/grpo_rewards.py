@@ -11,6 +11,9 @@ Reward modes (per ``docs/plans/gemma4_rl_modal_stable_training_continuation.md``
 * ``scalar_softened`` — one reward func returning the smoother scalar
   ``ridge_w * ridge + det_w * det + risk_w * risk_compliance`` where
   ``risk_compliance = clip(1 + sum(penalties)/penalty_cap, 0, 1)``.
+* ``p50_50_no_penalty`` — one reward func returning
+  ``0.50 * ridge_rubric + 0.50 * deterministic``. Penalties remain in
+  diagnostics but do not affect the optimizer reward.
 
 The ``dither_if_unanimous`` decorator guards against the
 ``frac_reward_zero_std`` -> NaN-grad failure documented in
@@ -42,7 +45,12 @@ from humanize_rl.reward.tasks import RLTask
 _RIDGE_SCORER = load_ridge_scorer()
 
 Completion = list[dict[str, str]]
-RewardMode = Literal["current_components", "scalar_current", "scalar_softened"]
+RewardMode = Literal[
+    "current_components",
+    "scalar_current",
+    "scalar_softened",
+    "p50_50_no_penalty",
+]
 
 DITHER_STD_THRESHOLD = 1e-4
 DITHER_MAGNITUDE = 0.005
@@ -99,9 +107,7 @@ def dither_if_unanimous(fn: RewardFn) -> RewardFn:
             return values
         _diag.record_dither()
         rng = random.Random(_seed_from_inputs(completions, kwargs))
-        return [
-            v + rng.uniform(-DITHER_MAGNITUDE, DITHER_MAGNITUDE) for v in values
-        ]
+        return [v + rng.uniform(-DITHER_MAGNITUDE, DITHER_MAGNITUDE) for v in values]
 
     return wrapped
 
@@ -120,6 +126,7 @@ def _task_payloads(kwargs: dict[str, Any], count: int) -> list[dict[str, object]
     for task in tasks:
         if isinstance(task, str):
             import json
+
             result.append(json.loads(task))
         else:
             result.append(dict(task))
@@ -127,7 +134,10 @@ def _task_payloads(kwargs: dict[str, Any], count: int) -> list[dict[str, object]
 
 
 def score_completions(
-    completions: list[Completion], **kwargs: Any
+    completions: list[Completion],
+    *,
+    reward_mode: str = "strict",
+    **kwargs: Any,
 ) -> list[RewardResult]:
     """Score GRPO completions with full diagnostics.
 
@@ -140,7 +150,12 @@ def score_completions(
     for completion, task_payload in zip(completions, task_payloads, strict=True):
         task = RLTask.model_validate(task_payload)
         response = _response(completion)
-        result = score_response(task, response, _RIDGE_SCORER)
+        result = score_response(
+            task,
+            response,
+            _RIDGE_SCORER,
+            reward_mode=reward_mode,  # type: ignore[arg-type]
+        )
         results.append(result)
         _diag.record_call(
             response_length=len(response),
@@ -216,9 +231,7 @@ def risk_compliance(penalty_sum: float, penalty_cap: float) -> float:
     return max(0.0, min(1.0, 1.0 + penalty_sum / penalty_cap))
 
 
-def _softened_scalar_from_result(
-    result: RewardResult, cfg: RewardModeConfig
-) -> float:
+def _softened_scalar_from_result(result: RewardResult, cfg: RewardModeConfig) -> float:
     """Softened scalar (plan §6 Option C). Returns value in [0, 1]."""
     # Unwind the legacy weighted_components back to raw 0..1 component scores
     # so the user-controlled weights apply cleanly.
@@ -273,5 +286,22 @@ def build_reward_funcs(cfg: RewardModeConfig) -> list[RewardFn]:
 
         _scalar_softened.__name__ = "scalar_softened_reward"
         return [dither_if_unanimous(_scalar_softened)]
+
+    if cfg.mode == "p50_50_no_penalty":
+
+        def _p50_50_no_penalty(
+            completions: list[Completion], **kwargs: Any
+        ) -> list[float]:
+            return [
+                result.reward
+                for result in score_completions(
+                    completions,
+                    reward_mode="p50_50_no_penalty",
+                    **kwargs,
+                )
+            ]
+
+        _p50_50_no_penalty.__name__ = "p50_50_no_penalty_reward"
+        return [dither_if_unanimous(_p50_50_no_penalty)]
 
     raise ValueError(f"unknown reward_mode: {cfg.mode!r}")

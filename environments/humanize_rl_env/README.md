@@ -15,12 +15,28 @@ environment scores it.
 
 ---
 
-## Final Reward Formula
+## Reward Modes
+
+Default training mode:
 
 ```
+reward_mode="p50_50_no_penalty"
+reward = 0.50 × ridge_rubric + 0.50 × deterministic
+         clipped to [-1.0, 1.0]
+```
+
+Penalties are still computed and logged as diagnostics, but they do not affect
+the optimizer scalar in this mode.
+
+Strict eval mode:
+
+```
+reward_mode="strict"
 reward = 0.50 × ridge_rubric + 0.50 × deterministic + penalties
          clipped to [-1.0, 1.0]
 ```
+
+`reward_mode="scalar_softened"` is kept for legacy Modal/TRL comparison runs.
 
 ### Ridge Rubric (50%)
 
@@ -55,7 +71,7 @@ Equal-weight mean of 6 constraint checks that fire on hard task rules:
 | `placeholder` | placeholder usage matches task constraints |
 | `clarity` | avg sentence length (≤24 words → 1.0, ≤35 → 0.7, else 0.4) |
 
-### Penalties (additive)
+### Penalties (diagnostics; additive only in strict mode)
 
 | penalty | value |
 |---|---|
@@ -99,8 +115,20 @@ invented_detail_penalty_metric
 
 ## Dataset
 
-Default: `humanize_tasks_v01_smoke.jsonl` — bundled smoke dataset (train/eval
-splits). Pass `task_path=` to `load_environment()` to use a larger dataset.
+Default task set: `mix_v2_p5050_filtered` — 972 tasks rebuilt from the saved
+Modal `mix_v2` rollouts using `p50_50_no_penalty`.
+
+Supported `task_set` values:
+
+| task_set | file | rows |
+|---|---:|---:|
+| `v02_smoke` | `humanize_tasks_v02_smoke.jsonl` | 99 |
+| `v03` | `humanize_tasks_v03_filtered.jsonl` | 492 |
+| `mix_v2` | `humanize_tasks_rl_mix_v2.jsonl` | 998 |
+| `mix_v2_p5050` | `humanize_tasks_rl_mix_v2_p5050_filtered.jsonl` | 972 |
+| `mix_v2_p5050_filtered` | alias for `mix_v2_p5050` | 972 |
+
+Pass `task_path=` to `load_environment()` only when testing a custom JSONL.
 
 Task shape (key fields):
 
@@ -140,8 +168,21 @@ prime eval run jayshah5696/humanize-rl-env \
 from verifiers import load_environment
 env = load_environment("humanize-rl-env")
 
-# With custom dataset
-env = load_environment("humanize-rl-env", task_path="data/rl/my_tasks.jsonl", split="train")
+# p50 default training set
+env = load_environment(
+    "humanize-rl-env",
+    split="train",
+    task_set="mix_v2_p5050",
+    reward_mode="p50_50_no_penalty",
+)
+
+# strict eval gate
+env = load_environment(
+    "humanize-rl-env",
+    split="validation",
+    task_set="v03",
+    reward_mode="strict",
+)
 ```
 
 ---
@@ -152,7 +193,10 @@ env = load_environment("humanize-rl-env", task_path="data/rl/my_tasks.jsonl", sp
 humanize_rl_env/
 ├── __init__.py              # load_environment(), preview_dataset_row()
 ├── ridge_state.pkl          # bundled TF-IDF+Ridge scorer (1.1 MB)
-├── humanize_tasks_v01_smoke.jsonl  # bundled smoke dataset
+├── humanize_tasks_v02_smoke.jsonl
+├── humanize_tasks_v03_filtered.jsonl
+├── humanize_tasks_rl_mix_v2.jsonl
+├── humanize_tasks_rl_mix_v2_p5050_filtered.jsonl
 ├── reward/
 │   ├── reward.py            # score_response(), RewardResult, load_ridge_scorer()
 │   ├── checks.py            # deterministic penalty checks
@@ -176,6 +220,16 @@ install required. The wheel includes the ridge pkl and smoke dataset.
 
 | version | change |
 |---|---|
+| 0.3.13 | Ignore subject-title and discourse false entities such as Compliance Review, Firstly, Secondly, and Understanding |
+| 0.3.12 | Scaffold fact filtering plus invented-number/time, unsupported-negation, low-overlap, em-dash, inline-closing, and AI-tell surface caps |
+| 0.3.10 | Core semantic-failure cap for p50 deterministic reward |
+| 0.3.9 | Formal salutation and inline/multiline signature caps for direct-output tasks |
+| 0.3.8 | Emoji, hashtag, all-caps, and expanded fake-social/recommendation diagnostics |
+| 0.3.7 | Deterministic semantic suitability cap for uplifting romance recommendation failures |
+| 0.3.6 | Target-word length and repetition diagnostics/caps for p50 training |
+| 0.3.5 | Hosted-training example_id recovery for reshaped rollout inputs |
+| 0.3.2 | Hosted-training prompt recovery; explicit question/answer/example_id fields |
+| 0.3.1 | p50_50_no_penalty mode; default mix_v2_p5050 task set; v03/mix_v2 bundles |
 | 0.1.7 | 50/50 ridge-rubric + deterministic formula; 8 rubric dims exposed |
 | 0.1.6 | ridge scorer bundled as state dict pkl |
 | 0.1.5 | self-contained bundle, passes prime eval run end-to-end |

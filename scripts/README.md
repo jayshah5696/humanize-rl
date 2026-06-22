@@ -42,7 +42,9 @@ All specialized scripts are organized into these workflow subdirectories:
 
 ### Frameworks & Infrastructure
 - **`scripts/mlx/`**: MLX weights conversion, quantization, and merge utilities.
-- **`scripts/rl/`**: Reward environment validation and RL rollouts.
+- **`scripts/rl/`**: Reward environment validation and RL rollouts. Includes
+  `build_p5050_filtered_mix.py` for rebuilding the Prime p50 task set from saved
+  Modal rollouts and `report_taskset.py` for writing Prime taskset audit reports.
 - **`scripts/figures/`**: Figure generation, plotting loss curves, and architectural diagrams.
 
 ### History

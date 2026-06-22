@@ -4,11 +4,11 @@ Runs generation + the same reward stack used by ``humanize_rl_env`` on Modal.
 Use once before full training and once after, then compare summaries.
 
 Examples:
-    rtk uvx modal run scripts/run_vf_eval_modal.py \
+    uvx modal run scripts/run_vf_eval_modal.py \
       --variant baseline \
       --output-path outputs/baseline_eval.json
 
-    rtk uvx modal run scripts/run_vf_eval_modal.py \
+    uvx modal run scripts/run_vf_eval_modal.py \
       --variant adapter \
       --adapter-dir /checkpoints/gemma4-e2b-humanize-rl-a100-full-v1/final_adapter \
       --output-path outputs/post_train_eval.json

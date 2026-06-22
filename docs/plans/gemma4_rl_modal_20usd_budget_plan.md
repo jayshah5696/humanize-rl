@@ -138,7 +138,7 @@ Not part of this run's $20 budget; recording it because it changes our risk mode
 
 - **Verifier-as-gate is wired.** `verified_merge_and_push_modal.py` refuses to push when any of `wrongly_present_shared_kv_keys`, `transformers_missing_keys`, `transformers_unexpected_keys` is non-empty or when reload parity exceeds tolerance. Auto-restores `<turn|>` eos if Unsloth #5386 ever regresses it. If we ever need a re-merge mid-RL:
   ```bash
-  rtk uvx modal run --detach \
+  uvx modal run --detach \
     src/humanize_rl/training/verified_merge_and_push_modal.py \
     --candidate-repo <user>/<repo>-vN
   ```

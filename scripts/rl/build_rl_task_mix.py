@@ -21,7 +21,7 @@ each ``dataset_version``. Writes:
 
 Run::
 
-  rtk uv run python scripts/rl/build_rl_task_mix.py \\
+  uv run python scripts/rl/build_rl_task_mix.py \\
     --v01 data/rl/humanize_tasks_v01_smoke.jsonl \\
     --v02 data/rl/humanize_tasks_v02.jsonl \\
     --output data/rl/humanize_tasks_rl_mix_v1.jsonl \\
@@ -107,9 +107,7 @@ def _iter_jsonl(path: Path) -> Iterable[dict]:
             yield json.loads(line)
 
 
-def _enrich(
-    raw: dict, dataset_version: str, default_source_group: str
-) -> dict:
+def _enrich(raw: dict, dataset_version: str, default_source_group: str) -> dict:
     """Validate + add the Slice 3 fields. Raises ValidationError on bad rows."""
     task = RLTask.model_validate(raw)
     out = task.model_dump(by_alias=True, exclude_none=False)
@@ -197,9 +195,9 @@ def _summarize(result: MixResult, ratio: dict[str, float]) -> dict:
     by_length = Counter(r["length_bucket"] for r in result.rows)
     by_split = Counter(r["split"] for r in result.rows)
     by_mode = Counter(r["mode"] for r in result.rows)
-    achieved_ratio = {
-        v: by_version[v] / len(result.rows) for v in by_version
-    } if result.rows else {}
+    achieved_ratio = (
+        {v: by_version[v] / len(result.rows) for v in by_version} if result.rows else {}
+    )
 
     return {
         "n_rows": len(result.rows),
@@ -244,20 +242,37 @@ def _parse_ratio(ctx, param, value: str | None) -> dict[str, float] | None:
 
 
 @click.command()
-@click.option("--v01", "v01_path", type=click.Path(exists=True, path_type=Path),
-              default="data/rl/humanize_tasks_v01_smoke.jsonl", show_default=True)
-@click.option("--v02", "v02_path", type=click.Path(exists=True, path_type=Path),
-              default="data/rl/humanize_tasks_v02.jsonl", show_default=True)
-@click.option("--v03", "v03_path", type=click.Path(exists=True, path_type=Path),
-              default=None, help="Optional v03 draft file (e.g. v03_slice3_tasks.jsonl)")
+@click.option(
+    "--v01",
+    "v01_path",
+    type=click.Path(exists=True, path_type=Path),
+    default="data/rl/humanize_tasks_v01_smoke.jsonl",
+    show_default=True,
+)
+@click.option(
+    "--v02",
+    "v02_path",
+    type=click.Path(exists=True, path_type=Path),
+    default="data/rl/humanize_tasks_v02.jsonl",
+    show_default=True,
+)
+@click.option(
+    "--v03",
+    "v03_path",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Optional v03 draft file (e.g. v03_slice3_tasks.jsonl)",
+)
 @click.option("--output", "output_path", type=click.Path(path_type=Path), required=True)
-@click.option("--summary", "summary_path", type=click.Path(path_type=Path), required=True)
+@click.option(
+    "--summary", "summary_path", type=click.Path(path_type=Path), required=True
+)
 @click.option(
     "--ratio",
     callback=_parse_ratio,
     default=None,
     help="Per-version mix ratio, e.g. 'v01=0.15,v02=0.35,v03=0.50'. "
-         "Defaults adapt to whether --v03 is supplied.",
+    "Defaults adapt to whether --v03 is supplied.",
 )
 def main(
     v01_path: Path,
@@ -277,9 +292,10 @@ def main(
 
     if ratio is None:
         ratio = (
-            DEFAULT_RATIO_POST_V03 if v03_path is not None else
+            DEFAULT_RATIO_POST_V03
+            if v03_path is not None
             # Pre-v03: re-normalize 15/35 to 30/70 over only v01+v02.
-            {"v01": 0.30, "v02": 0.70}
+            else {"v01": 0.30, "v02": 0.70}
         )
     # Validate ratio sums to ~1.0
     s = sum(ratio.values())

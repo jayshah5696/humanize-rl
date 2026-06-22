@@ -6,7 +6,7 @@ re-upload any weights. It uploads `README.md` only.
 Detached usage:
 
 ```bash
-rtk uvx modal run --detach \
+uvx modal run --detach \
   src/humanize_rl/training/push_model_cards_modal.py \
   --merged-repo jayshah5696/gemma4-e2b-humanize-unsloth-merged \
   --lora-repo jayshah5696/gemma4-e2b-humanize-unsloth-lora

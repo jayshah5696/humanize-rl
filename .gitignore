@@ -104,6 +104,8 @@ data/rl/*.jsonl
 !data/rl/humanize_tasks_v02.jsonl
 !data/rl/humanize_tasks_v03_filtered.jsonl
 !data/rl/humanize_tasks_rl_mix_v1_filtered.jsonl
+!data/rl/humanize_tasks_rl_mix_v2.jsonl
+!data/rl/humanize_tasks_rl_mix_v2_p5050_filtered.jsonl
 !data/rl/eval_e5_hard_penalty_mix_v2.jsonl
 !data/rl/eval_e6_longform_mix_v2.jsonl
 !data/rl/v03_slice0_tasks.jsonl
@@ -118,6 +120,8 @@ logs/*
 state.db
 *.db-journal
 configs/state.db
+
+!environments/humanize_rl_env/humanize_rl_env/ridge_state.pkl
 configs/runs/
 configs/v03/state.db
 configs/v03/runs/

@@ -133,14 +133,14 @@ limitations.
 Built once, then trained on. Two commands, no validation gate.
 
 ```bash
-rtk uv run python scripts/rl/build_rl_task_mix.py \
+uv run python scripts/rl/build_rl_task_mix.py \
   --v01 data/rl/humanize_tasks_v01_smoke.jsonl \
   --v02 data/rl/humanize_tasks_v02.jsonl \
   --v03 data/rl/humanize_tasks_v03_filtered.jsonl \
   --output data/rl/humanize_tasks_rl_mix_v2.jsonl \
   --summary outputs/rl_mix/humanize_tasks_rl_mix_v2_summary.json
 
-rtk uvx modal run scripts/rl/score_task_difficulty_modal.py \
+uvx modal run scripts/rl/score_task_difficulty_modal.py \
   --task-path data/rl/humanize_tasks_rl_mix_v2.jsonl \
   --output-dir outputs/rl_difficulty/mix_v2 \
   --filtered-output data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl \
@@ -311,7 +311,7 @@ mode diversity helped despite no windowed ridge.
 ### 4.4 Qualitative inspection
 
 ```bash
-rtk uvx modal run scripts/eval/sample_adapter_modal.py \
+uvx modal run scripts/eval/sample_adapter_modal.py \
   --adapter-dir /checkpoints/gemma4-rl-full-v2/final_adapter \
   --task-path /workspace/data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl \
   --split validation \
@@ -337,10 +337,10 @@ E3–E6 contribute to the candidate card narrative but are not
 gating (E1 is the headline; E2 is the no-regression floor).
 
 ```bash
-rtk uvx modal volume get humanize-rl-checkpoints \
+uvx modal volume get humanize-rl-checkpoints \
   /gemma4-rl-full-v2/final_adapter outputs/full_run/final_adapter/ --force
 
-rtk uv run scripts/publish_to_hf.py model \
+uv run scripts/publish_to_hf.py model \
   --repo-id jayshah5696/gemma4-e2b-humanize-rl-candidate-v1 \
   --path outputs/full_run/final_adapter/ \
   --kind lora \
@@ -405,18 +405,18 @@ This is what to actually type on the day.
 
 ```bash
 # === Pre-flight ===
-rtk uv run pytest tests/reward/ tests/rl/ tests/training/test_wandb_ema_callback.py tests/scripts/test_build_rl_task_mix.py --ignore=tests/reward/test_offline_eval.py --ignore=tests/reward/test_prime_env.py -q
-rtk uv run ruff check src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py scripts/eval/run_vf_eval_modal.py scripts/rl/build_rl_task_mix.py
+uv run pytest tests/reward/ tests/rl/ tests/training/test_wandb_ema_callback.py tests/scripts/test_build_rl_task_mix.py --ignore=tests/reward/test_offline_eval.py --ignore=tests/reward/test_prime_env.py -q
+uv run ruff check src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py scripts/eval/run_vf_eval_modal.py scripts/rl/build_rl_task_mix.py
 
 # === Build mix_v2 ===
-rtk uv run python scripts/rl/build_rl_task_mix.py \
+uv run python scripts/rl/build_rl_task_mix.py \
   --v01 data/rl/humanize_tasks_v01_smoke.jsonl \
   --v02 data/rl/humanize_tasks_v02.jsonl \
   --v03 data/rl/humanize_tasks_v03_filtered.jsonl \
   --output data/rl/humanize_tasks_rl_mix_v2.jsonl \
   --summary outputs/rl_mix/humanize_tasks_rl_mix_v2_summary.json
 
-rtk uvx modal run scripts/rl/score_task_difficulty_modal.py \
+uvx modal run scripts/rl/score_task_difficulty_modal.py \
   --task-path data/rl/humanize_tasks_rl_mix_v2.jsonl \
   --output-dir outputs/rl_difficulty/mix_v2 \
   --filtered-output data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl \
@@ -430,25 +430,25 @@ rtk uvx modal run scripts/rl/score_task_difficulty_modal.py \
 #  AND scripts/eval/run_vf_eval_modal.py)
 
 # === Kick off training + baseline evals in parallel ===
-rtk context_tag full-run-kickoff
+context_tag full-run-kickoff
 
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
   --mode train \
   --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_full_v2.yaml &
 
-rtk uvx modal run scripts/eval/run_vf_eval_modal.py \
+uvx modal run scripts/eval/run_vf_eval_modal.py \
   --variant baseline \
   --task-path /workspace/data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl \
   --split validation --max-examples 80 \
   --output-path outputs/full_run/baseline_eval_mix_v2.json &
 
-rtk uvx modal run scripts/eval/run_vf_eval_modal.py \
+uvx modal run scripts/eval/run_vf_eval_modal.py \
   --variant baseline \
   --task-path /workspace/data/rl/humanize_tasks_v01_smoke.jsonl \
   --split validation --max-examples 20 \
   --output-path outputs/full_run/baseline_eval_v01.json &
 
-rtk uvx modal run scripts/eval/run_vf_eval_modal.py \
+uvx modal run scripts/eval/run_vf_eval_modal.py \
   --variant baseline \
   --task-path /workspace/data/rl/humanize_tasks_v03_filtered.jsonl \
   --split validation --max-examples 48 \
@@ -459,7 +459,7 @@ wait
 # (monitor W&B; kill if §4.2 gates trip)
 
 # === After training stops (~2 hours later) ===
-rtk uvx modal volume get humanize-rl-checkpoints \
+uvx modal volume get humanize-rl-checkpoints \
   /gemma4-rl-full-v2/summary.json \
   outputs/full_run/training_summary.json --force
 
@@ -469,7 +469,7 @@ rtk uvx modal volume get humanize-rl-checkpoints \
 #  outputs to outputs/full_run/eval_e{1..6}.json)
 
 # === Qualitative inspection ===
-rtk uvx modal run scripts/eval/sample_adapter_modal.py \
+uvx modal run scripts/eval/sample_adapter_modal.py \
   --adapter-dir /checkpoints/gemma4-rl-full-v2/final_adapter \
   --task-path /workspace/data/rl/humanize_tasks_rl_mix_v2_filtered_softened_midband.jsonl \
   --split validation --num-tasks 16 --completions-per-task 4 \
@@ -483,7 +483,7 @@ rtk uvx modal run scripts/eval/sample_adapter_modal.py \
 # Else: tag checkpoint as `attempt-1`, debrief, decide whether
 #   to resume training or iterate on the mix.
 
-rtk context_tag full-run-complete
+context_tag full-run-complete
 ```
 
 ---

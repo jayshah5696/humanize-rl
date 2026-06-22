@@ -11,7 +11,7 @@ a 4-panel diagnostic figure:
 
 Run::
 
-  rtk uv run python scripts/figures/plot_task_difficulty.py \\
+  uv run python scripts/figures/plot_task_difficulty.py \\
     --input outputs/rl_difficulty/mix_v1/task_difficulty.jsonl
 """
 
@@ -33,11 +33,11 @@ plt.rcParams["grid.linestyle"] = "--"
 plt.rcParams["grid.linewidth"] = 0.6
 
 BUCKET_COLORS = {
-    "useful":       "#059669",  # emerald
-    "too_easy":     "#0ea5e9",  # sky
-    "too_hard":     "#e11d48",  # rose
-    "dead":         "#7c3aed",  # violet
-    "clipped":      "#f59e0b",  # amber
+    "useful": "#059669",  # emerald
+    "too_easy": "#0ea5e9",  # sky
+    "too_hard": "#e11d48",  # rose
+    "dead": "#7c3aed",  # violet
+    "clipped": "#f59e0b",  # amber
     "same_pattern": "#6b7280",  # slate
 }
 BUCKET_ORDER = ["useful", "too_easy", "too_hard", "dead", "clipped", "same_pattern"]
@@ -53,11 +53,18 @@ def _panel_bucket_bar(ax, rows: list[dict]) -> None:
     total = sum(values)
     for bar, v in zip(bars, values, strict=True):
         ax.text(
-            bar.get_x() + bar.get_width() / 2, bar.get_height() + total * 0.01,
-            f"{v}\n({v/total*100:.1f}%)",
-            ha="center", va="bottom", fontsize=8.5, fontweight="semibold", color=COLOR_TEXT,
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + total * 0.01,
+            f"{v}\n({v / total * 100:.1f}%)",
+            ha="center",
+            va="bottom",
+            fontsize=8.5,
+            fontweight="semibold",
+            color=COLOR_TEXT,
         )
-    ax.set_title(f"Bucket counts (n={total})", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        f"Bucket counts (n={total})", fontsize=11, fontweight="bold", color=COLOR_TEXT
+    )
     ax.set_ylim(0, max(values) * 1.25)
     ax.set_ylabel("tasks", fontsize=9, color=COLOR_TEXT)
     ax.tick_params(axis="x", labelsize=8.5, rotation=20)
@@ -76,11 +83,20 @@ def _panel_reward_scatter(ax, rows: list[dict]) -> None:
             [r["reward_std"] for r in sub],
             c=BUCKET_COLORS[bucket],
             label=f"{bucket} ({len(sub)})",
-            s=22, alpha=0.7, edgecolors="white", linewidths=0.4,
+            s=22,
+            alpha=0.7,
+            edgecolors="white",
+            linewidths=0.4,
         )
     # Useful-band guides.
     ax.axvspan(0.20, 0.80, alpha=0.05, color="#059669")
-    ax.axhline(0.03, color="#94a3b8", linestyle="--", linewidth=0.7, label="min reward_std=0.03")
+    ax.axhline(
+        0.03,
+        color="#94a3b8",
+        linestyle="--",
+        linewidth=0.7,
+        label="min reward_std=0.03",
+    )
     ax.axvline(0.20, color="#94a3b8", linestyle=":", linewidth=0.7)
     ax.axvline(0.80, color="#94a3b8", linestyle=":", linewidth=0.7)
     ax.set_xlim(-1.05, 1.05)
@@ -103,8 +119,12 @@ def _panel_family_stacked(ax, rows: list[dict]) -> None:
         if not values.any():
             continue
         ax.bar(
-            families, values, bottom=bottoms,
-            color=BUCKET_COLORS[bucket], label=bucket, edgecolor="none",
+            families,
+            values,
+            bottom=bottoms,
+            color=BUCKET_COLORS[bucket],
+            label=bucket,
+            edgecolor="none",
         )
         bottoms = bottoms + values
     ax.set_title("Bucket × family", fontsize=11, fontweight="bold", color=COLOR_TEXT)
@@ -129,7 +149,9 @@ def _panel_penalty_rate(ax, rows: list[dict]) -> None:
         data.append(sub)
         labels.append(bucket)
         colors.append(BUCKET_COLORS[bucket])
-    bp = ax.boxplot(data, labels=labels, patch_artist=True, widths=0.55, showfliers=False)
+    bp = ax.boxplot(
+        data, labels=labels, patch_artist=True, widths=0.55, showfliers=False
+    )
     for patch, color in zip(bp["boxes"], colors, strict=True):
         patch.set_facecolor(color)
         patch.set_alpha(0.55)
@@ -139,7 +161,9 @@ def _panel_penalty_rate(ax, rows: list[dict]) -> None:
         median.set_linewidth(1.4)
     ax.set_ylim(-0.05, 1.05)
     ax.set_ylabel("penalty_rate", fontsize=9, color=COLOR_TEXT)
-    ax.set_title("Penalty rate per bucket", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        "Penalty rate per bucket", fontsize=11, fontweight="bold", color=COLOR_TEXT
+    )
     ax.tick_params(axis="x", labelsize=8.5, rotation=20)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -148,17 +172,23 @@ def _panel_penalty_rate(ax, rows: list[dict]) -> None:
 
 @click.command()
 @click.option(
-    "--input", "input_path", required=True,
+    "--input",
+    "input_path",
+    required=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
 )
 @click.option(
-    "--output-dir", default="outputs/figures/task_difficulty",
-    show_default=True, type=click.Path(file_okay=False, path_type=Path),
+    "--output-dir",
+    default="outputs/figures/task_difficulty",
+    show_default=True,
+    type=click.Path(file_okay=False, path_type=Path),
 )
 def main(input_path: Path, output_dir: Path) -> None:
     """Plot Slice 4 difficulty scoring dashboard."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    rows = [json.loads(line) for line in input_path.read_text().splitlines() if line.strip()]
+    rows = [
+        json.loads(line) for line in input_path.read_text().splitlines() if line.strip()
+    ]
     click.echo(f"Loaded {len(rows)} task-difficulty rows from {input_path}")
 
     fig = plt.figure(figsize=(15, 9))
@@ -169,7 +199,10 @@ def main(input_path: Path, output_dir: Path) -> None:
     _panel_penalty_rate(fig.add_subplot(gs[1, 1]), rows)
     fig.suptitle(
         f"Task difficulty dashboard — {input_path.parent.name}",
-        fontsize=14, fontweight="bold", color=COLOR_TEXT, y=0.995,
+        fontsize=14,
+        fontweight="bold",
+        color=COLOR_TEXT,
+        y=0.995,
     )
 
     png = output_dir / "task_difficulty_dashboard.png"

@@ -312,7 +312,7 @@ Run only one of these:
 Detached command:
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py --mode train --config-path /workspace/configs/rl/<probe>.yaml
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py --mode train --config-path /workspace/configs/rl/<probe>.yaml
 ```
 
 Acceptance:

@@ -25,7 +25,7 @@ from humanize_rl.reward.grpo_rewards import (
     scalar_reward,
     score_completions,
 )
-from humanize_rl.reward.reward import clip
+from humanize_rl.reward.reward import clip, score_response
 from humanize_rl.reward.tasks import RLTask
 
 Completion = list[dict[str, str]]
@@ -155,6 +155,32 @@ def test_scalar_softened_higher_for_better_response() -> None:
     good = fn([_good_completion()], task=[payload])[0]
     bad = fn([_bad_completion()], task=[payload])[0]
     assert good > bad
+
+
+def test_p50_50_no_penalty_mode_matches_core_reward(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeRidgeScorer:
+        def predict_proba(self, rows: list[str]) -> list[list[float]]:
+            return [[0.10, 0.90] for _ in rows]
+
+        def predict_rubric(self, rows: list[str]) -> list[list[float]]:
+            return [[0.80] * 8 for _ in rows]
+
+    scorer = FakeRidgeScorer()
+    monkeypatch.setattr("humanize_rl.reward.grpo_rewards._RIDGE_SCORER", scorer)
+
+    payload = _payload()
+    completion = _bad_completion()
+    fn = build_reward_funcs(RewardModeConfig(mode="p50_50_no_penalty"))[0]
+    got = fn([completion], task=[payload])[0]
+    expected = score_response(
+        _task(),
+        completion[0]["content"],
+        scorer,
+        reward_mode="p50_50_no_penalty",
+    ).reward
+    assert math.isclose(got, expected, abs_tol=1e-9)
 
 
 def test_scalar_softened_monotonic_in_penalty_total() -> None:

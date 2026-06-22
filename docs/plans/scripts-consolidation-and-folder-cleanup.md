@@ -263,7 +263,7 @@ After moving files:
 - update docs with script paths
 - update README examples
 - check shell scripts that call other scripts
-- run `rtk grep "scripts/" .` and fix stale paths
+- run `grep "scripts/" .` and fix stale paths
 
 ## Archive candidates
 

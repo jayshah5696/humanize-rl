@@ -296,18 +296,18 @@ Deferred (Decision: see Q&A 2026-05-25):
 ```bash
 # 1. Dry verification (no writes). Confirms the current merged repo is
 #    structurally correct and prints the parity report.
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py
 
 # 2. If verification reports tokenizer.eos_token regressed, patch locally
 #    and push the single tokenizer_config.json file (no full re-upload):
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py \
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py \
     --fix-tokenizer --push-fixed-tokenizer
 
 # 3. Re-run the RL artifact verifier and the v2 smoke config:
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
     --mode verify-artifact \
     --config-path /workspace/configs/rl/gemma4_e2b_rl_smoke_v2.yaml
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
     --mode train \
     --config-path /workspace/configs/rl/gemma4_e2b_rl_smoke_v2.yaml
 ```
@@ -461,11 +461,11 @@ Add tests under `tests/training/`:
 All runs detached.
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode inventory
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode verify-direct-lora
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode verify-current-merged
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode merge-peft
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode merge-unsloth
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode inventory
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode verify-direct-lora
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode verify-current-merged
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode merge-peft
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode merge-unsloth
 ```
 
 Then inspect reports in the Modal merge volume.
@@ -473,7 +473,7 @@ Then inspect reports in the Modal merge volume.
 Only after a candidate passes:
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode push-candidate --candidate peft --repo jayshah5696/gemma4-e2b-humanize-unsloth-merged-peft-v2 --confirm-push true
+uvx modal run --detach src/humanize_rl/training/verify_gemma4_artifacts_modal.py --mode push-candidate --candidate peft --repo jayshah5696/gemma4-e2b-humanize-unsloth-merged-peft-v2 --confirm-push true
 ```
 
 ## Decision tree
@@ -586,7 +586,7 @@ the earlier speculative plan above for any conflict.
 Command:
 
 ```bash
-rtk uvx modal run --detach \
+uvx modal run --detach \
   src/humanize_rl/training/verify_gemma4_artifacts_modal.py
 ```
 
@@ -626,7 +626,7 @@ matmul vs the LoRA add-on path. Not a correctness signal.
 Command:
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
   --mode verify-artifact \
   --config-path /workspace/configs/rl/gemma4_e2b_rl_smoke_v2.yaml
 ```
@@ -647,7 +647,7 @@ non-shared layer had zero k/v weight. It did not raise.
 Command:
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_modal.py \
   --mode train \
   --config-path /workspace/configs/rl/gemma4_e2b_rl_smoke_v2.yaml
 ```
@@ -836,7 +836,7 @@ Resolved:
   regresses it. Use it for any future re-merge:
 
   ```bash
-  rtk uvx modal run --detach \
+  uvx modal run --detach \
     src/humanize_rl/training/verified_merge_and_push_modal.py \
     --candidate-repo <user>/<repo>-vN
   ```

@@ -845,13 +845,13 @@ These slices are ordered so each one produces a useful artifact and can stop the
 **Run:**
 
 ```bash
-rtk uv run python scripts/eval/check_rl_run_summary.py \
+uv run python scripts/eval/check_rl_run_summary.py \
   outputs/full_run/summary.json \
   --phase full
 ```
 
 ```bash
-rtk uv run python - <<'PY'
+uv run python - <<'PY'
 import json
 pre = json.load(open("outputs/baseline_eval.json"))
 post = json.load(open("outputs/post_train_eval.json"))
@@ -892,7 +892,7 @@ PY
 **Run:**
 
 ```bash
-rtk uv run pytest tests/reward/test_grpo_dither.py \
+uv run pytest tests/reward/test_grpo_dither.py \
   tests/reward/test_grpo_adapters.py \
   tests/reward/test_reward_modes.py -q
 ```
@@ -927,7 +927,7 @@ rtk uv run pytest tests/reward/test_grpo_dither.py \
 A 5-step smoke only:
 
 ```bash
-rtk uvx modal run --detach \
+uvx modal run --detach \
   src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
   --mode train \
   --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_logging_smoke.yaml
@@ -966,7 +966,7 @@ rtk uvx modal run --detach \
 **Run:**
 
 ```bash
-rtk uv run python scripts/rl/build_rl_task_mix.py \
+uv run python scripts/rl/build_rl_task_mix.py \
   --v01 data/rl/humanize_tasks_v01_smoke.jsonl \
   --v02 data/rl/humanize_tasks_v02.jsonl \
   --output data/rl/humanize_tasks_rl_mix_v1.jsonl \
@@ -1006,7 +1006,7 @@ rtk uv run python scripts/rl/build_rl_task_mix.py \
 **Run:**
 
 ```bash
-rtk uvx modal run scripts/rl/score_task_difficulty_modal.py \
+uvx modal run scripts/rl/score_task_difficulty_modal.py \
   --task-path data/rl/humanize_tasks_rl_mix_v1.jsonl \
   --output-dir outputs/rl_difficulty/mix_v1 \
   --filtered-output data/rl/humanize_tasks_rl_mix_v1_filtered.jsonl \
@@ -1037,17 +1037,17 @@ rtk uvx modal run scripts/rl/score_task_difficulty_modal.py \
 **Run in parallel:**
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
   --mode train --config-path /workspace/configs/rl/ablations/reward_a0_current_components.yaml
 ```
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
   --mode train --config-path /workspace/configs/rl/ablations/reward_a1_scalar_current.yaml
 ```
 
 ```bash
-rtk uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
+uvx modal run --detach src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
   --mode train --config-path /workspace/configs/rl/ablations/reward_a2_scalar_softened.yaml
 ```
 
@@ -1133,7 +1133,7 @@ Expected winner: `scale_rewards: batch`.
 **Run:**
 
 ```bash
-rtk uvx modal run --detach \
+uvx modal run --detach \
   src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
   --mode train \
   --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_mix_v1_pilot.yaml
@@ -1194,7 +1194,7 @@ rtk uvx modal run --detach \
 **Run:**
 
 ```bash
-rtk uvx modal run --detach \
+uvx modal run --detach \
   src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \
   --mode train \
   --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_stable_full.yaml

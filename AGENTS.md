@@ -38,7 +38,7 @@ This project provides: humanness-specific scoring (Layer 1 heuristics), rubric Y
 - Move superseded scripts to `scripts/archive/` before deleting.
 - Follow `docs/plans/scripts-consolidation-and-folder-cleanup.md` for script consolidation and folder cleanup.
 
-## Models — Google Only (with one narrow exception)
+## Models — Google Defaults, Open Training Targets
 
 All LLM calls go through OpenRouter. Only Google models.
 
@@ -50,6 +50,13 @@ Approved authors: `google/gemini-3.1-pro-preview`, `openai/gpt-5.4-mini`,
 generation only*. The humanizer, judge, scorer, and reference-rollout code
 paths remain Google-only.
 
+**Training-target exception (Prime/Modal experiments):** trainable base models
+may be non-Google when they are the model being fine-tuned or swept, not the
+data generator/judge/scorer. Approved current experiment targets include Prime
+Hosted Training Qwen, Llama, Nemotron, GPT-OSS, Poolside/Sprints baselines, and
+later Modal/custom TRL Liquid checkpoints. This exception does not change the
+default LLM-call policy above.
+
 ```
 # Frontier reasoning (judge, humanize)
 google/gemini-3.1-pro-preview          # $2.00/$12.00
@@ -60,8 +67,14 @@ google/gemini-3.1-flash-lite-preview   # $0.25/$1.50
 # Mid-tier dev
 google/gemini-3-flash-preview          # $0.50/$3.00
 
-# Fine-tune target
+# Default fine-tune target
 google/gemma-4-e2b-it                 # Apache 2.0, 2B effective
+
+# Prime p50 sweep trainable targets
+Qwen/Qwen3.5-0.8B
+Qwen/Qwen3.5-2B
+Qwen/Qwen3.5-4B
+Qwen/Qwen3.6-35B-A3B
 
 # Free dev/testing
 google/gemma-4-e2b-it:free
@@ -77,7 +90,8 @@ google/gemma-4-31b-it:free
 
 ## What NOT to Do
 
-- Do not add non-Google models to configs
+- Do not add non-Google LLM-call models for data generation, judges, scorers, or
+  reference rollouts unless the exception is explicit.
 - Do not build custom arka stages — use TransformGeneratorStage + YAML
 - Do not use QLoRA for Gemma 4 — bf16 LoRA only
 - Do not skip Layer 1 pre-filtering before Layer 2 (wastes API budget)
@@ -108,14 +122,4 @@ Arka docs:
 ├── docs/rl-data-needed.md      # What arka provides vs what we need
 ├── rubrics/sft_quality.yaml    # Example rubric format
 └── examples/04-evol-instruct.yaml  # Multi-round pipeline example
-```
-
-## RTK
-
-**Always prefix commands with `rtk`**:
-```bash
-# ✅ Correct
-rtk git add . && rtk git commit -m "msg"
-# ❌ Wrong
-git add . && git commit -m "msg"
 ```

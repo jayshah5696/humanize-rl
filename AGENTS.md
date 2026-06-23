@@ -81,6 +81,54 @@ google/gemma-4-e2b-it:free
 google/gemma-4-31b-it:free
 ```
 
+## Training Platform Order — Prime First
+
+For new SFT/RL experiments, check Prime Intellect before adding or launching
+Modal/TRL code.
+
+Prime capabilities verified from the June 22, 2026 Prime docs:
+
+- `prime train` is Prime Hosted Training for managed env-based runs.
+- The `prime-rl` library supports:
+  - `uv run rl @ config.toml` for RL;
+  - `uv run sft @ config.toml` for dataset-based supervised fine-tuning on a
+    Hugging Face dataset;
+  - `orchestrator.training_mode = "sft"` for teacher-generated hard
+    distillation through the RL/orchestrator path;
+  - `orchestrator.training_mode = "opd"` for on-policy distillation;
+  - W&B via `--wandb`;
+  - checkpoints and HF-compatible weight snapshots under
+    `<output_dir>/weights/step_N/`;
+  - LoRA adapter separation with
+    `ckpt.weights.save_adapter_separately = true`.
+- Prime SFT accepts HF datasets in either:
+  - `prompt` + `completion` columns; or
+  - a `messages` column.
+- For Qwen3/Qwen3.5, prefer the Prime renderer config
+  (`[renderer] name = "qwen3"` or corresponding Qwen3.5 renderer) because
+  upstream Qwen templates can corrupt multi-turn loss masks.
+- Current Prime SFT dataset for the Qwen3.5 SFT warmup:
+  `jayshah5696/humanize-rl-prime-sft-messages-env0314`.
+- Current Prime SFT configs:
+  `configs/prime_rl/qwen35_08b_sft_smoke_env0314.toml` and
+  `configs/prime_rl/qwen35_2b_sft_target_env0314.toml`.
+- Prime Hosted Training also has `loss = "sft"`, but that is env/teacher
+  distillation from rollouts, not dataset SFT from the HF messages corpus. Use
+  it only when the teacher/generator model is explicitly allowed by project
+  policy.
+
+Policy:
+
+1. Use Prime first for Qwen/Llama/Nemotron/GPT-OSS SFT/RL when the target model,
+   data format, checkpointing, and budget fit.
+2. Use Modal/TRL only when Prime cannot support the needed model/path, when we
+   need custom code not available in Prime, or when continuing a pre-existing
+   Modal run already launched.
+3. Before writing new training infrastructure, document the Prime CLI/doc check
+   in `log.md` and explain why Prime is or is not viable.
+4. Do not stop an already-running Modal job unless the user asks; finish it,
+   log the result, then move the next run back to Prime-first ordering.
+
 ## Architecture
 
 - **Layer 1** (deterministic, free): 8 regex/heuristic dims in `src/humanize_rl/scoring/`

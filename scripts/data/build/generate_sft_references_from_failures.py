@@ -34,6 +34,39 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     )
 
 
+def append_jsonl_row(path: Path, row: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def existing_task_ids(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    task_ids: set[str] = set()
+    for row in load_jsonl(path):
+        metadata = row.get("metadata")
+        if isinstance(metadata, dict):
+            task_id = metadata.get("task_id")
+            if task_id:
+                task_ids.add(str(task_id))
+    return task_ids
+
+
+def existing_failure_keys(path: Path) -> set[tuple[str, str]]:
+    if not path.exists():
+        return set()
+    keys: set[tuple[str, str]] = set()
+    for row in load_jsonl(path):
+        metadata = row.get("metadata")
+        if isinstance(metadata, dict):
+            task_id = str(metadata.get("task_id") or "")
+            comparison = str(metadata.get("failure_comparison") or "")
+            if task_id:
+                keys.add((task_id, comparison))
+    return keys
+
+
 def render_task_prompt(task: dict[str, Any]) -> str:
     instruction = str(task.get("instruction") or "").strip()
     input_text = str(task.get("input_text") or "").strip()
@@ -195,6 +228,8 @@ def build_sft_row(
 @click.option("--limit", type=int, default=None)
 @click.option("--sleep-seconds", type=float, default=0.0, show_default=True)
 @click.option("--dry-run", is_flag=True, help="Write prompts without calling OpenRouter.")
+@click.option("--resume", is_flag=True, help="Skip task ids already present in output.")
+@click.option("--overwrite", is_flag=True, help="Remove existing output before writing.")
 def main(
     failure_path: Path,
     task_paths: tuple[Path, ...],
@@ -206,6 +241,8 @@ def main(
     limit: int | None,
     sleep_seconds: float,
     dry_run: bool,
+    resume: bool,
+    overwrite: bool,
 ) -> None:
     """Generate SFT target responses for eval failure rows using a Google model."""
     if not model.startswith("google/"):
@@ -214,16 +251,29 @@ def main(
     api_key = os.environ.get(api_key_var)
     if not dry_run and not api_key:
         raise click.ClickException(f"Missing {api_key_var}")
+    if resume and overwrite:
+        raise click.ClickException("--resume and --overwrite cannot be used together.")
+    if output_path.exists() and overwrite:
+        output_path.unlink()
+    if output_path.exists() and not resume:
+        output_path.unlink()
 
     failures = load_jsonl(failure_path)
     if limit is not None:
         failures = failures[:limit]
     tasks = load_task_index(list(task_paths))
 
-    rows: list[dict[str, Any]] = []
     missing: list[str] = []
+    skipped_existing = 0
+    written_rows = 0
+    existing_keys = existing_failure_keys(output_path) if resume else set()
     for i, failure in enumerate(failures, start=1):
         task_id = str(failure.get("task_id") or "")
+        failure_key = (task_id, str(failure.get("comparison") or ""))
+        if failure_key in existing_keys:
+            skipped_existing += 1
+            click.echo(f"skip_existing {i}/{len(failures)} task_id={task_id}")
+            continue
         task = tasks.get(task_id)
         if task is None:
             missing.append(task_id)
@@ -244,10 +294,12 @@ def main(
             row = build_sft_row(task, failure, response=response, model=model)
             if sleep_seconds and i < len(failures):
                 time.sleep(sleep_seconds)
-        rows.append(row)
+        append_jsonl_row(output_path, row)
+        written_rows += 1
+        click.echo(f"wrote {i}/{len(failures)} task_id={task_id}")
 
-    write_jsonl(output_path, rows)
-    click.echo(f"wrote_rows={len(rows)}")
+    click.echo(f"wrote_rows={written_rows}")
+    click.echo(f"skipped_existing={skipped_existing}")
     click.echo(f"missing_tasks={len(missing)}")
     if missing:
         click.echo("missing_task_ids=" + ",".join(missing))

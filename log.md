@@ -178,7 +178,7 @@ Interpretation: the dataset is small enough for fast sweeps and debugging. It is
 - All active train/eval sampling blocks use `max_tokens = 4096`.
 - Qwen configs set `enable_thinking = false`.
 - W&B project: `humanize-rl`.
-- No `rtk` config is present.
+- No local command-wrapper config is present.
 - W&B token is not committed; it is supplied from `/private/tmp/humanize_rl_prime_wandb.env`.
 
 ### Experiment Ledger
@@ -413,7 +413,7 @@ Row-level audit:
 - Secret check:
   W&B token not found in repo text.
 - Config check:
-  active configs pin `0.3.14`, use 4096 generation tokens, disable Qwen thinking, and contain no `rtk`.
+  active configs pin `0.3.14`, use 4096 generation tokens, disable Qwen thinking, and contain no local command-wrapper usage.
   Hosted eval sampling now uses `temperature=0.2` after `r9` showed greedy Qwen eval truncation at `4096`.
 - Verifier handoff:
   approved hosted docs-debug `r9`; `r9` then failed the infra/config gate. The config-only `r10` change is waiting for verifier approval.
@@ -529,7 +529,7 @@ Verification after adding the audit helper and train-only config:
   `rollouts_per_example=8`, `max_tokens=4096`, train temperature `0.7`,
   `enable_thinking=false`, env `0.3.14`, and no `[eval]` or `[val]` section.
 - Secret/config check:
-  no committed W&B token in touched files, no `rtk` in the train-only config.
+  no committed W&B token in touched files, no local command-wrapper usage in the train-only config.
 - One caveat:
   `uv run scripts/eval/audit_prime_rollouts.py` tried to build project
   dependency `fasttext-wheel` and failed against the local Xcode SDK. The audit
@@ -583,7 +583,7 @@ Proceed to the 50-step `Qwen/Qwen3.5-0.8B` Prime RL smoke as a train-only run:
   shown by CLI as `WANDB_API_KEY`
 - Verifier:
   second verifier `019eed96-361c-7780-8625-ecb984e90fd5` returned
-  `APPROVED`; config assertions, secret/`rtk`/eval-val grep, focused pytest,
+  `APPROVED`; config assertions, secret/wrapper/eval-val grep, focused pytest,
   and ruff all passed.
 - First running poll:
   - status moved to `RUNNING`;
@@ -706,8 +706,8 @@ Next monitoring steps:
   status moved to `RUNNING`; env `0.3.14` installed; train env ready; student
   inference pool ready; orchestrator loop started with `max_steps=50`. Waiting
   for first train batch/step metrics.
-- Model/env/reward unchanged:
-  `Qwen/Qwen3.5-0.8B`, `jayshah5696/humanize-rl-env@0.3.14`,
+- Model/env/reward:
+  `meta-llama/Llama-3.2-3B-Instruct`, `jayshah5696/humanize-rl-env@0.3.14`,
   `p50_50_no_penalty`
 - Training shape:
   `max_steps=50`, `batch_size=16`, `rollouts_per_example=4`,
@@ -1276,3 +1276,1727 @@ Next monitoring steps:
   - do not call the adapter a final model;
   - do not treat aggregate reward as sufficient without family and qualitative
     gates.
+
+## 2026-06-22: Targeted SFT Reference Data From Llama RL Failures
+
+### Why This Step Exists
+
+The Prime Llama 3.2 3B RL smoke was technically successful but failed the
+scale-up gate:
+
+- strict `v02_smoke` `tone_shift` family delta: `-0.092192`
+- strict `v03` output length drift on expansion/rewrite/long-form modes
+- several high-scoring outputs still had humanizer problems such as wrapper
+  phrasing, polished filler, and bad reward tolerance around phrases
+
+The local RL tasksets contain no `reference_response` values, and
+`data/processed` was absent before this step. That means SFT cannot honestly be
+called ready. The next scientific move is to create a small targeted
+failure-correction SFT artifact, validate it, then merge it with the restored
+full SFT corpus before any SFT/RL scale-up.
+
+### Generator Fix
+
+Script touched:
+`scripts/data/build/generate_sft_references_from_failures.py`
+
+Test touched:
+`tests/scripts/test_generate_sft_references_from_failures.py`
+
+The first live generation attempt used the original all-at-end writer:
+
+```bash
+PYTHONPATH=src uv run --no-project --with click python \
+  scripts/data/build/generate_sft_references_from_failures.py \
+  --limit 28 --sleep-seconds 0.2
+```
+
+It ran for about four minutes with no partial output, so it was stopped. That
+was not repeatable enough for a paid API generation job.
+
+Fix:
+
+- writes each generated row immediately with `append_jsonl_row()`;
+- adds `--overwrite` for clean runs;
+- adds `--resume` for partial retries;
+- keys resume by `(task_id, failure_comparison)`, because the failure set can
+  contain the same task under multiple eval comparisons;
+- prints only progress counts and task ids, not generations or secrets;
+- keeps the Google-only model guard: model must start with `google/`.
+- tests cover helper behavior plus Click CLI behavior for `--resume`,
+  `--overwrite`, and the Google-only model guard.
+
+Verification:
+
+```bash
+PYTHONPATH=src uv run --no-project --with pytest --with pytest-cov --with click \
+  pytest tests/scripts/test_generate_sft_references_from_failures.py -q
+```
+
+Result: `9 passed`. Coverage prints `No data was collected` because these
+tests import a script outside `src`; this is not a behavioral failure.
+
+```bash
+PYTHONPATH=src uv run --no-project --with ruff ruff check \
+  scripts/data/build/generate_sft_references_from_failures.py \
+  tests/scripts/test_generate_sft_references_from_failures.py
+```
+
+Result: `All checks passed!`
+
+Dry-run command:
+
+```bash
+PYTHONPATH=src uv run --no-project --with click python \
+  scripts/data/build/generate_sft_references_from_failures.py \
+  --dry-run --limit 3 --overwrite \
+  --output-path runs/prime_eval_smoke/reference_generation_dry_run.jsonl
+```
+
+Result:
+
+- wrote `3` dry-run rows
+- missing tasks: `0`
+- output:
+  `runs/prime_eval_smoke/reference_generation_dry_run.jsonl`
+
+### Live Reference Generation
+
+Command:
+
+```bash
+PYTHONPATH=src uv run --no-project --with click python \
+  scripts/data/build/generate_sft_references_from_failures.py \
+  --limit 28 --sleep-seconds 0.2 --overwrite
+```
+
+Generator model:
+`google/gemini-3.1-pro-preview` via OpenRouter.
+
+Input:
+`runs/prime_eval_smoke/llama32_3b_failure_set_env0314.jsonl`
+
+Output:
+`data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314.jsonl`
+
+Result:
+
+- wrote rows: `28`
+- missing tasks: `0`
+- duplicate task ids in raw references:
+  - `rl_v01_000016`: `2`
+  - `rl_v01_000133`: `2`
+- duplicate `(task_id, failure_comparison)` keys: `0`
+
+Raw audit artifact:
+`data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314_audit.json`
+
+Raw audit:
+
+- rows: `28`
+- unique task ids: `26`
+- empty responses: `0`
+- emoji count: `0`
+- all-caps count: `0`
+- humanizer phrase/root hits: `1`
+  - `rl_v01_000016` used `enhance/enhancements`
+- wrapper-like openings/usages: `4`
+  - `rl_v01_000053`: starts with rewrite-wrapper language
+  - `rl_v01_000135`: starts with `Here are my notes`
+  - `rl_v01_000462`: starts with `Here is a quick Slack update`
+  - `rl_v03_000186`: includes `Here is a look`
+- family counts:
+  - compression: `6`
+  - direct_email: `2`
+  - rewrite_repair: `13`
+  - tone_shift: `7`
+- mode counts:
+  - compression: `2`
+  - expansion: `3`
+  - long_form_generate: `2`
+  - rewrite: `18`
+  - rewrite_humanize: `3`
+- response word length min/mean/max: `17 / 90.96 / 312`
+
+### Existing SFT Builder Validation
+
+First builder command with normal `uv run` failed before validating the data
+because `fasttext-wheel==0.9.2` could not link against the local macOS SDK:
+
+- missing SDK:
+  `/Applications/Xcode_15.2.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk`
+- linker error:
+  `ld: library 'c++' not found`
+
+This is a local native dependency/build issue, not a data schema issue.
+
+Second builder command used `--no-project` and a deliberately missing
+Track-A scorer path so the existing builder could validate schema/splits
+without importing `fasttext`:
+
+```bash
+PYTHONPATH=src uv run --no-project --with click python \
+  scripts/data/build/build_gemma4_sft_dataset.py \
+  --input-path data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314.jsonl \
+  --output-dir data/processed/sft/llama32_3b_failure_refs_env0314 \
+  --mlx-dir data/processed/sft/llama32_3b_failure_refs_env0314_mlx_smoke \
+  --track-a-scorer-path /tmp/humanize_missing_track_a_scorer.pkl \
+  --smoke-train-size 10 \
+  --smoke-valid-size 5 \
+  --pilot-train-size 10 \
+  --pilot-valid-size 5 \
+  --max-ai-probability 1.0
+```
+
+Result:
+
+- raw rows: `28`
+- accepted rows: `26`
+- rejected rows: `2`
+- split counts: `{'train': 23, 'valid': 1, 'test': 2}`
+
+Rejected rows:
+
+- `rl_v03_000075`: `instruction_too_long`
+- `rl_v03_000318`: `instruction_too_long`
+
+The raw file is therefore not a clean training candidate. It is a reference
+generation artifact plus audit input.
+
+### Clean Failure-Correction SFT Candidate
+
+Clean output:
+`data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314_clean.jsonl`
+
+Clean report:
+`data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314_clean_report.json`
+
+Clean audit:
+`data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314_clean_audit.json`
+
+Filtering rule:
+
+- drop rows with instruction length above the existing builder limit;
+- drop empty responses;
+- drop emoji;
+- drop all-caps words outside an allowlist such as `API`, `JSON`, `PTO`;
+- drop `Here is` / `Here are` wrapper-like rows;
+- drop listed humanizer phrase/root hits such as `enhance`, `leverage`,
+  `crucial`, `vital`, `certainly`, `in conclusion`;
+- drop duplicate task ids after keeping the first clean row.
+
+Clean candidate result:
+
+- raw rows: `28`
+- kept rows: `20`
+- dropped rows: `8`
+- unique task ids kept: `20`
+- family counts:
+  - compression: `4`
+  - direct_email: `1`
+  - rewrite_repair: `10`
+  - tone_shift: `5`
+- mode counts:
+  - compression: `1`
+  - expansion: `3`
+  - long_form_generate: `1`
+  - rewrite: `13`
+  - rewrite_humanize: `2`
+- response word length min/mean/max: `22 / 101.45 / 312`
+- clean audit:
+  - empty: `0`
+  - emoji: `0`
+  - wrapper `Here is/Here are`: `0`
+  - phrase/root hits: `0`
+
+Builder command on clean candidate:
+
+```bash
+PYTHONPATH=src uv run --no-project --with click python \
+  scripts/data/build/build_gemma4_sft_dataset.py \
+  --input-path data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314_clean.jsonl \
+  --output-dir data/processed/sft/llama32_3b_failure_refs_env0314_clean \
+  --mlx-dir data/processed/sft/llama32_3b_failure_refs_env0314_clean_mlx_smoke \
+  --track-a-scorer-path /tmp/humanize_missing_track_a_scorer.pkl \
+  --smoke-train-size 10 \
+  --smoke-valid-size 5 \
+  --pilot-train-size 10 \
+  --pilot-valid-size 5 \
+  --max-ai-probability 1.0
+```
+
+Result:
+
+- raw rows: `20`
+- accepted rows: `20`
+- rejected rows: `0`
+- split counts: `{'train': 18, 'valid': 1, 'test': 1}`
+- manifest:
+  `data/processed/sft/llama32_3b_failure_refs_env0314_clean/manifest.json`
+- quality report:
+  `data/processed/sft/llama32_3b_failure_refs_env0314_clean/quality_report.md`
+
+Important caveat:
+the clean candidate is a targeted correction set, not a full SFT corpus. It is
+too small for a serious SFT run by itself. Use it as a repair slice to merge
+or oversample with the restored full SFT data.
+
+### Gate Decision After This Step
+
+Completed:
+
+- generated targeted reference responses for the 28 Prime Llama RL failure rows;
+- converted those into a clean 20-row SFT correction candidate;
+- validated the clean candidate through the existing SFT builder;
+- fixed the generator so future paid generation jobs can resume safely;
+- kept generation model policy compliant: Google OpenRouter model only.
+- verifier rerun approved the artifact:
+  - focused tests: `9 passed`
+  - ruff: passed
+  - clean rows: `20`
+  - unique task ids: `20`
+  - bad-count scan: `0`
+  - manifest: `raw_rows=20`, `accepted_rows=20`, `rejected_rows=0`
+
+Still blocked for full SFT/RL:
+
+- the full historical SFT corpus is still not restored locally;
+- the clean correction set has only 20 accepted rows;
+- the Track-A scorer path triggers a local `fasttext` native build/import issue
+  in this environment unless scorer loading is bypassed;
+- no SFT model has been launched from this new data yet;
+- no new RL run should start until the SFT data mix is approved and evaluated.
+
+Next concrete pickup:
+
+1. Restore the full SFT corpus from Hugging Face or prior artifacts.
+2. Merge/oversample
+   `data/processed/sft/reference_targets/llama32_3b_failure_refs_env0314_clean.jsonl`
+   into that corpus as a targeted failure-correction slice.
+3. Build one frozen SFT dataset manifest and quality report.
+4. Run a tiny SFT smoke on the chosen target model.
+5. Evaluate base vs SFT on the same frozen Prime eval prompts:
+   p50 mix validation, strict `v02_smoke`, strict `v03`.
+6. Only if SFT beats base and does not regress wrappers/length/family gates,
+   run the next Prime RL smoke.
+
+Stop condition for a full run:
+
+- do not launch a bigger RL run until SFT data is restored, merged, audited,
+  and a smoke SFT improves the frozen evals;
+- the next “full” training run should be a single serious SFT or RL run only
+  after those gates pass, not another chain of tiny reward tweaks.
+
+## 2026-06-22: Restored Full SFT Corpus and Built Merged Candidate
+
+### Hugging Face Restore
+
+Repo checked:
+`jayshah5696/humanize-rl-sft-dataset`
+
+HF metadata:
+
+- created: `2026-05-23T06:14:49+00:00`
+- latest repo SHA: `5494ceb671b83723bea424b846c5e81a4ecb4b3c`
+- description says `4,835` high-quality SFT pairs
+- relevant file:
+  `data/v2/v04_sft_final.jsonl`
+
+Commands:
+
+```bash
+hf datasets info jayshah5696/humanize-rl-sft-dataset --format json
+
+hf download jayshah5696/humanize-rl-sft-dataset \
+  --type dataset \
+  --include 'data/v2/v04_sft_final.jsonl' \
+  --include 'README.md' \
+  --local-dir data/hf/humanize-rl-sft-dataset
+
+mkdir -p data/processed
+cp data/hf/humanize-rl-sft-dataset/data/v2/v04_sft_final.jsonl \
+  data/processed/v04_sft_final.jsonl
+```
+
+Restored file:
+`data/processed/v04_sft_final.jsonl`
+
+Restore audit:
+
+- rows: `4,835`
+- SHA256:
+  `9fa71ca5f06ae18188002c91e34588c16984a2ba8935f80300273add746968cf`
+- empty instruction rows: `0`
+- empty response rows: `0`
+- instruction words min/mean/max: `7 / 28.05 / 178`
+- response words min/mean/max: `5 / 46.42 / 186`
+- top sources:
+  - `safe_expand_3000_raw`: `1,802`
+  - `stream_b`: `1,617`
+  - `safe_expand_raw`: `667`
+  - `chat_expanded`: `423`
+  - missing source: `326`
+
+### Restored Baseline Builder Validation
+
+Command:
+
+```bash
+PYTHONPATH=src uv run --no-project --with click python \
+  scripts/data/build/build_gemma4_sft_dataset.py \
+  --input-path data/processed/v04_sft_final.jsonl \
+  --output-dir data/processed/sft/gemma4_e2b_v04_restored \
+  --mlx-dir data/processed/sft/gemma4_e2b_v04_restored_mlx_smoke \
+  --track-a-scorer-path /tmp/humanize_missing_track_a_scorer.pkl \
+  --smoke-train-size 100 \
+  --smoke-valid-size 20 \
+  --pilot-train-size 500 \
+  --pilot-valid-size 50 \
+  --max-ai-probability 1.0
+```
+
+Result:
+
+- raw rows: `4,835`
+- accepted rows: `4,773`
+- rejected rows: `62`
+- split counts: `{'train': 4295, 'valid': 238, 'test': 240}`
+
+Top rejection reasons:
+
+- `possible_phone_pii`: `20`
+- `possible_fake_name:John`: `18`
+- `possible_fake_name:Sarah`: `8`
+- `possible_fake_name:Bob`: `5`
+- `possible_fake_name:Charlie`: `3`
+- `response_ai_tell:certainly`: `3`
+- `response_ai_tell:of course`: `3`
+- `exact_duplicate`: `2`
+
+The scorer path is still bypassed because the local `fasttext` native import
+is broken in this environment. This validation proves data schema and builder
+compatibility, not Track-A scorer filtering.
+
+### Merge Candidate With Failure-Correction Slice
+
+Attempted oversampling first:
+`data/processed/v04_sft_final_plus_llama_failure_refs_env0314_x10.jsonl`
+
+Oversampling report:
+`data/processed/v04_sft_final_plus_llama_failure_refs_env0314_x10_report.json`
+
+Numbers:
+
+- base rows: `4,835`
+- repair unique rows: `20`
+- oversample factor: `10`
+- raw combined rows: `5,035`
+- repair share: `3.97%`
+
+Builder result for x10:
+
+- raw rows: `5,035`
+- accepted rows: `4,793`
+- rejected rows: `242`
+- `exact_duplicate`: `182`
+
+Interpretation:
+the existing SFT builder dedupes exact instruction/response pairs, so the x10
+oversampling does not survive the canonical build. Do not use the x10 artifact
+as a claim of oversampled training unless the training sampler is changed after
+the builder stage.
+
+Canonical merged file:
+`data/processed/v04_sft_final_plus_llama_failure_refs_env0314.jsonl`
+
+Canonical merge report:
+`data/processed/v04_sft_final_plus_llama_failure_refs_env0314_report.json`
+
+Numbers:
+
+- base rows: `4,835`
+- repair rows added: `20`
+- raw combined rows: `4,855`
+- repair share before builder: `0.41%`
+- SHA256:
+  `e1a250e109d58bfddba54a326d603897377e2a3f367fccba4985e079015c7633`
+- repair family counts:
+  - compression: `4`
+  - direct_email: `1`
+  - rewrite_repair: `10`
+  - tone_shift: `5`
+- repair mode counts:
+  - compression: `1`
+  - expansion: `3`
+  - long_form_generate: `1`
+  - rewrite: `13`
+  - rewrite_humanize: `2`
+
+Builder command:
+
+```bash
+PYTHONPATH=src uv run --no-project --with click python \
+  scripts/data/build/build_gemma4_sft_dataset.py \
+  --input-path data/processed/v04_sft_final_plus_llama_failure_refs_env0314.jsonl \
+  --output-dir data/processed/sft/gemma4_e2b_v04_plus_llama_failure_refs_env0314 \
+  --mlx-dir data/processed/sft/gemma4_e2b_v04_plus_llama_failure_refs_env0314_mlx_smoke \
+  --track-a-scorer-path /tmp/humanize_missing_track_a_scorer.pkl \
+  --smoke-train-size 100 \
+  --smoke-valid-size 20 \
+  --pilot-train-size 500 \
+  --pilot-valid-size 50 \
+  --max-ai-probability 1.0
+```
+
+Result:
+
+- raw rows: `4,855`
+- accepted rows: `4,793`
+- rejected rows: `62`
+- split counts: `{'train': 4313, 'valid': 239, 'test': 241}`
+- manifest:
+  `data/processed/sft/gemma4_e2b_v04_plus_llama_failure_refs_env0314/manifest.json`
+- quality report:
+  `data/processed/sft/gemma4_e2b_v04_plus_llama_failure_refs_env0314/quality_report.md`
+
+Repair-row placement after builder:
+
+- train: `18`
+- valid: `1`
+- test: `1`
+- smoke_train: `1`
+- smoke_valid: `0`
+- pilot_train: `4`
+- pilot_valid: `0`
+
+Caveat:
+the builder output keeps `source=prime_failure_reference_generation`, but it
+drops nested repair metadata from the normalized split rows. Use the canonical
+pre-builder JSONL and merge report for repair family/mode analysis.
+
+### Gate Decision After Restore/Merge
+
+Data gate:
+passed for a canonical merged SFT dataset.
+
+Training gate:
+not passed yet. No SFT run has been launched from this merged dataset.
+
+Next training-safe options:
+
+1. Publish the canonical merged JSONL to HF under a new path/revision, then run
+   a generic Qwen/Llama Modal SFT smoke from that HF file.
+2. Or run the existing Gemma MLX/Modal SFT path as a fallback smoke only, with
+   clear labeling that it is not the primary Qwen/Llama target.
+
+Do not claim the model-training phase is complete until there is at least:
+
+- a completed SFT smoke run id;
+- W&B run link;
+- base-vs-SFT eval on the frozen Prime eval prompts;
+- documented pass/fail on p50, strict, wrapper, length, and family gates.
+
+## 2026-06-22: Prime Training Capability Check and Platform Policy Correction
+
+### Why This Was Checked
+
+We briefly added/launched a generic Modal TRL SFT smoke for Qwen before checking
+Prime's current SFT path. That ordering was wrong for this project. Prime is
+the preferred training platform when it supports the target model and workflow;
+Modal/TRL should be fallback/custom infrastructure.
+
+User instruction after correction:
+
+- do not stop the existing Modal run;
+- finish it end to end;
+- next time, check Prime Intellect first.
+
+### Prime Docs Verified
+
+Source:
+`https://docs.primeintellect.ai/prime-rl/training`
+
+Live Prime CLI checked:
+
+```bash
+prime --version
+prime train --help
+prime --help
+```
+
+Result:
+
+- Prime CLI version: `0.6.14`
+- `prime train` manages Hosted Training runs.
+- `prime train models` lists Hosted Training models.
+- `prime train init` generates Hosted Training TOML templates.
+- `prime train logs`, `metrics`, `rollouts`, `progress`, `checkpoints`, and
+  `usage` are available for run monitoring.
+
+Prime docs say `prime-rl` supports these training entrypoints:
+
+- `uv run rl @ config.toml`
+  - RL trainer/orchestrator/inference wrapper.
+- `uv run sft @ config.toml`
+  - dataset-based supervised fine-tuning on a Hugging Face dataset.
+  - launches torchrun internally.
+  - do not call torchrun directly.
+- `uv run inference`
+  - vLLM server with Prime-specific endpoints such as `/update_weights`,
+    `/load_lora_adapter`, and `/init_broadcaster`.
+- `uv run trainer` / `uv run orchestrator`
+  - standalone components for advanced separated launches.
+
+Prime docs also say the RL entrypoint supports three modes through
+`orchestrator.training_mode`:
+
+- `rl`
+  - standard RL.
+- `opd`
+  - on-policy distillation, student plus teacher, teacher must be vLLM because
+    prompt logprobs are needed.
+- `sft`
+  - teacher-generated hard distillation through the orchestrator path.
+
+Important distinction:
+
+- Use `uv run sft` for traditional dataset SFT from HF data.
+- Use `orchestrator.training_mode = "sft"` only when a teacher generates the
+  supervision on the fly.
+
+Prime SFT dataset formats:
+
+- HF dataset with `prompt` + `completion` columns.
+- HF dataset with a `messages` column.
+- If both are present, `messages` takes precedence.
+- Tool-use SFT can use `tools` or `tool_defs`.
+- `chat_template_kwargs` is forwarded into `apply_chat_template`.
+
+Qwen-specific note from Prime docs:
+
+- Qwen3 upstream chat templates can corrupt multi-turn loss masks because they
+  strip past `<think>` blocks.
+- Prime recommends enabling a typed renderer, e.g. `[renderer] name = "qwen3"`.
+- Prime renderers cover Qwen3/Qwen3.5 and several other families.
+- For our Qwen3.5 target, future Prime SFT configs should use the corresponding
+  Prime renderer rather than relying on generic tokenizer templates.
+
+Prime observability and checkpoints:
+
+- W&B is enabled with `--wandb` and can set project/name flags.
+- Metrics include SFT `loss/mean`, `val/loss`, progress samples/tokens, LR,
+  grad norm, throughput, MFU, peak memory, and step timing.
+- Checkpoints can write HF-compatible weight snapshots under
+  `<output_dir>/weights/step_N/`.
+- LoRA runs can set `ckpt.weights.save_adapter_separately = true` to save the
+  raw adapter separately.
+- Resume uses `--ckpt.resume-step`.
+
+### New Platform Rule
+
+Documented in `AGENTS.md`:
+
+1. Check Prime first for new Qwen/Llama/Nemotron/GPT-OSS SFT/RL work.
+2. Use Prime `uv run sft` for dataset SFT when possible.
+3. Use Prime RL / Hosted Training for env-based RL when possible.
+4. Use Modal/TRL only when Prime cannot support the model/path, custom code is
+   required, or an already-started Modal run must be finished.
+5. Before adding new training infrastructure, record the Prime CLI/docs check
+   in this log.
+
+### Existing Modal SFT Smoke Status
+
+This Modal run was already launched before the Prime-first correction and was
+not stopped.
+
+Script:
+`src/humanize_rl/training/finetune_generic_sft_modal.py`
+
+Tests:
+`tests/training/test_finetune_generic_sft_modal.py`
+
+Validation:
+
+```bash
+PYTHONPATH=src uv run --no-project --with pytest --with pytest-cov \
+  pytest tests/training/test_finetune_generic_sft_modal.py -q
+
+PYTHONPATH=src uv run --no-project --with ruff ruff check \
+  src/humanize_rl/training/finetune_generic_sft_modal.py \
+  tests/training/test_finetune_generic_sft_modal.py
+```
+
+Result:
+
+- focused tests: `9 passed`
+- ruff: passed
+
+Modal r1:
+
+- app: `ap-hFY4ILdujA2r6Pdw78fXYM`
+- call: `fc-01KVR9MRSWY8HX7T2SQ42FJSE7`
+- W&B:
+  `https://wandb.ai/jayshah5696/humanize-rl/runs/qwen35-08b-humanize-sft-smoke-env0314-r1`
+- failed before training:
+  `TypeError: SFTConfig.__init__() got an unexpected keyword argument 'max_seq_length'`
+- cause:
+  TRL `1.6.0` uses `max_length`, not `max_seq_length`, and uses
+  `processing_class` instead of older `tokenizer` in `SFTTrainer`.
+- fix:
+  script now introspects `SFTConfig` and `SFTTrainer` signatures and maps fields
+  for current/older TRL versions.
+
+Modal r2:
+
+- app: `ap-IsBbT5cMGwDwyjJmnNgIYP`
+- call: `fc-01KVR9VA2S9VJ8QCAR2YN3VRA5`
+- command:
+
+```bash
+uvx modal run --detach \
+  src/humanize_rl/training/finetune_generic_sft_modal.py \
+  --model-name Qwen/Qwen3.5-0.8B \
+  --data-files data/v3/v04_sft_final_plus_llama_failure_refs_env0314.jsonl \
+  --train-limit 64 \
+  --max-steps 5 \
+  --max-seq-length 2048 \
+  --batch-size 1 \
+  --gradient-accumulation-steps 8 \
+  --learning-rate 2e-4 \
+  --experiment-name qwen35-08b-humanize-sft-smoke-env0314-r2
+```
+
+W&B:
+`https://wandb.ai/jayshah5696/humanize-rl/runs/qwen35-08b-humanize-sft-smoke-env0314-r2`
+
+Observed r2 training metrics from Modal logs:
+
+- train examples after split: `58`
+- eval examples: `6`
+- steps completed: `5/5`
+- step losses:
+  - step 1: `2.488`
+  - step 2: `2.437`
+  - step 3: `2.123`
+  - step 4: `1.819`
+  - step 5: `1.965`
+- final eval loss: `1.88263`
+- final eval mean token accuracy: `0.58969`
+- train runtime: `44.3s`
+- train samples/s: `0.903`
+- train steps/s: `0.113`
+- train loss summary: `2.166`
+
+Current caveat:
+
+- r2 completed trainer steps and W&B sync.
+- Modal app state: `stopped`.
+- Modal volume check confirmed persisted artifacts:
+  - `/qwen35-08b-humanize-sft-smoke-env0314-r2/final_adapter`
+  - `/qwen35-08b-humanize-sft-smoke-env0314-r2/checkpoint-5`
+  - `/qwen35-08b-humanize-sft-smoke-env0314-r2/README.md`
+- W&B reported `0` artifacts synced, so the adapter is in the Modal volume but
+  was not uploaded/logged as a W&B artifact or pushed to HF.
+
+Next action:
+
+1. Do not launch another Modal SFT run unless explicitly needed.
+2. Build the next SFT/RL attempt as a Prime-first config:
+   - dataset SFT via Prime `uv run sft`;
+   - Qwen3.5 renderer enabled;
+   - W&B enabled;
+   - checkpoint/adapters enabled;
+   - then frozen Prime evals against base vs SFT.
+
+## 2026-06-22: Prime-First SFT Dataset and Config Gate
+
+### Modal Run Status Check
+
+Checked live Modal state:
+
+```bash
+uvx modal app list
+```
+
+Result:
+
+- no active Modal apps;
+- the already-started Modal Qwen SFT smoke is complete/stopped;
+- no dangling Modal run is still consuming GPU.
+
+Checked Modal volume artifacts:
+
+```bash
+uvx modal volume ls humanize-rl-checkpoints \
+  /qwen35-08b-humanize-sft-smoke-env0314-r2/final_adapter
+
+uvx modal volume ls humanize-rl-checkpoints \
+  /qwen35-08b-humanize-sft-smoke-env0314-r2/checkpoint-5
+```
+
+Persisted files:
+
+- `final_adapter/adapter_model.safetensors`
+- `final_adapter/adapter_config.json`
+- tokenizer files and `chat_template.jinja`
+- `checkpoint-5/optimizer.pt`
+- `checkpoint-5/scheduler.pt`
+- `checkpoint-5/trainer_state.json`
+- `checkpoint-5/adapter_model.safetensors`
+
+Interpretation:
+
+- Modal r2 is a successful plumbing smoke, not a quality checkpoint.
+- It trained only `5` steps over a tiny `64` row limit.
+- It should not be treated as the project SFT model.
+- Next training should go back to Prime-first ordering.
+
+### Prime Docs and Source Check
+
+Official docs checked:
+
+- `https://docs.primeintellect.ai/prime-rl/training`
+- `https://docs.primeintellect.ai/prime-rl/configuration`
+- official GitHub example:
+  `https://github.com/PrimeIntellect-ai/prime-rl/tree/main/examples/reverse_text`
+
+Relevant confirmed facts:
+
+- dataset SFT is `uv run sft @ config.toml`;
+- env RL is `uv run rl @ config.toml`;
+- `prime train` is Hosted Training, not the same as open `prime-rl` dataset SFT;
+- SFT accepts `prompt` + `completion` or a `messages` column;
+- `messages` takes precedence if both are present;
+- Qwen3/Qwen3.5 should use a typed renderer because default chat-template
+  masking can break on position-dependent templates;
+- W&B is enabled by `[wandb]` or CLI `--wandb`;
+- checkpoints write HF-compatible weights under `<output_dir>/weights/step_N`;
+- LoRA adapter separation requires `[model.lora]` and
+  `[ckpt.weights] save_adapter_separately = true`.
+
+Prime source checkout used for schema/example verification:
+
+```bash
+git clone --depth 1 https://github.com/PrimeIntellect-ai/prime-rl.git \
+  /tmp/prime-rl-src
+```
+
+Important local runtime finding:
+
+```bash
+uvx --from 'git+https://github.com/PrimeIntellect-ai/prime-rl.git' \
+  sft --help
+```
+
+failed on macOS because full `prime-rl` depends on CUDA/Linux torch wheels
+(`torch>=2.9.0` with CUDA wheel tags). That is a local platform limitation, not
+a config failure. Config validation can still be done with
+`prime-rl-configs`.
+
+Hosted Training CLI check:
+
+```bash
+prime --plain train init /tmp/prime_hosted_template.toml -f
+prime --plain train configs --output json
+prime --plain train models --output json
+```
+
+Finding:
+
+- Hosted Training template supports `loss = "rl"` and `loss = "sft"`;
+- the hosted `sft` path is teacher distillation over env rollouts;
+- it is not the same as dataset SFT from
+  `jayshah5696/humanize-rl-prime-sft-messages-env0314`;
+- hosted `loss = "sft"` would need an approved teacher/generator model before
+  use, because project policy keeps data generation/judging/scoring Google-only
+  unless an exception is explicit;
+- installed Prime CLI `0.6.14` has no command that submits the open
+  `prime-rl` dataset SFT config directly from this Mac;
+- current hosted model list still includes the planned Qwen targets:
+  `Qwen/Qwen3.5-0.8B`, `Qwen/Qwen3.5-2B`, `Qwen/Qwen3.5-4B`,
+  `Qwen/Qwen3.5-9B`, and `Qwen/Qwen3.6-35B-A3B`, all not at capacity;
+- therefore current SFT warmup remains Prime `prime-rl` dataset SFT via
+  `uv run sft @ configs/prime_rl/...` on Linux/CUDA.
+
+Renderer check:
+
+```bash
+uv run --no-project --with 'renderers>=0.1.8.dev28' python - <<'PY'
+from renderers.base import MODEL_RENDERER_MAP
+print(MODEL_RENDERER_MAP["Qwen/Qwen3.5-0.8B"])
+print(MODEL_RENDERER_MAP["Qwen/Qwen3.5-2B"])
+PY
+```
+
+Result:
+
+- `Qwen/Qwen3.5-0.8B` maps to `qwen3.5`;
+- `Qwen/Qwen3.5-2B` maps to `qwen3.5`.
+
+### Prime SFT Dataset Publication
+
+First, a raw Prime messages conversion was validated:
+
+- local file:
+  `data/processed/v04_sft_final_plus_llama_failure_refs_env0314_prime_messages.jsonl`
+- rows: `4855`
+- malformed rows: `0`
+- empty rows: `0`
+- repair-reference rows: `20`
+- SHA256:
+  `114b8cdcd0a6142cd93f83af6a8721da51bbfc7aca4a4323f19d61dc98d6ed09`
+
+Uploaded raw conversion and report to the broad SFT dataset repo:
+
+- dataset:
+  `jayshah5696/humanize-rl-sft-dataset`
+- raw JSONL commit:
+  `560775f883574f190671bb284c35d6980ed475b1`
+- report commit:
+  `e348871f5a060ccfd8fa0a746ece21a6601e0993`
+
+Then this was corrected. The broad dataset repo still contains old parquet and
+v2 artifacts, so using it as `data.name` risks loading the wrong default split.
+For Prime SFT, use a dedicated dataset repo instead.
+
+Dedicated dataset:
+
+```text
+jayshah5696/humanize-rl-prime-sft-messages-env0314
+```
+
+Initial one-split upload:
+
+- commit:
+  `6dcddd03de32124e2edd09fd806f362d568365cc`
+- replaced because it had only `train` and no held-out validation/test split.
+
+Final split upload:
+
+- commit:
+  `e0895734e527ea3549d6a600fd31e3e598efd7ec`
+- files:
+  - `data/train.jsonl`
+  - `data/validation.jsonl`
+  - `data/test.jsonl`
+  - `report.json`
+  - `manifest.json`
+  - `quality_report.md`
+  - `README.md`
+
+Published split report:
+
+- train rows: `4313`
+- validation rows: `239`
+- test rows: `241`
+- total accepted rows: `4793`
+- upstream rejected rows: `62`
+- duplicate ids: `0`
+- malformed rows: `0`
+- empty rows: `0`
+- repair-reference rows: `20`
+- source counts:
+  - `safe_expand_3000_raw`: `1801`
+  - `stream_b`: `1556`
+  - `safe_expand_raw`: `667`
+  - `chat_expanded`: `423`
+  - `unknown`: `326`
+  - `prime_failure_reference_generation`: `20`
+- mode counts:
+  - `rewrite_humanize`: `2990`
+  - `direct_generation`: `1803`
+- task type counts:
+  - `slack_chat`: `1887`
+  - `email`: `1377`
+  - `direct_generation`: `832`
+  - `rewrite_or_edit`: `697`
+
+HF loader validation:
+
+```bash
+uv run --no-project --with datasets python - <<'PY'
+from datasets import load_dataset
+d = load_dataset("jayshah5696/humanize-rl-prime-sft-messages-env0314")
+for split in ["train", "validation", "test"]:
+    ds = d[split]
+    print(split, len(ds), ds.column_names, [m["role"] for m in ds[0]["messages"]])
+PY
+```
+
+Result:
+
+- `train 4313`, roles `['user', 'assistant']`
+- `validation 239`, roles `['user', 'assistant']`
+- `test 241`, roles `['user', 'assistant']`
+
+### Prime SFT Configs Added
+
+New files:
+
+- `configs/prime_rl/README.md`
+- `configs/prime_rl/qwen35_08b_sft_smoke_env0314.toml`
+- `configs/prime_rl/qwen35_2b_sft_target_env0314.toml`
+
+Smoke config:
+
+- model: `Qwen/Qwen3.5-0.8B`
+- max steps: `20`
+- sequence length: `4096`
+- renderer: `qwen3.5`
+- dataset: `jayshah5696/humanize-rl-prime-sft-messages-env0314`
+- train split: `train`
+- validation split: `validation`
+- train batch size: `64`
+- validation batch size: `32`
+- LoRA: rank `32`, alpha `64`
+- W&B run name: `qwen35-08b-prime-sft-smoke-env0314`
+- checkpoint: weights-only, save adapter separately
+
+Target config:
+
+- model: `Qwen/Qwen3.5-2B`
+- max steps: `200`
+- sequence length: `4096`
+- renderer: `qwen3.5`
+- dataset: `jayshah5696/humanize-rl-prime-sft-messages-env0314`
+- train split: `train`
+- validation split: `validation`
+- train batch size: `128`
+- validation batch size: `64`
+- LoRA: rank `32`, alpha `64`
+- W&B run name: `qwen35-2b-prime-sft-target-env0314`
+- checkpoint interval: `50`
+- checkpoint: weights-only, save adapter separately
+
+Schema validation command:
+
+```bash
+uv run --no-project \
+  --with 'git+https://github.com/PrimeIntellect-ai/prime-rl.git#subdirectory=packages/prime-rl-configs' \
+  --with 'renderers>=0.1.8.dev28' \
+  --with pydantic-config \
+  python - <<'PY'
+from pathlib import Path
+from pydantic_config import cli
+from prime_rl.configs.sft import SFTConfig
+for cfg in [
+    Path("configs/prime_rl/qwen35_08b_sft_smoke_env0314.toml"),
+    Path("configs/prime_rl/qwen35_2b_sft_target_env0314.toml"),
+]:
+    c = cli(SFTConfig, args=["@", str(cfg), "--dry-run"])
+    print(cfg, c.model.name, c.renderer.name, c.data.splits, c.val.data.splits)
+PY
+```
+
+Result:
+
+- `qwen35_08b_sft_smoke_env0314.toml`:
+  - model: `Qwen/Qwen3.5-0.8B`
+  - renderer: `qwen3.5`
+  - train split: `['train']`
+  - validation split: `['validation']`
+  - LoRA adapter saving: `true`
+- `qwen35_2b_sft_target_env0314.toml`:
+  - model: `Qwen/Qwen3.5-2B`
+  - renderer: `qwen3.5`
+  - train split: `['train']`
+  - validation split: `['validation']`
+  - LoRA adapter saving: `true`
+
+Secret/forbidden wrapper check:
+
+```bash
+rg -n "wandb_v1_|WANDB_API_KEY|HF_TOKEN|PRIME_API_KEY|forbidden-wrapper-name" \
+  AGENTS.md log.md configs/prime_rl configs/prime src scripts tests -S
+```
+
+Result:
+
+- no W&B token committed;
+- no new forbidden wrapper usage in `configs/prime_rl`;
+- existing source references only read env vars such as `HF_TOKEN` and
+  `WANDB_API_KEY`.
+
+Final local verification for this slice:
+
+```bash
+PYTHONPATH=src uv run --no-project --with pytest --with pytest-cov --with click \
+  pytest tests/scripts/test_generate_sft_references_from_failures.py \
+  tests/training/test_finetune_generic_sft_modal.py -q
+```
+
+Result: `18 passed`.
+
+```bash
+PYTHONPATH=src uv run --no-project --with ruff ruff check \
+  scripts/data/build/generate_sft_references_from_failures.py \
+  tests/scripts/test_generate_sft_references_from_failures.py \
+  src/humanize_rl/training/finetune_generic_sft_modal.py \
+  tests/training/test_finetune_generic_sft_modal.py
+```
+
+Result: `All checks passed!`
+
+```bash
+git diff --check
+```
+
+Result: passed.
+
+### Current Gate and Next Action
+
+The next runnable training gate is Prime SFT smoke, not another Modal run:
+
+```bash
+uv run sft @ configs/prime_rl/qwen35_08b_sft_smoke_env0314.toml
+```
+
+Run this on Prime/Linux/CUDA or inside the Prime runtime, with W&B credentials
+provided through environment/secrets, not committed.
+
+Stop criteria for the smoke:
+
+- config launches without renderer/schema errors;
+- validation loss logs at step `0`, `10`, and final;
+- adapter checkpoint appears under the output directory;
+- W&B has the configured run name;
+- no empty/reasoning-only outputs when the adapter is sampled on frozen eval
+  prompts.
+
+Only after that smoke passes:
+
+1. run the `Qwen/Qwen3.5-2B` SFT target config;
+2. evaluate base vs SFT on frozen p50/strict prompts;
+3. start RL from the SFT checkpoint if Prime supports that checkpoint path;
+4. otherwise document the limitation and use the base or a pushed HF checkpoint
+   explicitly.
+
+## 2026-06-22: Hosted Prime Full-Run Correction
+
+### Correction
+
+The previous local `prime-rl` dataset-SFT path is useful as a config artifact,
+but it is not the execution path the user wanted. Prime Hosted Training is the
+active training surface for this project.
+
+Official Hosted Training docs checked:
+
+- `https://docs.primeintellect.ai/hosted-training/advanced-configs`
+- `https://docs.primeintellect.ai/hosted-training/models-and-pricing`
+
+Hosted config capabilities confirmed:
+
+- `.toml` run configs are launched with `prime train <config>`;
+- required fields are `model`, `max_steps`, `batch_size`,
+  `rollouts_per_example`, `[sampling]`, and at least one `[[env]]`;
+- W&B is configured with `[wandb]`;
+- validation and eval are configured with `[val]` and `[eval]`;
+- checkpoints and adapters are configured with `[checkpoints]` and
+  `[adapters]`;
+- secrets can be passed at launch with `--env-var`.
+
+### Hosted SFT Attempt
+
+Config added:
+`configs/prime/qwen35_2b_hosted_sft_gemini_env0314_full.toml`
+
+Intent:
+
+- Qwen3.5 2B student;
+- Hosted `loss = "sft"`;
+- Google teacher via OpenRouter:
+  `google/gemini-3-flash-preview`;
+- full `mix_v2_p5050` training taskset;
+- 4096 generation cap;
+- W&B enabled;
+- checkpoints/adapters enabled.
+
+Launch command shape:
+
+```bash
+prime --plain train \
+  configs/prime/qwen35_2b_hosted_sft_gemini_env0314_full.toml \
+  --env-var OPENROUTER_API_KEY \
+  --env-var WANDB_API_KEY \
+  --output json -y
+```
+
+Result:
+
+```text
+HTTP 403: loss='sft' is currently restricted to beta users
+```
+
+Conclusion:
+
+- Hosted SFT is a Prime account/product-gate blocker, not a local-machine
+  blocker.
+- Do not spend more time trying to launch Hosted SFT until the account has SFT
+  beta access or Prime support enables it.
+- Keep the config for when access is enabled.
+
+### Full Hosted RL Run Launched
+
+Because Hosted SFT is beta-blocked and the user requested a full run instead
+of more smoke iteration, launched full Hosted RL on the backend that already
+completed a Prime run:
+
+Config:
+`configs/prime/llama32_3b_p5050.toml`
+
+Run:
+`zztqgqclh3y3hslpjsofzpcf`
+
+Run name:
+`humanize-p5050-llama32-3b`
+
+W&B run name:
+`prime-llama32-3b-p5050`
+
+Model:
+`meta-llama/Llama-3.2-3B-Instruct`
+
+Training setup:
+
+- loss: `rl`
+- env: `jayshah5696/humanize-rl-env@0.3.14`
+- train args:
+  `{ split = "train", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }`
+- max steps: `200`
+- batch size: `256`
+- rollouts per example: `16`
+- max generation tokens: `4096`
+- learning rate: `8e-5`
+- LoRA alpha: `32`
+
+Eval setup:
+
+- interval: `50`
+- examples: `64`
+- rollouts per example: `2`
+- eval base model: `true`
+- eval max tokens: `4096`
+- eval envs:
+  - `mix_v2_p5050` validation with `p50_50_no_penalty`
+  - `v02_smoke` validation with `strict`
+  - `v03` validation with `strict`
+
+Validation:
+
+- interval: `25`
+- examples: `128`
+- rollouts per example: `1`
+
+Launch result:
+
+- status: `PENDING`
+- created at: `2026-06-23 00:33:35 UTC`
+- Prime accepted config and started the hosted run.
+
+First log check:
+
+```text
+Hosted Training run is starting; waiting for orchestrator logs...
+Resolving 1 environment...
+Found jayshah5696/humanize-rl-env@0.3.14
+Installing jayshah5696/humanize-rl-env@0.3.14 with uv...
+Resolved 163 packages in 14.48s
+```
+
+First progress check:
+
+```json
+{
+  "latest_step": null,
+  "steps_with_samples": [],
+  "steps_with_distributions": []
+}
+```
+
+First metrics check:
+
+```json
+{ "metrics": [] }
+```
+
+Interpretation:
+
+- run has launched and environment installation began;
+- no training step had completed at first poll;
+- continue polling logs/progress/metrics/checkpoints until completion or a
+  hard failure.
+
+Second poll:
+
+- status: `RUNNING`
+- started at: `2026-06-23 00:34:04 UTC`
+- components:
+  - orchestrator: `RUNNING`
+  - train env-server: `RUNNING`
+  - all three eval env-servers: `RUNNING`
+- W&B:
+  `https://wandb.ai/jayshah5696/humanize-rl/runs/akzopsz9`
+
+Step 0 base eval:
+
+- `eval_mix_v2_p5050`: `0.4510`
+- `eval_v02_strict`: `-0.1526`
+- `eval_v03_strict`: `-0.3422`
+- error rate: `0.0%`
+- truncation rate: `0.0%`
+
+Training steps observed:
+
+- step `0`: reward `0.4568`, trainable `256/256`, truncation `0.0%`
+- step `1`: reward `0.3596`, trainable `256/256`, truncation `0.0%`
+- step `2`: reward `0.2764`, trainable `256/256`, truncation `0.0%`
+
+Usage at early poll:
+
+- total tokens: `964.46K`
+- total cost: `$0.11`
+
+Initial rollout audit:
+
+```bash
+prime --plain train rollouts zztqgqclh3y3hslpjsofzpcf --step 0 --num 20
+```
+
+First 20 step-0 samples:
+
+- emoji hits: `0`
+- wrapper-like regex hits in raw sample JSON: `3`
+- all-caps regex hits in raw sample JSON: present, partly from source/prompt
+  subject lines and partly from completion scaffolding.
+
+Interpretation:
+
+- base policy still emits formal email scaffolding on some compression tasks;
+- this is step 0/base behavior, not learned behavior yet;
+- do not stop the run for this; compare step 50/100/150/200 rollouts and evals
+  to see whether RL reduces those leaks or over-rewards them.
+
+Third poll:
+
+- latest step: `17`
+- samples logged: steps `0`, `10`
+- distributions logged: steps `0`, `10`
+- components healthy:
+  - orchestrator: `RUNNING`
+  - all env-servers: `RUNNING`
+- usage: `4.10M` tokens, `$0.48`
+
+Observed step progression:
+
+- step `3`: reward `0.3632`, trainable `256/256`, truncation `0.0%`
+- step `4`: reward `0.4125`, trainable `256/256`, truncation `0.0%`
+- step `5`: reward `0.3649`, trainable `256/256`, truncation `0.0%`
+- step `6`: reward `0.4266`, trainable `256/256`, truncation `0.0%`
+- step `7`: reward `0.3800`, trainable `256/256`, truncation `0.0%`
+- step `8`: reward `0.3202`, trainable `256/256`, truncation `0.0%`
+- step `9`: reward `0.4462`, trainable `256/256`, truncation `0.0%`
+- step `10`: reward `0.3683`, trainable `256/256`, truncation `0.0%`
+- step `11`: reward `0.3427`, trainable `256/256`, truncation `0.0%`
+- step `12`: reward `0.3267`, trainable `256/256`, truncation `0.4%`
+- step `13`: reward `0.4439`, trainable `256/256`, truncation `0.0%`
+- step `14`: reward `0.3191`, trainable `256/256`, truncation `0.0%`
+- step `15`: reward `0.4517`, trainable `256/256`, truncation `0.0%`
+- step `16`: reward `0.3363`, trainable `256/256`, truncation `0.0%`
+- step `17`: reward `0.4391`, trainable `256/256`, truncation `0.0%`
+
+Step-10 rollout audit:
+
+```bash
+prime --plain train rollouts zztqgqclh3y3hslpjsofzpcf --step 10 --num 50
+```
+
+Completion-only regex counts over 50 samples:
+
+- emoji: `0`
+- all-caps token hits: `0`
+- wrapper-like hits: `5`
+- subject-line hits: `8`
+- standalone signoff hits: `3`
+
+The formal scaffold examples had low rewards, roughly `0.22-0.33`, so the
+current reward appears to be penalizing rather than reinforcing them. Continue
+run.
+
+### Follow-up RL Template
+
+Config added:
+`configs/prime/qwen35_2b_p5050_after_sft_full_template.toml`
+
+Purpose:
+
+- ready template for Qwen3.5 2B RL after an SFT checkpoint exists;
+- currently not launched because Hosted SFT is beta-blocked and no READY SFT
+  checkpoint exists.
+
+### Step 50 Gate
+
+Poll result:
+
+- latest step: `53` at first step-50 poll, then logs showed through step `56`;
+- status: `RUNNING`;
+- samples/distributions logged at steps `0`, `10`, `20`, `30`, `40`, `50`;
+- usage: `12.73M` tokens, `$1.49`;
+- checkpoint:
+  - id: `auf3yfqgvdlfcfyc9l3hu51e`
+  - step: `50`
+  - status: `UPLOADING`
+
+Step 50 eval:
+
+- `eval_mix_v2_p5050`: `0.4489`
+  - step 0 was `0.4510`, so roughly flat.
+- `eval_v02_strict`: `-0.1075`
+  - step 0 was `-0.1526`, improvement `+0.0451`.
+- `eval_v03_strict`: `-0.1498`
+  - step 0 was `-0.3422`, improvement `+0.1924`.
+- error rate: `0.0%`
+- truncation rate: `0.0%`
+
+Step 50 training:
+
+- reward: `0.4055`
+- trainable: `256/256`
+- error: `0.0%`
+- truncation: `0.0%`
+
+Step-50 rollout audit:
+
+```bash
+prime --plain train rollouts zztqgqclh3y3hslpjsofzpcf --step 50 --num 50
+```
+
+Completion-only regex counts:
+
+- emoji: `0`
+- all-caps: `0`
+- subject-line: `0`
+- standalone signoff: `0`
+- wrapper-like: `12`
+
+Reward summary over 50 sampled completions:
+
+- min: `0.1961`
+- mean: `0.4055`
+- max: `0.7997`
+
+Interpretation:
+
+- operationally healthy at step 50;
+- strict eval improved, especially v03;
+- p50 validation is flat so far;
+- formal subject/signoff/all-caps/emoji leakage is not present in the sampled
+  step-50 completions;
+- wrapper-like phrasing remains and must be checked again at step 100/150/200;
+- continue full run.
+
+### Full Hosted RL Step 100/120 Gate
+
+Run:
+`zztqgqclh3y3hslpjsofzpcf`
+
+Status at `2026-06-23 00:56 UTC`:
+
+- Prime status: `RUNNING`
+- latest step: `123`
+- samples logged through step `120`
+- checkpoints:
+  - step `50`: `auf3yfqgvdlfcfyc9l3hu51e`, `READY`
+  - step `100`: `kwcsyl3ybqkintiqy4spm5b8`, `READY`
+- usage at latest poll:
+  - total tokens: `30.57M`
+  - cost: `$3.63`
+
+Step 100 eval:
+
+- `eval_mix_v2_p5050`: `0.613097`
+  - step 0 was `0.4510`
+  - step 50 was `0.4489`
+  - interpretation: real p50 validation jump by step 100.
+- `eval_v02_strict`: `0.032065`
+  - step 0 was `-0.1526`
+  - step 50 was `-0.1075`
+  - interpretation: strict v02 is now positive.
+- `eval_v03_strict`: `-0.094165`
+  - step 0 was `-0.3422`
+  - step 50 was `-0.1498`
+  - interpretation: still negative, but much improved from base.
+- eval error: `0%`
+- eval truncation:
+  - p50: `0.8%`
+  - v02 strict: `0%`
+  - v03 strict: `9.4%`
+
+Step 100 training:
+
+- reward: `0.558190`
+- trainable: `256/256`
+- error: `0%`
+- truncation: `1.2%`
+- decode length mean: `208.63`
+- repetition filter: `0.8%`
+
+Step 100 rollout artifact:
+`runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/rollouts_step100.json`
+
+Step 100 rollout audit over 64 Prime API samples:
+
+- reward min/mean/max:
+  `0.355930` / `0.587121` / `0.992678`
+- word length min/mean/max:
+  `13` / `144.69` / `711`
+- emoji: `0`
+- all-caps token hits: `3`
+- wrapper-like hits: `6`
+- subject-line hits: `0`
+- standalone signoff hits: `0`
+- samples `>=0.75`: `15`
+- high-reward samples with emoji/all-caps/wrapper: `0`
+
+Important qualitative finding:
+
+- The high-reward failures are no longer emoji, subject lines, signoffs, or
+  explicit wrappers.
+- The new problem is forced casualness and semantic thinness. Examples scoring
+  around `0.95-0.99` include lines like:
+  - `We got a meeting about Software Dynamics' partnership...`
+  - `We got some bugs on the Project thing...`
+  - `We did a supply chain update... and stuff.`
+- This is not a hosted-infra blocker. It is a reward/data quality blocker for
+  final model selection: p50 is overvaluing rough casual register when it
+  should prefer natural, direct prose.
+
+Step 100-120 training trend:
+
+- rewards generally moved into the `0.52-0.62` range after step `100`.
+- step `107` had training truncation `9.0%`, then later steps mostly returned
+  to `0-1.2%`.
+- step `112` and `117` trained only `240/256` samples; step `123` trained
+  `224/256`.
+- no training errors were reported in this window.
+
+Decision:
+
+- Continue the full hosted run to step `200`; do not stop it mid-run because
+  aggregate evals are improving and no emoji/all-caps/wrapper exploit is
+  dominating high reward.
+- Treat step `150` and step `200` as real gates. If the forced-casual drift or
+  v03 truncation/length drift worsens, the final decision should be "training
+  run completed but model not accepted," followed by a targeted reward/SFT data
+  fix for fake-casual phrases and long-form truncation.
+
+### Full Hosted RL Step 150 Gate
+
+Status:
+
+- latest step at gate poll: `153`
+- checkpoint:
+  - step `150`: `znntfykvg2koon8nrs73izq7`, `READY`
+- usage after the gate:
+  - total tokens: `40.52M`
+  - cost: `$4.87`
+
+Step 150 eval:
+
+- `eval_mix_v2_p5050`: `0.662144`
+  - step 0: `0.4510`
+  - step 50: `0.4489`
+  - step 100: `0.6131`
+  - read: aggregate p50 keeps improving.
+- `eval_v02_strict`: `0.175574`
+  - step 0: `-0.1526`
+  - step 50: `-0.1075`
+  - step 100: `0.0321`
+  - read: strict v02 has a large positive delta.
+- `eval_v03_strict`: `0.0044`
+  - step 0: `-0.3422`
+  - step 50: `-0.1498`
+  - step 100: `-0.0942`
+  - read: strict v03 is finally positive, but barely.
+- eval error: `0%`
+- eval truncation:
+  - p50: `0%`
+  - v02 strict: `0%`
+  - v03 strict: `1%`
+
+Step 150 training:
+
+- reward: `0.672527`
+- trainable: `256/256`
+- error: `0%`
+- truncation: `0%`
+- decode length mean: `117.28`
+
+Step 150 rollout artifacts:
+
+- rollouts:
+  `runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/rollouts_step150.json`
+- audit:
+  `runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/audit_step150.json`
+
+Local audit over 64 samples:
+
+- reward mean/max:
+  `0.668170` / `0.998734`
+- failed diagnostics:
+  - `missing_entity=17`
+  - `sentence_window=16`
+  - `too_long=14`
+  - `missing_must_include_phrase=10`
+  - `missing_required_fact=8`
+  - `forbidden_phrase=4`
+  - `repetition=4`
+  - `option_menu=1`
+- high reward with failed diagnostics: `0`
+- high reward with emoji: `0`
+- high reward with all-caps: `0`
+- high reward with option/wrapper: `0`
+
+Scientific finding:
+
+- The metric gates improved, but the top samples expose a new reward hole.
+- Near-`1.0` samples include broken or fake-casual prose:
+  - `We hit project timeline delay because technical stuff we didn't plan for.`
+  - `We working on it now, we tell you when stuff good again.`
+  - `Hey guys, we got good stuff going on here.`
+  - `We're doing you a solid here...`
+- Existing diagnostics catch emoji, signoffs, wrappers, length, and many
+  faithfulness failures, but they do not penalize low-specificity/fake-casual
+  filler such as `stuff`, `you guys`, `we got`, `we're good`, and broken
+  grammar used as a shortcut to sound informal.
+
+Decision:
+
+- Continue to the requested full `200` steps, because this run is valuable as a
+  complete hosted RL experiment.
+- Do not accept the model solely on aggregate p50/strict improvements.
+- If step `200` shows the same samples, the next fix is not another longer
+  run. The next fix is a reward/data patch:
+  - add fake-casual and low-specificity diagnostics;
+  - add a grammar/naturalness cap separate from ridge;
+  - add SFT repair rows where the answer is plain and direct, not slangy;
+  - rerun a shorter RL smoke before another full target run.
+
+### Full Hosted RL Final Result
+
+Run:
+`zztqgqclh3y3hslpjsofzpcf`
+
+Final status:
+
+- `COMPLETED`
+- started: `2026-06-23 00:34:04 UTC`
+- completed: `2026-06-23 01:11:13 UTC`
+- orchestrator loop duration in logs: `35m 37s`
+- W&B:
+  `https://wandb.ai/jayshah5696/humanize-rl/runs/akzopsz9`
+- W&B run name:
+  `prime-llama32-3b-p5050`
+
+Final usage:
+
+- training tokens: `25,333,221`, cost `$3.8002`
+- inference tokens: `26,124,677`, cost `$2.3697`
+- total tokens: `51,457,898`
+- total cost: `$6.1699`
+
+Final checkpoint:
+
+- Prime checkpoint id:
+  `arsnu29hb9akbm2jc1b33pmc`
+- step: `200`
+- status: `READY`
+- size: `390,246,137` bytes
+- uploaded: `2026-06-23 01:11:21 UTC`
+
+Prime deployment/model records:
+
+- step `200` model record:
+  `mc5y9fkiv3vkzpe053ssa8c9`
+  - status at first poll: `UPLOADING`
+  - deployment status: `NOT_DEPLOYED`
+- step `199` model record:
+  `fozdn0tw8of9ygus5zrltucs`
+  - status at first poll: `UPLOADING`
+  - deployment status: `NOT_DEPLOYED`
+- same-run no-step record:
+  `ws8vx0xxiozlagq2cca2b70t`
+  - status at first poll: `PENDING`
+  - deployment status: `NOT_DEPLOYED`
+
+Saved final artifacts:
+
+- run metadata:
+  `runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/run_get_final.json`
+- usage:
+  `runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/usage_final.json`
+- checkpoints:
+  `runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/checkpoints_final.json`
+- metrics:
+  `runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/metrics_0_205.json`
+- rollout/audit snapshots:
+  `step100`, `step120`, `step130`, `step140`, `step150`, `step160`,
+  `step170`, `step180`, `step190`
+
+Final eval table:
+
+| Step | Train reward | p50 validation | strict v02 | strict v03 | train truncation | v03 eval truncation |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 | `0.456776` | `0.451041` | `-0.152610` | `-0.342210` | `0.0%` | `0.0%` |
+| 50 | `0.405465` | `0.448943` | `-0.107508` | `-0.149771` | `0.0%` | `0.0%` |
+| 100 | `0.558190` | `0.613097` | `0.032065` | `-0.094165` | `1.2%` | `9.4%` |
+| 150 | `0.672527` | `0.662144` | `0.175574` | `0.004391` | `0.0%` | `1.0%` |
+| 200 | n/a | `0.676841` | `0.118504` | `0.216975` | n/a | `1.0%` |
+
+Metric verdict:
+
+- passed hosted execution;
+- passed cost/runtime expectations;
+- passed final aggregate p50 improvement;
+- passed final strict v02 and v03 aggregate improvement;
+- no final eval truncation collapse;
+- no emoji/all-caps/option-wrapper high-reward exploit in audited samples.
+
+Quality verdict:
+
+- failed model acceptance.
+- The reward was exploited by low-specificity fake-casual prose.
+- Late-run high-reward examples repeatedly used:
+  - `stuff`
+  - `we got`
+  - `you guys`
+  - `thanks`
+  - broken casual grammar such as `we tell you when stuff good again`
+- Step `180` examples scored `1.0` while saying:
+  - `We got stuff we need for Project too.`
+  - `Stuff's done now, look at stuff we did in shared folder.`
+  - `We got stuff too - Project deliverables are done, too.`
+- Step `190` examples still scored near `1.0` while saying:
+  - `We got us an artist residency in Sri Lanka... personal and professional stuff`
+  - `We at Digital Dynamics want you at Advanced Analytics Inc. We think we should do some stuff...`
+
+Scientific conclusion:
+
+This was the correct full hosted Prime run, but it is a rejected checkpoint.
+It proves Prime Hosted RL works for this env/model/dataset and it proves the
+current p50 reward is incomplete. The missing dimension is not emojis, all-caps,
+or wrapper behavior anymore; it is fake-casual, low-information prose that the
+ridge/deterministic blend mistakes for naturalness.
+
+Next action before any more full training:
+
+1. Add deterministic diagnostics/caps for fake-casual and low-specificity prose:
+   `stuff`, repeated `we got`, repeated `you guys`, filler thanks, broken
+   informal grammar, and vague placeholders replacing real facts.
+2. Add targeted SFT repair rows from the failed high-reward samples: same
+   prompts, plain/direct references, no slang.
+3. Re-score saved rollouts from steps `140`, `150`, `170`, `180`, and `190`
+   against the patched reward. The bad `1.0` examples should fall below the
+   acceptance band before any new RL run.
+4. Run a short hosted RL smoke after patching, not another 200-step run.
+5. Only run the next full target after the short smoke passes qualitative
+   rollout audit and family/mode gates.

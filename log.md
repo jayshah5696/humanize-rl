@@ -3000,3 +3000,60 @@ Next action before any more full training:
 4. Run a short hosted RL smoke after patching, not another 200-step run.
 5. Only run the next full target after the short smoke passes qualitative
    rollout audit and family/mode gates.
+
+## 2026-06-24: Qwen Ablation Plan Update
+
+User request:
+
+- Update the ablation document for the next study.
+- Define ablations across:
+  - RL env updates;
+  - SFT updates;
+  - RL training after SFT.
+- Focus on two Qwen targets:
+  - `Qwen/Qwen3.5-2B`;
+  - `Qwen/Qwen3.5-9B`.
+
+Live Prime model check:
+
+```bash
+prime --plain train models --output json
+```
+
+Relevant result:
+
+| Model | At capacity | Training $/M tok | Input $/M tok | Output $/M tok |
+|---|---:|---:|---:|---:|
+| `Qwen/Qwen3.5-2B` | no | `0.15` | `0.05` | `0.15` |
+| `Qwen/Qwen3.5-9B` | yes | `0.60` | `0.20` | `0.60` |
+
+Decision:
+
+- Treat `Qwen/Qwen3.5-2B` as the next runnable primary target.
+- Keep `Qwen/Qwen3.5-9B` as the second model for the same ablation, but do not
+  launch until Prime capacity clears.
+- Do not silently replace the requested 9B comparison with 4B or MoE. If 9B
+  remains at capacity, log the blocker and finish the 2B branch.
+
+Documentation update:
+
+- Updated:
+  `docs/plans/humanize_rl_ablation_and_next_actions.md`
+- Added a dedicated "Next Two-Model Qwen Ablation Track" covering:
+  - env-only reward ablations E0 to E6;
+  - SFT variants S0 to S4;
+  - RL-after-SFT variants R0 to R4;
+  - the Qwen 2B/9B comparison matrix;
+  - bad-output to target-repair examples;
+  - stop conditions for reward hacking, family regression, truncation, and Qwen
+    NaN/stall behavior.
+
+Current scientific gate remains unchanged:
+
+1. Patch reward diagnostics first.
+2. Offline-rescore saved Llama rollout failures.
+3. Build targeted repair SFT rows.
+4. Prove Qwen 2B SFT improves base on frozen prompts.
+5. Run short RL smoke from base and from SFT.
+6. Run 200-step Qwen 2B RL-after-SFT only if the short smoke passes.
+7. Repeat on Qwen 9B only after Prime capacity clears.

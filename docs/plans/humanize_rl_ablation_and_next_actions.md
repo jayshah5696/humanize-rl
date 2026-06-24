@@ -292,7 +292,13 @@ that tests remain readable.
 
 ## Candidate Models To Try
 
-The live Prime model list on 2026-06-23 includes:
+The live Prime model list was rechecked on 2026-06-24 with:
+
+```bash
+prime --plain train models --output json
+```
+
+It includes:
 
 - `Qwen/Qwen3.5-0.8B`
 - `Qwen/Qwen3.5-2B`
@@ -337,27 +343,148 @@ Recommended model order after reward patch:
    - only if Prime cannot cover the needed path or we want a small-model
      cross-family comparison outside Prime.
 
-### Current Prime Model Prices
+### Current Prime Model Prices And Capacity
 
-Live `prime train models --output json` on 2026-06-23 reported:
+Live `prime train models --output json` on 2026-06-24 reported:
 
-| Model | Training $/M tok | Input $/M tok | Output $/M tok | Notes |
-|---|---:|---:|---:|---|
-| `Qwen/Qwen3.5-0.8B` | `0.06` | `0.02` | `0.06` | cheap Qwen smoke, previously unstable |
-| `Qwen/Qwen3.5-2B` | `0.15` | `0.05` | `0.15` | intended small target |
-| `Qwen/Qwen3.5-4B` | `0.30` | `0.10` | `0.30` | boundary target |
-| `Qwen/Qwen3.5-9B` | `0.60` | `0.20` | `0.60` | larger check |
-| `Qwen/Qwen3.5-35B-A3B` | `1.00` | `0.25` | `0.75` | MoE comparison |
-| `Qwen/Qwen3.6-35B-A3B` | `1.00` | `0.25` | `0.75` | newer MoE comparison |
-| `meta-llama/Llama-3.2-1B-Instruct` | `0.06` | `0.02` | `0.06` | cheap Llama control |
-| `meta-llama/Llama-3.2-3B-Instruct` | `0.15` | `0.05` | `0.15` | completed full run |
-| `sprints/Llama-3.2-1B-Instruct` | `0.00` | `0.00` | `0.00` | free exploit smoke if available |
-| `poolside/Laguna-XS.2` | `0.00` | `0.00` | `0.00` | free baseline candidate |
-| `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16` | `0.60` | `0.15` | `0.45` | larger active-parameter comparison |
-| `openai/gpt-oss-20b` | `0.40` | `0.10` | `0.30` | larger cross-family comparison |
+| Model | At capacity | Training $/M tok | Input $/M tok | Output $/M tok | Notes |
+|---|---:|---:|---:|---:|---|
+| `Qwen/Qwen3.5-0.8B` | no | `0.06` | `0.02` | `0.06` | cheap Qwen smoke, previously unstable |
+| `Qwen/Qwen3.5-2B` | no | `0.15` | `0.05` | `0.15` | primary next target |
+| `Qwen/Qwen3.5-4B` | yes | `0.30` | `0.10` | `0.30` | boundary target, not currently runnable |
+| `Qwen/Qwen3.5-9B` | yes | `0.60` | `0.20` | `0.60` | second requested Qwen target, wait for capacity |
+| `Qwen/Qwen3.5-35B-A3B` | no | `1.00` | `0.25` | `0.75` | MoE comparison |
+| `Qwen/Qwen3.6-35B-A3B` | no | `1.00` | `0.25` | `0.75` | newer MoE comparison |
+| `meta-llama/Llama-3.2-1B-Instruct` | no | `0.06` | `0.02` | `0.06` | cheap Llama control |
+| `meta-llama/Llama-3.2-3B-Instruct` | no | `0.15` | `0.05` | `0.15` | completed full run |
+| `sprints/Llama-3.2-1B-Instruct` | no | `0.00` | `0.00` | `0.00` | free exploit smoke if available |
+| `poolside/Laguna-XS.2` | no | `0.00` | `0.00` | `0.00` | free baseline candidate |
+| `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16` | no | `0.60` | `0.15` | `0.45` | larger active-parameter comparison |
+| `openai/gpt-oss-20b` | no | `0.40` | `0.10` | `0.30` | larger cross-family comparison |
 
 Availability and prices can change. Re-run `prime train models --output json`
 before launching.
+
+## Next Two-Model Qwen Ablation Track
+
+The next scientific target is not "try a bigger model." It is:
+
+> Can a patched reward plus SFT warmup prevent fake-casual reward hacking on
+> Qwen, then improve further with RL?
+
+Use exactly two Qwen target sizes for the main comparison:
+
+1. `Qwen/Qwen3.5-2B`
+   - available on the 2026-06-24 live Prime model check;
+   - cheap enough for several controlled ablations;
+   - primary target for SFT and RL-after-SFT.
+2. `Qwen/Qwen3.5-9B`
+   - listed by Prime, but currently at capacity;
+   - keep configs and eval plan ready;
+   - launch only after capacity clears.
+
+Do not silently replace the 9B target with 4B or MoE in the same study. If 9B
+stays unavailable, record the blocker and run only the 2B branch.
+
+### RL Env Update Ablations
+
+These ablations happen before SFT or RL. They are cheap and should use saved
+rollouts from `zztqgqclh3y3hslpjsofzpcf`.
+
+| ID | Env Change | Test Set | Required Result |
+|---|---|---|---|
+| E0 | current `0.3.14` reward | saved step 140-190 rollouts | reproduces high reward for fake-casual samples |
+| E1 | emoji and all-caps hard diagnostics | saved rollout plus synthetic controls | emojis and unsupported all-caps fail without hurting normal acronym text |
+| E2 | fake-casual phrase cap | saved bad samples | `stuff`, repeated `we got`, `you guys`, filler `thanks` drop below `0.75` |
+| E3 | low-specificity substitution cap | paired bad/good examples | source facts replaced by `stuff` or `thing` score low |
+| E4 | broken casual grammar cap | saved bad samples plus real Slack controls | broken grammar scores low; normal contractions pass |
+| E5 | register mismatch cap | workplace/technical/patient tasks | slang like `cut the crap` fails unless requested |
+| E6 | full patched `p50_50_no_penalty` | frozen validation and saved rollouts | bad samples fall below `0.75`; clean direct controls stay above `0.75` |
+
+Publish a new env only after E1 to E6 pass locally. The next version should be
+`0.3.15` unless another env version has already been published.
+
+### SFT Update Ablations
+
+SFT is the stabilizer for style. RL should not be asked to discover from
+scratch that `plain and direct` is better than `sloppy and casual`.
+
+| ID | SFT Variant | Dataset | Model | Required Result |
+|---|---|---|---|---|
+| S0 | base, no SFT | frozen eval prompts only | Qwen 2B and 9B | establishes base wrapper/fake-casual rate |
+| S1 | existing SFT corpus | `jayshah5696/humanize-rl-prime-sft-messages-env0314` | Qwen 2B first | improves directness without new reward repairs |
+| S2 | SFT corpus plus repair rows | env0314 corpus plus fixed bad rollout references | Qwen 2B first | lowers fake-casual rate and improves p50/strict |
+| S3 | repair-weighted SFT | same data with explicit weighting/curriculum if supported | Qwen 2B only | tests whether repairs need stronger exposure |
+| S4 | 9B SFT repeat | best S1/S2/S3 variant | Qwen 9B | runs only after 2B proves the recipe and 9B capacity clears |
+
+Current Prime status:
+
+- Prime Hosted `loss = "sft"` was attempted and blocked by:
+  `HTTP 403: loss='sft' is currently restricted to beta users`.
+- Prime `prime-rl` dataset SFT configs exist for Qwen 0.8B and 2B under
+  `configs/prime_rl/`, using renderer `qwen3.5` and sequence length `4096`.
+- Use Prime first when the run surface is available. Use Modal/TRL only when
+  Prime cannot run the needed dataset-SFT path or when continuing an already
+  launched Modal job.
+
+SFT gate before RL:
+
+- SFT must beat base on the same frozen prompts.
+- Compare p50 reward, strict diagnostics, wrapper/options rate, emoji/all-caps
+  failures, fake-casual phrase rate, low-specificity substitutions, and a human
+  read of 20 to 50 examples.
+- If SFT does not beat base qualitatively, do not start RL.
+
+### RL After SFT Ablations
+
+Run RL only after the env patch and SFT gate pass.
+
+| ID | RL Init | Model | Steps | Purpose | Launch Gate |
+|---|---|---|---:|---|---|
+| R0 | base model | Qwen 2B | 20 to 50 | checks whether patched env alone prevents hacking | E6 passes |
+| R1 | best SFT checkpoint | Qwen 2B | 20 to 50 | checks whether SFT plus patched reward is stable | SFT beats base |
+| R2 | best SFT checkpoint | Qwen 2B | 200 | first serious Qwen full run | R1 passes rollout audit |
+| R3 | base model | Qwen 9B | 20 to 50 | capacity-gated larger baseline | 9B available and R2 clean |
+| R4 | best SFT checkpoint | Qwen 9B | 200 | larger final comparison | R3 clean and budget approved |
+
+If Prime cannot initialize RL from the SFT checkpoint, push the SFT adapter or
+merged checkpoint to Hugging Face if supported, then reference that checkpoint
+explicitly in the run notes. If that path is not supported, document it as a
+platform blocker and do not pretend the run is RL-after-SFT.
+
+### Two-Model Ablation Matrix
+
+| Stage | Qwen 2B | Qwen 9B | Decision |
+|---|---|---|---|
+| base eval | required | required when capacity clears | establishes model prior |
+| SFT full corpus | required | optional after 2B | checks corpus quality |
+| SFT full plus repairs | required | required for final 9B comparison | checks repair usefulness |
+| RL from base | 20 to 50 step diagnostic only | diagnostic only | isolates env effect |
+| RL after SFT | 50 step smoke, then 200 step full | 200 step only after 2B succeeds | final comparison |
+
+### Example Bad And Target Repairs
+
+Use these as unit tests, repair-row seeds, and qualitative eval anchors.
+
+| Bad high-reward output | Target repair | Reward lesson |
+|---|---|---|
+| `We got stuff we need for Project too...` | `The Project deliverables are ready in the shared folder. Please send feedback by Friday so we can close the next revision.` | preserve concrete objects and action |
+| `Stuff's done now, look at stuff we did in shared folder.` | `The shared folder has the completed draft and supporting notes. Please review them and send any changes you want before tomorrow.` | reject vague noun replacement |
+| `We hit project timeline delay because technical stuff we didn't plan for...` | `The project timeline slipped because we found technical issues during integration. We are fixing them now and will share an updated launch date tomorrow.` | keep cause, owner, and next step |
+| `We got us an artist residency in Sri Lanka... personal and professional stuff...` | `The Sri Lanka residency became the turning point of the essay. It gave the narrator space to rethink their work, relationships, and next direction.` | casual does not mean ungrammatical |
+| `Hey guys, we got good stuff going on here.` | `The update is ready. It covers the main changes, the open questions, and the next review date.` | no generic hype |
+
+### Stop Conditions
+
+Stop the next ablation immediately if any of these happens:
+
+- patched reward still gives `>=0.75` to the saved bad examples;
+- SFT increases wrapper/options, emoji, all-caps, or fake-casual rate;
+- RL high-reward samples show `stuff`, repeated `we got`, `you guys`, vague
+  substitutions, or broken casual grammar;
+- any family drops worse than `-0.05`;
+- length collapses or 4096-token truncation spikes;
+- Qwen hosted runs re-enter NaN/stall behavior before meaningful training.
 
 ## Action Plan
 
@@ -524,29 +651,37 @@ Smoke pass criteria:
 - no high-reward wrapper/emoji/all-caps samples;
 - qualitative samples directly answer the task.
 
-### Phase 4: Model Sweep
+### Phase 4: Qwen Two-Model Ablation
 
 Only after the patched reward passes one short smoke.
 
-Order:
+Order for the next ablation:
 
-1. `meta-llama/Llama-3.2-1B-Instruct`
-2. `meta-llama/Llama-3.2-3B-Instruct`
-3. `Qwen/Qwen3.5-0.8B`
-4. `Qwen/Qwen3.5-2B`
-5. `Qwen/Qwen3.5-4B`
+1. Run base eval for `Qwen/Qwen3.5-2B`.
+2. Run the approved SFT variant for `Qwen/Qwen3.5-2B`.
+3. Run 20 to 50 step RL smoke from base and from SFT for `Qwen/Qwen3.5-2B`.
+4. Run 200 step RL-after-SFT for `Qwen/Qwen3.5-2B` only if smoke passes.
+5. Re-run the same base/SFT/RL-after-SFT sequence for `Qwen/Qwen3.5-9B`
+   after Prime capacity clears.
 
-Do not run MoE/larger models until the small sweep shows no reward hack.
+Do not run MoE/larger models until the Qwen 2B/9B ablation shows no reward
+hack. Do not substitute `Qwen/Qwen3.5-4B` for the 9B result without marking it
+as a separate study.
 
 ### Phase 5: Full Run
 
-Only one full run after the sweep:
+Only one full run per approved target after the smoke:
 
 - target model selected from sweep;
 - reward patched;
 - repair SFT data either trained or included;
 - frozen eval prompts locked;
 - family/mode gates defined before launch.
+
+For the next study, the intended full runs are:
+
+1. `Qwen/Qwen3.5-2B` RL-after-SFT, 200 steps.
+2. `Qwen/Qwen3.5-9B` RL-after-SFT, 200 steps, capacity-gated.
 
 Full-run acceptance requires:
 
@@ -567,15 +702,19 @@ The next implementation PR should be narrow:
 3. Publish env `0.3.15`.
 4. Offline-rescore saved rollout files from `zztqgqclh3y3hslpjsofzpcf`.
 5. Update this document with before/after rescore deltas.
-6. Launch only a 20-50 step hosted smoke if offline rescoring passes.
+6. Build or refresh SFT repair rows from the failed high-reward samples.
+7. Run Qwen 2B base eval and SFT eval on the frozen prompts.
+8. Launch only a 20-50 step hosted RL smoke if offline rescoring and SFT gates
+   pass.
 
-Do not include model-sweep work in the same PR.
+Do not include the Qwen 9B full run in the same PR. Keep it as a capacity-gated
+follow-up after Qwen 2B proves the recipe.
 
 ## What Not To Do Next
 
 - Do not deploy the step-200 checkpoint as a candidate model.
 - Do not run another 200-step RL job with the current reward.
-- Do not jump to Qwen 2B/4B before the fake-casual reward hole is closed.
+- Do not jump to Qwen 2B/9B before the fake-casual reward hole is closed.
 - Do not treat aggregate p50/strict reward as enough.
 - Do not call the Modal 5-step SFT smoke a useful SFT model.
 - Do not spend budget on larger MoE models until the small smoke stops reward

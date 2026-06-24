@@ -3057,3 +3057,66 @@ Current scientific gate remains unchanged:
 5. Run short RL smoke from base and from SFT.
 6. Run 200-step Qwen 2B RL-after-SFT only if the short smoke passes.
 7. Repeat on Qwen 9B only after Prime capacity clears.
+
+## 2026-06-24: Ignored Research Artifacts Archived
+
+User concern:
+
+- The branch is pushed, but generated run/data artifacts are ignored.
+- If this worktree is deleted, the next researcher still needs the reward-hack
+  evidence, offline rescore inputs, repair-reference rows, and SFT source files.
+
+Archived minimal continuation set:
+
+```text
+runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/
+runs/prime_eval_smoke/llama32_3b_failure_set_env0314.jsonl
+runs/prime_eval_smoke/llama32_3b_rl_vs_base_summary_env0314.json
+runs/reports/prime_mix_v2_p5050_taskset_report.json
+data/processed/sft/reference_targets/
+data/processed/v04_sft_final_plus_llama_failure_refs_env0314*
+```
+
+Not archived:
+
+- caches;
+- `.venv`;
+- `__pycache__`;
+- `.coverage`;
+- env wheel build output, because `jayshah5696/humanize-rl-env@0.3.14` is
+  published on Prime.
+
+HF artifact dataset:
+
+- repo:
+  `jayshah5696/humanize-rl-research-artifacts-env0314`
+- URL:
+  `https://huggingface.co/datasets/jayshah5696/humanize-rl-research-artifacts-env0314`
+- upload commit:
+  `09457c42a56915ce649370fd4f42da92c0bf1080`
+- files verified by dry run:
+  `45`
+- total size verified by dry run:
+  `21.5M`
+
+Verification commands:
+
+```bash
+hf datasets info jayshah5696/humanize-rl-research-artifacts-env0314 --format json
+hf download jayshah5696/humanize-rl-research-artifacts-env0314 --type dataset --dry-run
+```
+
+Dry-run result:
+
+- all `45` files are downloadable;
+- archive contains `README.md`, `manifest.json`, saved rollout/audit files,
+  failure set, eval summary, taskset report, repair-reference rows, and local
+  SFT source JSONL/report files.
+
+Restore command for a future worktree:
+
+```bash
+hf download jayshah5696/humanize-rl-research-artifacts-env0314 \
+  --type dataset \
+  --local-dir artifacts/humanize-rl-research-artifacts-env0314
+```

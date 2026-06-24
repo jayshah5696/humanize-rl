@@ -29,6 +29,12 @@ The main question here is:
     `data/processed/sft/gemma4_e2b_v04_plus_llama_failure_refs_env0314/`
 - Dedicated HF Prime SFT dataset:
   `jayshah5696/humanize-rl-prime-sft-messages-env0314`
+- HF research artifact archive:
+  `jayshah5696/humanize-rl-research-artifacts-env0314`
+  - commit: `09457c42a56915ce649370fd4f42da92c0bf1080`
+  - purpose: preserves ignored run audits, rollout snapshots, failure sets,
+    repair references, and local SFT source files needed to continue the reward
+    patch and Qwen ablation from a new worktree.
 
 ### Env And Reward
 
@@ -553,6 +559,14 @@ runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/rollouts_step180.json
 runs/prime_training_smoke/zztqgqclh3y3hslpjsofzpcf/rollouts_step190.json
 ```
 
+If these local ignored files are unavailable, download the archived copy:
+
+```bash
+hf download jayshah5696/humanize-rl-research-artifacts-env0314 \
+  --type dataset \
+  --local-dir artifacts/humanize-rl-research-artifacts-env0314
+```
+
 Current audit command pattern:
 
 ```bash
@@ -709,6 +723,20 @@ The next implementation PR should be narrow:
 
 Do not include the Qwen 9B full run in the same PR. Keep it as a capacity-gated
 follow-up after Qwen 2B proves the recipe.
+
+Use the archived artifacts if this worktree is gone:
+
+- HF repo:
+  `jayshah5696/humanize-rl-research-artifacts-env0314`
+- commit:
+  `09457c42a56915ce649370fd4f42da92c0bf1080`
+- contains:
+  - saved rollouts/audits for `zztqgqclh3y3hslpjsofzpcf`;
+  - `llama32_3b_failure_set_env0314.jsonl`;
+  - `llama32_3b_rl_vs_base_summary_env0314.json`;
+  - taskset report;
+  - repair-reference files;
+  - local source files for the published SFT dataset.
 
 ## What Not To Do Next
 

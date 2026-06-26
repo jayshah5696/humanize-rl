@@ -1,0 +1,32 @@
+name = "humanize-p5050-qwen35-08b-simple50-env0314-r4"
+model = "Qwen/Qwen3.5-0.8B"
+max_steps = 50
+batch_size = 16
+rollouts_per_example = 4
+max_inflight_rollouts = 16
+learning_rate = 1e-4
+lora_alpha = 32
+
+[sampling]
+max_tokens = 1024
+temperature = 0.7
+enable_thinking = false
+
+[[env]]
+id = "jayshah5696/humanize-rl-env"
+name = "train_mix_v2_p5050_simple50_r4"
+version = "0.3.14"
+args = { split = "train", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }
+
+[wandb]
+entity = "jayshah5696"
+project = "humanize-rl"
+name = "prime-qwen35-08b-p5050-simple50-env0314-r4"
+
+[checkpoints]
+interval = 50
+keep_cloud = 2
+
+[adapters]
+interval = 0
+keep_last = 2

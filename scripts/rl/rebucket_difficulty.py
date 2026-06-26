@@ -13,7 +13,7 @@ no ridge scorer needed). Then re-runs the bucketing pipeline and writes:
 
 Run::
 
-  rtk uv run python scripts/rl/rebucket_difficulty.py \\
+  uv run python scripts/rl/rebucket_difficulty.py \\
     --rollouts outputs/rl_difficulty/mix_v1/rollouts.jsonl \\
     --mix data/rl/humanize_tasks_rl_mix_v1.jsonl \\
     --output-dir outputs/rl_difficulty/mix_v1
@@ -77,7 +77,9 @@ def _recompute_reward(
         return clip(ridge_weighted + det_weighted + penalty_sum)
     if mode in ("scalar_softened", "scalar_softened_permissive"):
         ridge_raw = ridge_weighted / RIDGE_WEIGHT if RIDGE_WEIGHT > 0 else 0.0
-        det_raw = det_weighted / DETERMINISTIC_WEIGHT if DETERMINISTIC_WEIGHT > 0 else 0.0
+        det_raw = (
+            det_weighted / DETERMINISTIC_WEIGHT if DETERMINISTIC_WEIGHT > 0 else 0.0
+        )
         compliance = risk_compliance(penalty_sum, penalty_cap)
         return ridge_w * ridge_raw + det_w * det_raw + risk_w * compliance
     raise ValueError(f"unknown mode: {mode}")
@@ -155,10 +157,18 @@ def _thresholds_for_mode(mode: str) -> DifficultyThresholds:
     show_default=True,
     type=click.Path(file_okay=False, path_type=Path),
 )
-@click.option("--penalty-cap", default=DEFAULT_PENALTY_CAP, show_default=True, type=float)
-@click.option("--ridge-weight", default=DEFAULT_RIDGE_WEIGHT_SOFT, show_default=True, type=float)
-@click.option("--det-weight", default=DEFAULT_DET_WEIGHT_SOFT, show_default=True, type=float)
-@click.option("--risk-weight", default=DEFAULT_RISK_WEIGHT_SOFT, show_default=True, type=float)
+@click.option(
+    "--penalty-cap", default=DEFAULT_PENALTY_CAP, show_default=True, type=float
+)
+@click.option(
+    "--ridge-weight", default=DEFAULT_RIDGE_WEIGHT_SOFT, show_default=True, type=float
+)
+@click.option(
+    "--det-weight", default=DEFAULT_DET_WEIGHT_SOFT, show_default=True, type=float
+)
+@click.option(
+    "--risk-weight", default=DEFAULT_RISK_WEIGHT_SOFT, show_default=True, type=float
+)
 def main(
     rollouts_path: Path,
     mix_path: Path,
@@ -178,9 +188,13 @@ def main(
             if line.strip():
                 r = json.loads(line)
                 by_task[r["task_id"]].append(r)
-    click.echo(f"Loaded {sum(len(v) for v in by_task.values())} rollouts across {len(by_task)} tasks")
+    click.echo(
+        f"Loaded {sum(len(v) for v in by_task.values())} rollouts across {len(by_task)} tasks"
+    )
 
-    mix_rows = [json.loads(line) for line in mix_path.read_text().splitlines() if line.strip()]
+    mix_rows = [
+        json.loads(line) for line in mix_path.read_text().splitlines() if line.strip()
+    ]
     task_meta = {row["id"]: row for row in mix_rows}
 
     summary: dict[str, dict] = {}
@@ -275,18 +289,20 @@ def main(
     click.echo("\nBucket comparison across reward modes:")
     all_buckets = sorted(
         {bucket for mode in MODES for bucket in summary[mode]["bucket_counts"]},
-        key=lambda b: -max(
-            summary[m]["bucket_counts"].get(b, 0) for m in MODES
-        ),
+        key=lambda b: -max(summary[m]["bucket_counts"].get(b, 0) for m in MODES),
     )
     header = ["bucket"] + list(MODES)
     rows = [header]
     for bucket in all_buckets:
-        rows.append([bucket] + [str(summary[m]["bucket_counts"].get(bucket, 0)) for m in MODES])
+        rows.append(
+            [bucket] + [str(summary[m]["bucket_counts"].get(bucket, 0)) for m in MODES]
+        )
     rows.append(["KEPT"] + [str(summary[m]["kept"]) for m in MODES])
     widths = [max(len(r[i]) for r in rows) for i in range(len(header))]
     for row in rows:
-        click.echo("  " + "  ".join(c.ljust(w) for c, w in zip(row, widths, strict=True)))
+        click.echo(
+            "  " + "  ".join(c.ljust(w) for c, w in zip(row, widths, strict=True))
+        )
 
 
 if __name__ == "__main__":

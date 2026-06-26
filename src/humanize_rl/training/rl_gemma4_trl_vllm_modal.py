@@ -5,19 +5,19 @@ Plain transformers + PEFT + TRL GRPOTrainer. No Unsloth import path.
 See docs/plans/gemma4_rl_modal_20usd_budget_plan.md.
 
 Slice 1 probe run (detached, A100-40GB):
-    rtk uvx modal run --detach \\
+    uvx modal run --detach \\
       src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \\
       --mode train \\
       --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_capacity_probe.yaml
 
 Slice 2 pilot run (detached, A100-40GB, 50 steps, ~$3.50):
-    rtk uvx modal run --detach \\
+    uvx modal run --detach \\
       src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \\
       --mode train \\
       --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_pilot.yaml
 
 Slice 3 full run (detached, A100-40GB):
-    rtk uvx modal run --detach \\
+    uvx modal run --detach \\
       src/humanize_rl/training/rl_gemma4_trl_vllm_modal.py \\
       --mode train \\
       --config-path /workspace/configs/rl/gemma4_e2b_rl_a100_full.yaml

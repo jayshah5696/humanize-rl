@@ -1,0 +1,52 @@
+{
+  "bucket_counts": {
+    "clipped": 19,
+    "dead": 7,
+    "useful": 972
+  },
+  "dataset_version_counts": {
+    "v01": 6,
+    "v02": 494,
+    "v03": 472
+  },
+  "dropped": {
+    "clipped": 19,
+    "dead": 7
+  },
+  "family_counts": {
+    "adversarial_ai_tell_removal": 1,
+    "compression": 264,
+    "direct_email": 108,
+    "product_copy_cleanup": 1,
+    "rewrite_repair": 340,
+    "tone_shift": 258
+  },
+  "input_rows": 998,
+  "kept": 972,
+  "mode_counts": {
+    "compress": 1,
+    "compression": 102,
+    "direct_generation": 1,
+    "expansion": 64,
+    "long_form_generate": 56,
+    "multi_constraint_compose": 51,
+    "repair": 1,
+    "rewrite": 496,
+    "rewrite_humanize": 109,
+    "tone_shift": 91
+  },
+  "reward_mode": "p50_50_no_penalty",
+  "rollout_rows": 5988,
+  "scored_tasks": 998,
+  "split_counts": {
+    "test": 103,
+    "train": 777,
+    "validation": 92
+  },
+  "thresholds": {
+    "max_clipped_rate": 0.1,
+    "max_reward": 1.0,
+    "min_reward": 0.2,
+    "min_reward_std": 0.005
+  }
+}

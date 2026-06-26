@@ -12,7 +12,7 @@ dashboard:
 
 Run::
 
-  rtk uv run python scripts/figures/plot_rebucket_comparison.py \\
+  uv run python scripts/figures/plot_rebucket_comparison.py \\
     --input-dir outputs/rl_difficulty/mix_v1
 """
 
@@ -33,19 +33,19 @@ plt.rcParams["grid.linestyle"] = "--"
 plt.rcParams["grid.linewidth"] = 0.6
 
 BUCKET_COLORS = {
-    "useful":       "#059669",
-    "too_easy":     "#0ea5e9",
-    "too_hard":     "#e11d48",
-    "dead":         "#7c3aed",
-    "clipped":      "#f59e0b",
+    "useful": "#059669",
+    "too_easy": "#0ea5e9",
+    "too_hard": "#e11d48",
+    "dead": "#7c3aed",
+    "clipped": "#f59e0b",
     "same_pattern": "#6b7280",
 }
 BUCKET_ORDER = ["useful", "too_easy", "too_hard", "dead", "clipped", "same_pattern"]
 MODE_LABELS = {
-    "current_components":          "current\n(3-func)",
-    "scalar_current":              "scalar\n(strict)",
-    "scalar_softened":             "softened\n(default)",
-    "scalar_softened_permissive":  "softened\n(permissive)",
+    "current_components": "current\n(3-func)",
+    "scalar_current": "scalar\n(strict)",
+    "scalar_softened": "softened\n(default)",
+    "scalar_softened_permissive": "softened\n(permissive)",
 }
 COLOR_TEXT = "#1e293b"
 
@@ -59,8 +59,11 @@ def _panel_stacked_buckets(ax, summary: dict) -> None:
             continue
         ax.bar(
             [MODE_LABELS[m] for m in modes],
-            values, bottom=bottoms,
-            color=BUCKET_COLORS[bucket], label=bucket, edgecolor="none",
+            values,
+            bottom=bottoms,
+            color=BUCKET_COLORS[bucket],
+            label=bucket,
+            edgecolor="none",
         )
         bottoms = bottoms + values
     # Annotate kept count on top
@@ -68,13 +71,23 @@ def _panel_stacked_buckets(ax, summary: dict) -> None:
         kept = summary[m]["bucket_counts"].get("useful", 0)
         total = sum(summary[m]["bucket_counts"].values())
         ax.text(
-            i, bottoms[i] + total * 0.015,
-            f"useful={kept} ({kept/total*100:.1f}%)",
-            ha="center", va="bottom", fontsize=9, fontweight="bold", color="#065f46",
+            i,
+            bottoms[i] + total * 0.015,
+            f"useful={kept} ({kept / total * 100:.1f}%)",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold",
+            color="#065f46",
         )
     ax.set_ylim(0, max(bottoms) * 1.15)
     ax.set_ylabel("tasks", fontsize=9, color=COLOR_TEXT)
-    ax.set_title("Bucket distribution per reward mode", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        "Bucket distribution per reward mode",
+        fontsize=11,
+        fontweight="bold",
+        color=COLOR_TEXT,
+    )
     ax.legend(fontsize=7, frameon=False, loc="lower right")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -82,7 +95,9 @@ def _panel_stacked_buckets(ax, summary: dict) -> None:
     ax.tick_params(axis="x", labelsize=8.5)
 
 
-def _scatter(ax, rows: list[dict], title: str, xlim: tuple[float, float], y_max: float) -> None:
+def _scatter(
+    ax, rows: list[dict], title: str, xlim: tuple[float, float], y_max: float
+) -> None:
     for bucket in BUCKET_ORDER:
         sub = [r for r in rows if r["bucket"] == bucket]
         if not sub:
@@ -92,7 +107,10 @@ def _scatter(ax, rows: list[dict], title: str, xlim: tuple[float, float], y_max:
             [r["reward_std"] for r in sub],
             c=BUCKET_COLORS[bucket],
             label=f"{bucket} ({len(sub)})",
-            s=18, alpha=0.65, edgecolors="white", linewidths=0.3,
+            s=18,
+            alpha=0.65,
+            edgecolors="white",
+            linewidths=0.3,
         )
     ax.set_xlim(*xlim)
     ax.set_ylim(-0.005, y_max)
@@ -113,24 +131,41 @@ def _panel_strict_vs_soft(ax, strict_rows: list[dict], soft_rows: list[dict]) ->
     ax.scatter(xs, ys, c=colors, s=16, alpha=0.7, edgecolors="white", linewidths=0.3)
     lo = min(min(xs), min(ys)) - 0.05
     hi = max(max(xs), max(ys)) + 0.05
-    ax.plot([lo, hi], [lo, hi], color="#94a3b8", linestyle="--", linewidth=0.8, label="y = x")
+    ax.plot(
+        [lo, hi],
+        [lo, hi],
+        color="#94a3b8",
+        linestyle="--",
+        linewidth=0.8,
+        label="y = x",
+    )
     ax.set_xlim(lo, hi)
     ax.set_ylim(lo, hi)
     ax.set_xlabel("reward_mean (current_components)", fontsize=9, color=COLOR_TEXT)
-    ax.set_ylabel("reward_mean (scalar_softened_permissive)", fontsize=9, color=COLOR_TEXT)
-    ax.set_title("Per-task reward shift: strict \u2192 softened", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_ylabel(
+        "reward_mean (scalar_softened_permissive)", fontsize=9, color=COLOR_TEXT
+    )
+    ax.set_title(
+        "Per-task reward shift: strict \u2192 softened",
+        fontsize=11,
+        fontweight="bold",
+        color=COLOR_TEXT,
+    )
     ax.legend(fontsize=8, frameon=False, loc="upper left")
     ax.grid(alpha=0.5)
 
 
 @click.command()
 @click.option(
-    "--input-dir", required=True,
+    "--input-dir",
+    required=True,
     type=click.Path(exists=True, file_okay=False, path_type=Path),
 )
 @click.option(
-    "--output-dir", default="outputs/figures/rebucket_comparison",
-    show_default=True, type=click.Path(file_okay=False, path_type=Path),
+    "--output-dir",
+    default="outputs/figures/rebucket_comparison",
+    show_default=True,
+    type=click.Path(file_okay=False, path_type=Path),
 )
 def main(input_dir: Path, output_dir: Path) -> None:
     """Plot the rebucket comparison dashboard."""
@@ -139,7 +174,9 @@ def main(input_dir: Path, output_dir: Path) -> None:
 
     def _load(mode: str) -> list[dict]:
         path = input_dir / f"rebucket_{mode}.jsonl"
-        return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        return [
+            json.loads(line) for line in path.read_text().splitlines() if line.strip()
+        ]
 
     strict_rows = _load("current_components")
     soft_perm_rows = _load("scalar_softened_permissive")
@@ -165,7 +202,10 @@ def main(input_dir: Path, output_dir: Path) -> None:
 
     fig.suptitle(
         "Difficulty rebucketing across reward modes \u2014 mix_v1 (506 tasks, K=8)",
-        fontsize=14, fontweight="bold", color=COLOR_TEXT, y=0.995,
+        fontsize=14,
+        fontweight="bold",
+        color=COLOR_TEXT,
+        y=0.995,
     )
 
     png = output_dir / "rebucket_comparison.png"

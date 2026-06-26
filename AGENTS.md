@@ -38,7 +38,7 @@ This project provides: humanness-specific scoring (Layer 1 heuristics), rubric Y
 - Move superseded scripts to `scripts/archive/` before deleting.
 - Follow `docs/plans/scripts-consolidation-and-folder-cleanup.md` for script consolidation and folder cleanup.
 
-## Models — Google Only (with one narrow exception)
+## Models — Google Defaults, Open Training Targets
 
 All LLM calls go through OpenRouter. Only Google models.
 
@@ -50,6 +50,13 @@ Approved authors: `google/gemini-3.1-pro-preview`, `openai/gpt-5.4-mini`,
 generation only*. The humanizer, judge, scorer, and reference-rollout code
 paths remain Google-only.
 
+**Training-target exception (Prime/Modal experiments):** trainable base models
+may be non-Google when they are the model being fine-tuned or swept, not the
+data generator/judge/scorer. Approved current experiment targets include Prime
+Hosted Training Qwen, Llama, Nemotron, GPT-OSS, Poolside/Sprints baselines, and
+later Modal/custom TRL Liquid checkpoints. This exception does not change the
+default LLM-call policy above.
+
 ```
 # Frontier reasoning (judge, humanize)
 google/gemini-3.1-pro-preview          # $2.00/$12.00
@@ -60,13 +67,67 @@ google/gemini-3.1-flash-lite-preview   # $0.25/$1.50
 # Mid-tier dev
 google/gemini-3-flash-preview          # $0.50/$3.00
 
-# Fine-tune target
+# Default fine-tune target
 google/gemma-4-e2b-it                 # Apache 2.0, 2B effective
+
+# Prime p50 sweep trainable targets
+Qwen/Qwen3.5-0.8B
+Qwen/Qwen3.5-2B
+Qwen/Qwen3.5-4B
+Qwen/Qwen3.6-35B-A3B
 
 # Free dev/testing
 google/gemma-4-e2b-it:free
 google/gemma-4-31b-it:free
 ```
+
+## Training Platform Order — Prime First
+
+For new SFT/RL experiments, check Prime Intellect before adding or launching
+Modal/TRL code.
+
+Prime capabilities verified from the June 22, 2026 Prime docs:
+
+- `prime train` is Prime Hosted Training for managed env-based runs.
+- The `prime-rl` library supports:
+  - `uv run rl @ config.toml` for RL;
+  - `uv run sft @ config.toml` for dataset-based supervised fine-tuning on a
+    Hugging Face dataset;
+  - `orchestrator.training_mode = "sft"` for teacher-generated hard
+    distillation through the RL/orchestrator path;
+  - `orchestrator.training_mode = "opd"` for on-policy distillation;
+  - W&B via `--wandb`;
+  - checkpoints and HF-compatible weight snapshots under
+    `<output_dir>/weights/step_N/`;
+  - LoRA adapter separation with
+    `ckpt.weights.save_adapter_separately = true`.
+- Prime SFT accepts HF datasets in either:
+  - `prompt` + `completion` columns; or
+  - a `messages` column.
+- For Qwen3/Qwen3.5, prefer the Prime renderer config
+  (`[renderer] name = "qwen3"` or corresponding Qwen3.5 renderer) because
+  upstream Qwen templates can corrupt multi-turn loss masks.
+- Current Prime SFT dataset for the Qwen3.5 SFT warmup:
+  `jayshah5696/humanize-rl-prime-sft-messages-env0314`.
+- Current Prime SFT configs:
+  `configs/prime_rl/qwen35_08b_sft_smoke_env0314.toml` and
+  `configs/prime_rl/qwen35_2b_sft_target_env0314.toml`.
+- Prime Hosted Training also has `loss = "sft"`, but that is env/teacher
+  distillation from rollouts, not dataset SFT from the HF messages corpus. Use
+  it only when the teacher/generator model is explicitly allowed by project
+  policy.
+
+Policy:
+
+1. Use Prime first for Qwen/Llama/Nemotron/GPT-OSS SFT/RL when the target model,
+   data format, checkpointing, and budget fit.
+2. Use Modal/TRL only when Prime cannot support the needed model/path, when we
+   need custom code not available in Prime, or when continuing a pre-existing
+   Modal run already launched.
+3. Before writing new training infrastructure, document the Prime CLI/doc check
+   in `log.md` and explain why Prime is or is not viable.
+4. Do not stop an already-running Modal job unless the user asks; finish it,
+   log the result, then move the next run back to Prime-first ordering.
 
 ## Architecture
 
@@ -77,7 +138,8 @@ google/gemma-4-31b-it:free
 
 ## What NOT to Do
 
-- Do not add non-Google models to configs
+- Do not add non-Google LLM-call models for data generation, judges, scorers, or
+  reference rollouts unless the exception is explicit.
 - Do not build custom arka stages — use TransformGeneratorStage + YAML
 - Do not use QLoRA for Gemma 4 — bf16 LoRA only
 - Do not skip Layer 1 pre-filtering before Layer 2 (wastes API budget)
@@ -108,14 +170,4 @@ Arka docs:
 ├── docs/rl-data-needed.md      # What arka provides vs what we need
 ├── rubrics/sft_quality.yaml    # Example rubric format
 └── examples/04-evol-instruct.yaml  # Multi-round pipeline example
-```
-
-## RTK
-
-**Always prefix commands with `rtk`**:
-```bash
-# ✅ Correct
-rtk git add . && rtk git commit -m "msg"
-# ❌ Wrong
-git add . && git commit -m "msg"
 ```

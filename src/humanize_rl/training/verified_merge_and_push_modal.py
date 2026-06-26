@@ -26,7 +26,7 @@ by renaming the candidate or copying its files into the production repo.
 Detached usage:
 
 ```bash
-rtk uvx modal run --detach \
+uvx modal run --detach \
   src/humanize_rl/training/verified_merge_and_push_modal.py \
   --candidate-repo jayshah5696/gemma4-e2b-humanize-unsloth-merged-peft-v2
 ```
@@ -86,7 +86,12 @@ def _shared_layer_keys(num_hidden_layers: int, num_kv_shared_layers: int) -> lis
     start = num_hidden_layers - num_kv_shared_layers
     keys: list[str] = []
     for layer in range(start, num_hidden_layers):
-        for name in ("k_proj.weight", "v_proj.weight", "k_norm.weight", "v_norm.weight"):
+        for name in (
+            "k_proj.weight",
+            "v_proj.weight",
+            "k_norm.weight",
+            "v_norm.weight",
+        ):
             keys.append(f"model.language_model.layers.{layer}.self_attn.{name}")
     return keys
 
@@ -177,7 +182,9 @@ def verified_merge_and_push(
     merged.eval()
     in_memory_generations = [_gen(merged, p) for p in PARITY_PROMPTS]
     in_memory_mismatches = sum(
-        1 for a, b in zip(direct_generations, in_memory_generations, strict=True) if a != b
+        1
+        for a, b in zip(direct_generations, in_memory_generations, strict=True)
+        if a != b
     )
     report["parity"]["in_memory_mismatches"] = in_memory_mismatches
 
@@ -207,7 +214,9 @@ def verified_merge_and_push(
 
     parity_mismatches = [
         {"prompt": p, "direct": d, "reloaded": r}
-        for p, d, r in zip(PARITY_PROMPTS, direct_generations, reloaded_generations, strict=True)
+        for p, d, r in zip(
+            PARITY_PROMPTS, direct_generations, reloaded_generations, strict=True
+        )
         if d != r
     ]
     report["parity"]["prompt_count"] = len(PARITY_PROMPTS)
@@ -232,7 +241,9 @@ def verified_merge_and_push(
     report["gates"]["num_kv_shared_layers"] = n_shared
     report["gates"]["wrongly_present_shared_kv_keys"] = wrongly_present
     report["gates"]["safetensors_key_count"] = len(present_keys)
-    report["gates"]["transformers_missing_keys"] = sorted(loading_info.get("missing_keys", []))
+    report["gates"]["transformers_missing_keys"] = sorted(
+        loading_info.get("missing_keys", [])
+    )
     report["gates"]["transformers_unexpected_keys"] = sorted(
         loading_info.get("unexpected_keys", [])
     )

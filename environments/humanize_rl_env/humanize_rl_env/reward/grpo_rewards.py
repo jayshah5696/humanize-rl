@@ -19,7 +19,11 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from humanize_rl_env.reward.reward import RewardResult, load_ridge_scorer, score_response
+from humanize_rl_env.reward.reward import (
+    RewardResult,
+    load_ridge_scorer,
+    score_response,
+)
 from humanize_rl_env.reward.tasks import RLTask
 
 # Loaded once per worker process; None if pkl not found.
@@ -66,9 +70,7 @@ def dither_if_unanimous(fn: RewardFn) -> RewardFn:
         if std >= DITHER_STD_THRESHOLD:
             return values
         rng = random.Random(_seed_from_inputs(completions, kwargs))
-        return [
-            v + rng.uniform(-DITHER_MAGNITUDE, DITHER_MAGNITUDE) for v in values
-        ]
+        return [v + rng.uniform(-DITHER_MAGNITUDE, DITHER_MAGNITUDE) for v in values]
 
     return wrapped
 
@@ -88,6 +90,7 @@ def _task_payloads(kwargs: dict[str, Any], count: int) -> list[dict[str, object]
     for task in tasks:
         if isinstance(task, str):
             import json
+
             result.append(json.loads(task))
         else:
             result.append(dict(task))
@@ -95,14 +98,24 @@ def _task_payloads(kwargs: dict[str, Any], count: int) -> list[dict[str, object]
 
 
 def score_completions(
-    completions: list[Completion], **kwargs: Any
+    completions: list[Completion],
+    *,
+    reward_mode: str = "strict",
+    **kwargs: Any,
 ) -> list[RewardResult]:
     """Score GRPO completions with full diagnostics."""
     task_payloads = _task_payloads(kwargs, len(completions))
     results: list[RewardResult] = []
     for completion, task_payload in zip(completions, task_payloads, strict=True):
         task = RLTask.model_validate(task_payload)
-        results.append(score_response(task, _response(completion), _RIDGE_SCORER))
+        results.append(
+            score_response(
+                task,
+                _response(completion),
+                _RIDGE_SCORER,
+                reward_mode=reward_mode,  # type: ignore[arg-type]
+            )
+        )
     return results
 
 
@@ -130,6 +143,19 @@ def risk_penalty_reward(completions: list[Completion], **kwargs: Any) -> list[fl
     return [
         sum(result.penalties.values())
         for result in score_completions(completions, **kwargs)
+    ]
+
+
+def p50_50_no_penalty_reward(
+    completions: list[Completion], **kwargs: Any
+) -> list[float]:
+    return [
+        result.reward
+        for result in score_completions(
+            completions,
+            reward_mode="p50_50_no_penalty",
+            **kwargs,
+        )
     ]
 
 

@@ -18,7 +18,7 @@ block added.
 
 Local run (requires vLLM-capable env)::
 
-    rtk uvx modal run scripts/rl/score_task_difficulty_modal.py \\
+    uvx modal run scripts/rl/score_task_difficulty_modal.py \\
       --task-path data/rl/humanize_tasks_rl_mix_v1.jsonl \\
       --output-dir outputs/rl_difficulty/mix_v1 \\
       --filtered-output data/rl/humanize_tasks_rl_mix_v1_filtered.jsonl \\
@@ -169,6 +169,7 @@ def score_difficulty(
     from humanize_rl.training.rl_gemma4_trl_vllm_modal import (
         patch_vllm_gemma4_kv_shared_k_norm,
     )
+
     kv_shared_patched = patch_vllm_gemma4_kv_shared_k_norm()
     print(f"[vllm-gemma4-kv-shared-k-norm-patched] {kv_shared_patched}", flush=True)
 
@@ -193,14 +194,15 @@ def score_difficulty(
     # Processor download is left to vLLM; we only need the task loader and
     # the chat-template rendering that vLLM applies internally via the
     # registered tokenizer for ``model_name``.
-    _ = AutoProcessor.from_pretrained(
-        model_name, token=os.environ.get("HF_TOKEN")
-    )
+    _ = AutoProcessor.from_pretrained(model_name, token=os.environ.get("HF_TOKEN"))
 
     tasks = load_tasks(Path(task_path_remote))
     if max_tasks > 0:
         tasks = tasks[:max_tasks]
-    print(f"[difficulty] scoring {len(tasks)} tasks with K={rollouts_per_task}", flush=True)
+    print(
+        f"[difficulty] scoring {len(tasks)} tasks with K={rollouts_per_task}",
+        flush=True,
+    )
 
     # Render prompts once. The actual chat-template rendering is delegated
     # to vLLM's tokenizer/chat_template via ``chat`` API \u2014 keeps parity with
@@ -254,40 +256,50 @@ def score_difficulty(
                 result = score_response(task, response, scorer)
                 ro = Rollout.from_result(response, result, clipped=clipped)
                 rollouts.append(ro)
-                rollouts_fh.write(json.dumps({
-                    "task_id": task.id,
-                    "completion_idx": idx,
-                    "response": response,
-                    "response_length": ro.response_length,
-                    "reward": ro.reward,
-                    "ridge_rubric": ro.ridge_rubric,
-                    "deterministic": ro.deterministic,
-                    "penalty_sum": ro.penalty_sum,
-                    "penalty_names": list(ro.penalty_names),
-                    "clipped": clipped,
-                }) + "\n")
+                rollouts_fh.write(
+                    json.dumps(
+                        {
+                            "task_id": task.id,
+                            "completion_idx": idx,
+                            "response": response,
+                            "response_length": ro.response_length,
+                            "reward": ro.reward,
+                            "ridge_rubric": ro.ridge_rubric,
+                            "deterministic": ro.deterministic,
+                            "penalty_sum": ro.penalty_sum,
+                            "penalty_names": list(ro.penalty_names),
+                            "clipped": clipped,
+                        }
+                    )
+                    + "\n"
+                )
             diff = summarize_rollouts(task.id, rollouts, thresholds)
             difficulties[task.id] = diff
-            difficulty_fh.write(json.dumps({
-                "task_id": diff.task_id,
-                "family": task.family,
-                "reward_profile": task.reward_profile,
-                "n_completions": diff.n_completions,
-                "reward_mean": diff.reward_mean,
-                "reward_std": diff.reward_std,
-                "ridge_mean": diff.ridge_mean,
-                "ridge_std": diff.ridge_std,
-                "det_mean": diff.det_mean,
-                "det_std": diff.det_std,
-                "penalty_rate": diff.penalty_rate,
-                "penalty_pattern_diversity": diff.penalty_pattern_diversity,
-                "response_length_mean": diff.response_length_mean,
-                "response_length_p95": diff.response_length_p95,
-                "clipped_rate": diff.clipped_rate,
-                "bucket": diff.bucket,
-                "kept": diff.kept,
-                "reasons": list(diff.reasons),
-            }) + "\n")
+            difficulty_fh.write(
+                json.dumps(
+                    {
+                        "task_id": diff.task_id,
+                        "family": task.family,
+                        "reward_profile": task.reward_profile,
+                        "n_completions": diff.n_completions,
+                        "reward_mean": diff.reward_mean,
+                        "reward_std": diff.reward_std,
+                        "ridge_mean": diff.ridge_mean,
+                        "ridge_std": diff.ridge_std,
+                        "det_mean": diff.det_mean,
+                        "det_std": diff.det_std,
+                        "penalty_rate": diff.penalty_rate,
+                        "penalty_pattern_diversity": diff.penalty_pattern_diversity,
+                        "response_length_mean": diff.response_length_mean,
+                        "response_length_p95": diff.response_length_p95,
+                        "clipped_rate": diff.clipped_rate,
+                        "bucket": diff.bucket,
+                        "kept": diff.kept,
+                        "reasons": list(diff.reasons),
+                    }
+                )
+                + "\n"
+            )
     finally:
         rollouts_fh.close()
         difficulty_fh.close()
@@ -298,7 +310,11 @@ def score_difficulty(
     )
 
     if filtered_output_remote:
-        mix_rows = [json.loads(line) for line in Path(task_path_remote).read_text().splitlines() if line.strip()]
+        mix_rows = [
+            json.loads(line)
+            for line in Path(task_path_remote).read_text().splitlines()
+            if line.strip()
+        ]
         filtered, drop_counts = filter_task_mix(mix_rows, difficulties)
         Path(filtered_output_remote).parent.mkdir(parents=True, exist_ok=True)
         with Path(filtered_output_remote).open("w", encoding="utf-8") as fh:
@@ -365,7 +381,9 @@ if modal is not None:
         else:
             task_path_remote = task_path
 
-        print(f"Launching difficulty scoring: tasks={task_path_remote}, K={rollouts_per_task}")
+        print(
+            f"Launching difficulty scoring: tasks={task_path_remote}, K={rollouts_per_task}"
+        )
         call = score_difficulty.spawn(
             task_path_remote=task_path_remote,
             output_dir_remote=output_dir,

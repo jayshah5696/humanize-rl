@@ -16,7 +16,7 @@ Outputs (PNG + PDF) in ``outputs/figures/reward_modes/``:
 
 Run::
 
-  rtk uv run python scripts/figures/plot_reward_modes.py
+  uv run python scripts/figures/plot_reward_modes.py
 """
 
 from __future__ import annotations
@@ -58,13 +58,13 @@ plt.rcParams["grid.linestyle"] = "--"
 plt.rcParams["grid.linewidth"] = 0.6
 
 COLOR_TEXT = "#1e293b"
-COLOR_GOOD = "#059669"   # emerald
-COLOR_BAD = "#e11d48"    # rose
+COLOR_GOOD = "#059669"  # emerald
+COLOR_BAD = "#e11d48"  # rose
 
 MODE_COLORS = {
     "current_components": "#6366f1",  # indigo
-    "scalar_current":     "#0ea5e9",  # sky
-    "scalar_softened":    "#f59e0b",  # amber
+    "scalar_current": "#0ea5e9",  # sky
+    "scalar_softened": "#f59e0b",  # amber
 }
 
 DETERMINISTIC_DIMS = [
@@ -169,7 +169,9 @@ def _panel_reward_distribution(ax, rows: list[ScoredRow]) -> None:
             edgecolor="none",
         )
     ax.axvline(0, color="#94a3b8", linestyle="--", linewidth=0.8)
-    ax.set_title("Reward distribution per mode", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        "Reward distribution per mode", fontsize=11, fontweight="bold", color=COLOR_TEXT
+    )
     ax.set_xlabel("reward", fontsize=9, color=COLOR_TEXT)
     ax.set_ylabel("count", fontsize=9, color=COLOR_TEXT)
     ax.legend(fontsize=8, frameon=False)
@@ -185,19 +187,31 @@ def _panel_ridge_radar(ax, rows: list[ScoredRow]) -> None:
         subset = [r for r in rows if r.label == label]
         means: list[float] = []
         for dim in dims:
-            vals = [r.result.weighted_components.get(f"ridge_{dim}", 0.0) for r in subset]
+            vals = [
+                r.result.weighted_components.get(f"ridge_{dim}", 0.0) for r in subset
+            ]
             means.append(statistics.fmean(vals) if vals else 0.0)
         means += means[:1]
         ax.plot(angles, means, color=color, linewidth=1.6, label=label)
         ax.fill(angles, means, color=color, alpha=0.18)
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels([d.replace("_", "\n") for d in dims], fontsize=7, color=COLOR_TEXT)
+    ax.set_xticklabels(
+        [d.replace("_", "\n") for d in dims], fontsize=7, color=COLOR_TEXT
+    )
     ax.set_ylim(0, 1.0)
     ax.set_yticks([0.25, 0.5, 0.75, 1.0])
     ax.set_yticklabels(["0.25", "0.50", "0.75", "1.00"], fontsize=7)
-    ax.set_title("Ridge rubric \u2014 8 dims (mean)", fontsize=11, fontweight="bold", color=COLOR_TEXT, pad=18)
-    ax.legend(fontsize=8, frameon=False, loc="lower right", bbox_to_anchor=(1.15, -0.05))
+    ax.set_title(
+        "Ridge rubric \u2014 8 dims (mean)",
+        fontsize=11,
+        fontweight="bold",
+        color=COLOR_TEXT,
+        pad=18,
+    )
+    ax.legend(
+        fontsize=8, frameon=False, loc="lower right", bbox_to_anchor=(1.15, -0.05)
+    )
 
 
 def _panel_deterministic_bar(ax, rows: list[ScoredRow]) -> None:
@@ -209,15 +223,26 @@ def _panel_deterministic_bar(ax, rows: list[ScoredRow]) -> None:
     ):
         subset = [r for r in rows if r.label == label]
         means = [
-            statistics.fmean([r.result.components.get(d, 0.0) for r in subset]) if subset else 0.0
+            statistics.fmean([r.result.components.get(d, 0.0) for r in subset])
+            if subset
+            else 0.0
             for d in DETERMINISTIC_DIMS
         ]
-        ax.bar(x + offset, means, width=width, color=color, label=label, edgecolor="none")
+        ax.bar(
+            x + offset, means, width=width, color=color, label=label, edgecolor="none"
+        )
     ax.set_xticks(x)
-    ax.set_xticklabels(DETERMINISTIC_DIMS, rotation=30, ha="right", fontsize=8, color=COLOR_TEXT)
+    ax.set_xticklabels(
+        DETERMINISTIC_DIMS, rotation=30, ha="right", fontsize=8, color=COLOR_TEXT
+    )
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("component score", fontsize=9, color=COLOR_TEXT)
-    ax.set_title("Deterministic components (mean)", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        "Deterministic components (mean)",
+        fontsize=11,
+        fontweight="bold",
+        color=COLOR_TEXT,
+    )
     ax.legend(fontsize=8, frameon=False)
     ax.grid(axis="y", alpha=0.5)
     ax.spines["top"].set_visible(False)
@@ -228,10 +253,21 @@ def _panel_penalty_hist(ax, rows: list[ScoredRow]) -> None:
     good_pen = [sum(r.result.penalties.values()) for r in rows if r.label == "good"]
     bad_pen = [sum(r.result.penalties.values()) for r in rows if r.label == "bad"]
     bins = np.linspace(-2.0, 0.05, 30)
-    ax.hist(good_pen, bins=bins, alpha=0.55, color=COLOR_GOOD, label="good", edgecolor="none")
-    ax.hist(bad_pen, bins=bins, alpha=0.55, color=COLOR_BAD, label="bad", edgecolor="none")
+    ax.hist(
+        good_pen,
+        bins=bins,
+        alpha=0.55,
+        color=COLOR_GOOD,
+        label="good",
+        edgecolor="none",
+    )
+    ax.hist(
+        bad_pen, bins=bins, alpha=0.55, color=COLOR_BAD, label="bad", edgecolor="none"
+    )
     ax.axvline(0, color="#94a3b8", linestyle="--", linewidth=0.8)
-    ax.set_title("Total penalty per response", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        "Total penalty per response", fontsize=11, fontweight="bold", color=COLOR_TEXT
+    )
     ax.set_xlabel("sum(penalties)", fontsize=9, color=COLOR_TEXT)
     ax.set_ylabel("count", fontsize=9, color=COLOR_TEXT)
     ax.legend(fontsize=8, frameon=False)
@@ -278,7 +314,12 @@ def _panel_ridge_vs_det_scatter(ax, rows: list[ScoredRow]) -> None:
     ax.set_ylim(-0.05, max(0.55, max(ys) + 0.05))
     ax.set_xlabel("ridge_rubric weighted", fontsize=9, color=COLOR_TEXT)
     ax.set_ylabel("deterministic weighted", fontsize=9, color=COLOR_TEXT)
-    ax.set_title("Rubric 2D \u2014 ridge vs deterministic", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        "Rubric 2D \u2014 ridge vs deterministic",
+        fontsize=11,
+        fontweight="bold",
+        color=COLOR_TEXT,
+    )
     ax.legend(fontsize=8, frameon=False, loc="upper left")
     ax.grid(alpha=0.5)
 
@@ -288,8 +329,21 @@ def _panel_risk_compliance_curve(ax, rows: list[ScoredRow], penalty_cap: float) 
     xs = np.linspace(-1.5, 0.0, 200)
     raw = np.clip(xs, -1.0, 1.0)
     smoothed = np.array([risk_compliance(x, penalty_cap=penalty_cap) for x in xs])
-    ax.plot(xs, raw, color="#94a3b8", linewidth=1.4, linestyle="--", label="raw clip(sum, -1, 1)")
-    ax.plot(xs, smoothed, color="#f59e0b", linewidth=1.8, label=f"risk_compliance (cap={penalty_cap})")
+    ax.plot(
+        xs,
+        raw,
+        color="#94a3b8",
+        linewidth=1.4,
+        linestyle="--",
+        label="raw clip(sum, -1, 1)",
+    )
+    ax.plot(
+        xs,
+        smoothed,
+        color="#f59e0b",
+        linewidth=1.8,
+        label=f"risk_compliance (cap={penalty_cap})",
+    )
 
     # Overlay actual penalty totals for context.
     pens = [sum(r.result.penalties.values()) for r in rows]
@@ -299,7 +353,12 @@ def _panel_risk_compliance_curve(ax, rows: list[ScoredRow], penalty_cap: float) 
     ax.axvline(0, color="#cbd5e1", linewidth=0.6)
     ax.set_xlabel("sum(penalties)", fontsize=9, color=COLOR_TEXT)
     ax.set_ylabel("signal value", fontsize=9, color=COLOR_TEXT)
-    ax.set_title("Penalty shaping: raw vs softened", fontsize=11, fontweight="bold", color=COLOR_TEXT)
+    ax.set_title(
+        "Penalty shaping: raw vs softened",
+        fontsize=11,
+        fontweight="bold",
+        color=COLOR_TEXT,
+    )
     ax.legend(fontsize=7, frameon=False, loc="lower right")
     ax.grid(alpha=0.5)
 
@@ -326,8 +385,20 @@ def _summary(rows: list[ScoredRow]) -> dict:
     for mode in MODE_COLORS:
         by_mode[mode] = {
             "all": stats(_mode_values(rows, mode)),
-            "good": stats([v for r, v in zip(rows, _mode_values(rows, mode), strict=True) if r.label == "good"]),
-            "bad": stats([v for r, v in zip(rows, _mode_values(rows, mode), strict=True) if r.label == "bad"]),
+            "good": stats(
+                [
+                    v
+                    for r, v in zip(rows, _mode_values(rows, mode), strict=True)
+                    if r.label == "good"
+                ]
+            ),
+            "bad": stats(
+                [
+                    v
+                    for r, v in zip(rows, _mode_values(rows, mode), strict=True)
+                    if r.label == "bad"
+                ]
+            ),
         }
     return {
         "n_tasks": len({r.task_id for r in rows}),
@@ -358,18 +429,24 @@ def _summary(rows: list[ScoredRow]) -> dict:
 )
 @click.option("--limit", type=int, default=None, help="Limit tasks (debug).")
 @click.option("--penalty-cap", type=float, default=1.0, show_default=True)
-def main(task_path: Path, output_dir: Path, limit: int | None, penalty_cap: float) -> None:
+def main(
+    task_path: Path, output_dir: Path, limit: int | None, penalty_cap: float
+) -> None:
     """Generate the reward-mode dashboard + summary JSON."""
     output_dir.mkdir(parents=True, exist_ok=True)
     rows = _collect(task_path, limit=limit)
-    click.echo(f"Scored {len(rows)} responses across {len({r.task_id for r in rows})} tasks.")
+    click.echo(
+        f"Scored {len(rows)} responses across {len({r.task_id for r in rows})} tasks."
+    )
 
     fig = plt.figure(figsize=(16, 10))
     gs = fig.add_gridspec(
-        2, 3,
+        2,
+        3,
         width_ratios=[1, 1, 1.05],
         height_ratios=[1, 1],
-        hspace=0.45, wspace=0.32,
+        hspace=0.45,
+        wspace=0.32,
     )
     _panel_reward_distribution(fig.add_subplot(gs[0, 0]), rows)
     _panel_ridge_radar(fig.add_subplot(gs[0, 1], polar=True), rows)
@@ -380,7 +457,10 @@ def main(task_path: Path, output_dir: Path, limit: int | None, penalty_cap: floa
 
     fig.suptitle(
         "Reward-mode dashboard \u2014 v01 tasks, good vs bad responses",
-        fontsize=14, fontweight="bold", color=COLOR_TEXT, y=0.995,
+        fontsize=14,
+        fontweight="bold",
+        color=COLOR_TEXT,
+        y=0.995,
     )
 
     png = output_dir / "reward_modes_dashboard.png"

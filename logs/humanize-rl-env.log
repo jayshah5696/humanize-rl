@@ -441,3 +441,23 @@
 2026-05-25 18:58:41 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Received signal SIGTERM, initiating graceful shutdown
 2026-05-25 18:58:41 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Stop event received, shutting down gracefully
 2026-05-25 18:58:41 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Environment server shut down
+2026-06-18 15:26:39 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Initializing ZMQEnvServer to serve humanize-rl-env (env_args={'split': 'validation', 'task_set': 'v03', 'reward_mode': 'p50_50_no_penalty'}, extra_env_kwargs={})
+2026-06-18 15:26:39 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Loading environment humanize-rl-env with env_args={'split': 'validation', 'task_set': 'v03', 'reward_mode': 'p50_50_no_penalty'}
+2026-06-18 15:26:39 - verifiers.utils.env_utils - INFO - Loading environment: humanize-rl-env
+2026-06-18 15:26:40 - verifiers.utils.env_utils - INFO - Using provided args: task_set=v03, split=validation, reward_mode=p50_50_no_penalty
+2026-06-18 15:26:40 - verifiers.utils.env_utils - INFO - Using default args: task_path=None
+2026-06-18 15:26:40 - verifiers.utils.env_utils - INFO - Successfully loaded environment 'humanize-rl-env'
+2026-06-18 15:26:40 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - ZMQEnvServer started on tcp://127.0.0.1:61066
+2026-06-18 15:26:41 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Received signal SIGTERM, initiating graceful shutdown
+2026-06-18 15:26:41 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Stop event received, shutting down gracefully
+2026-06-18 15:26:41 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Environment server shut down
+2026-06-18 20:16:51 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Initializing ZMQEnvServer to serve humanize-rl-env (env_args={'split': 'validation', 'task_set': 'v03', 'reward_mode': 'p50_50_no_penalty'}, extra_env_kwargs={})
+2026-06-18 20:16:51 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Loading environment humanize-rl-env with env_args={'split': 'validation', 'task_set': 'v03', 'reward_mode': 'p50_50_no_penalty'}
+2026-06-18 20:16:51 - verifiers.utils.env_utils - INFO - Loading environment: humanize-rl-env
+2026-06-18 20:16:51 - verifiers.utils.env_utils - INFO - Using provided args: task_set=v03, reward_mode=p50_50_no_penalty, split=validation
+2026-06-18 20:16:51 - verifiers.utils.env_utils - INFO - Using default args: task_path=None
+2026-06-18 20:16:51 - verifiers.utils.env_utils - INFO - Successfully loaded environment 'humanize-rl-env'
+2026-06-18 20:16:51 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - ZMQEnvServer started on tcp://127.0.0.1:53498
+2026-06-18 20:16:53 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Received signal SIGTERM, initiating graceful shutdown
+2026-06-18 20:16:54 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Stop event received, shutting down gracefully
+2026-06-18 20:16:54 - verifiers.workers.server.env_server.ZMQEnvServer - INFO - Environment server shut down

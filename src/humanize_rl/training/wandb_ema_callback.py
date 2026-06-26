@@ -40,6 +40,7 @@ MIRROR_METRICS: tuple[str, ...] = (
     "rewards/risk_penalty_reward/mean",
     "rewards/scalar_current_reward/mean",
     "rewards/scalar_softened_reward/mean",
+    "rewards/p50_50_no_penalty_reward/mean",
     # Diagnostics emitted by this callback itself (see _emit_diag_metrics).
     "diag/dither_rate",
     "diag/penalty_rate",
@@ -128,9 +129,7 @@ def _emit_diag_metrics(window_size: int = 1) -> dict[str, float]:
     return out
 
 
-def compute_log_updates(
-    logs: dict[str, Any], tracker: EMATracker
-) -> dict[str, float]:
+def compute_log_updates(logs: dict[str, Any], tracker: EMATracker) -> dict[str, float]:
     """Pure function: given current ``logs`` + tracker, return injected keys.
 
     Exposed for testing.
@@ -182,7 +181,12 @@ def build_callback(tracker: EMATracker | None = None) -> Any:
             self.last_snapshot: dict[str, float] = {}
 
         def on_log(  # type: ignore[override]
-            self, args: Any, state: Any, control: Any, logs: dict[str, Any] | None = None, **kwargs: Any
+            self,
+            args: Any,
+            state: Any,
+            control: Any,
+            logs: dict[str, Any] | None = None,
+            **kwargs: Any,
         ) -> None:
             if logs is None:
                 return

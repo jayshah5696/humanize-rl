@@ -1,12 +1,14 @@
 [project]
 name = "humanize-rl-env"
-version = "0.2.0"
+version = "0.3.14"
 description = "Single-turn Prime Verifiers environment for Humanize-RL rewards"
 tags = ["single-turn", "writing", "rl", "reward", "humanize"]
 requires-python = ">=3.12"
 dependencies = [
     "datasets>=2.0",
+    "numpy>=1.26",
     "pydantic>=2.0",
+    "scikit-learn>=1.8,<1.9",
     "verifiers>=0.1.8",
 ]
 
@@ -19,6 +21,9 @@ include = [
     "humanize_rl_env/",
     "pyproject.toml",
     "README.md",
+]
+artifacts = [
+    "humanize_rl_env/ridge_state.pkl",
 ]
 
 [tool.verifiers.eval]

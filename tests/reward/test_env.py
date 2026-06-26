@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 from humanize_rl.reward.env import (
     HumanizeRLEnv,
+    build_prime_single_turn_env,
+    ensure_example_id_in_state,
+    ensure_prompt_in_state,
     load_env_from_jsonl,
     prime_dataset_row,
     render_prompt,
@@ -70,9 +74,75 @@ def test_prime_dataset_row_matches_verifiers_single_turn_shape() -> None:
     row = prime_dataset_row(task)
 
     assert row.prompt == [{"role": "user", "content": render_prompt(task)}]
-    assert row.task_id == task.id
-    assert json.loads(row.task)["id"] == task.id  # task is now a JSON string
-    assert json.loads(row.info)["task_id"] == task.id
+    assert set(row.__dict__) == {"prompt", "info", "answer", "example_id"}
+    info = json.loads(row.info)
+    assert info["task_id"] == task.id
+    assert info["task"]["id"] == task.id
+    assert row.answer == ""
+    assert row.example_id == 0
+
+
+def test_ensure_prompt_in_state_restores_prompt_from_task() -> None:
+    task = _task()
+    row = prime_dataset_row(task)
+    state = {"input": {"info": row.info}}
+
+    ensure_prompt_in_state(state)
+
+    assert state["prompt"] == [{"role": "user", "content": render_prompt(task)}]
+    assert state["input"]["prompt"] == state["prompt"]
+
+
+def test_ensure_prompt_in_state_restores_prompt_from_question() -> None:
+    state = {"input": {"question": "Rewrite this plainly."}}
+
+    ensure_prompt_in_state(state)
+
+    assert state["prompt"] == [{"role": "user", "content": "Rewrite this plainly."}]
+
+
+def test_ensure_example_id_in_state_restores_id_from_task_id() -> None:
+    state = {"input": {"task_id": "rl_v03_000123"}}
+
+    ensure_example_id_in_state(state)
+
+    assert state["example_id"] == 123
+    assert state["input"]["example_id"] == 123
+
+
+def test_ensure_example_id_in_state_restores_id_from_task_payload() -> None:
+    task = _task()
+    row = prime_dataset_row(task)
+    state = {"input": {"info": row.info}}
+
+    ensure_example_id_in_state(state)
+
+    assert state["example_id"] == 1
+
+
+def test_prime_setup_state_keeps_parent_mutation_when_parent_returns_none() -> None:
+    task = _task()
+    row = prime_dataset_row(task)
+
+    class ParentReturnsNoneSingleTurnEnv:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def setup_state(self, state):
+            state["input"] = {"info": row.info}
+            return None
+
+    vf = SimpleNamespace(SingleTurnEnv=ParentReturnsNoneSingleTurnEnv)
+    env = build_prime_single_turn_env(vf, dataset=[], rubric=object())
+
+    import asyncio
+
+    state = asyncio.run(env.setup_state({}))
+
+    assert state["example_id"] == 1
+    assert state["prompt"] == [{"role": "user", "content": render_prompt(task)}]
+    assert state["input"]["example_id"] == 1
+    assert state["input"]["prompt"] == state["prompt"]
 
 
 def test_load_env_from_jsonl_filters_split(tmp_path) -> None:

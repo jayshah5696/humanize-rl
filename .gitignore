@@ -25,6 +25,7 @@ htmlcov/
 data/raw/
 data/processed/
 scratch/
+artifacts/
 output/
 outputs/
 outputs_gemma4_*/

@@ -610,6 +610,51 @@ Minimum useful repair set:
 - include direct rewrites, emails, Slack, long-form, technical explanations;
 - include edited positive examples, not only bad negatives.
 
+2026-06-29 status:
+
+- Extracted `100` env0315 repair candidates from archived Prime audit reports:
+  `data/processed/sft/prime_audit_failure_set_env0315.jsonl`.
+- Generated `70` Google-model repair-reference candidates, then cleaned them to
+  `50` rows:
+  `data/processed/sft/reference_targets/prime_audit_failure_refs_env0315_clean50.jsonl`.
+- Clean report:
+  `data/processed/sft/reference_targets/prime_audit_failure_refs_env0315_clean50_report.json`.
+  The clean set keeps `36` unique task IDs across compression, direct email,
+  rewrite repair, and tone shift failures.
+- Local merged S2 candidate:
+  `data/processed/v04_sft_final_plus_prime_env0315_clean50.jsonl`.
+  Builder output:
+  `data/processed/sft/gemma4_e2b_v04_prime_env0315_clean50/`.
+  Result: `4905` raw rows, `4843` accepted rows, `62` rejected rows, split
+  counts `train=4358`, `valid=242`, `test=243`, and
+  `prime_failure_reference_generation=70` accepted rows.
+- Published the S2 clean50 corpus to a dedicated HF dataset:
+  `jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50`.
+  HF commit: `e1e6b1e839c0dc0450313e5f558c90a6ac925557`.
+- Added S2 Prime SFT config:
+  `configs/prime_rl/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315.toml`.
+- S2 live preflight report:
+  `runs/prime_sft_preflight/qwen35_2b_env0315_clean50.json`.
+  Result: config, local `HF_TOKEN`, HF Dataset Viewer counts, and Prime auth
+  pass; `WANDB_API_KEY source` fails.
+- Generated S2 launch kit:
+  `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50/` and
+  `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz`.
+- Generated S2 post-SFT eval manifest:
+  `runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json`.
+  It writes future after-SFT RL outputs under
+  `configs/prime/qwen35_2b_p5050_after_sft_env0315_clean50_<checkpoint_slug>.toml`
+  and uses W&B run names ending in `env0315-clean50-<checkpoint_slug>`.
+- SFT output verification now accepts both approved dataset-SFT corpora:
+  `jayshah5696/humanize-rl-prime-sft-messages-env0314` and
+  `jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50`. Unknown
+  datasets still fail the verifier.
+- Decision: use S2 clean50 for the next quality-oriented Qwen 2B SFT run unless
+  intentionally spending budget on the S1 no-new-repairs baseline. Do not launch
+  either path until the W&B gate passes.
+- Validation: expanded Prime/reward/SFT data suite `146 passed`; ruff and
+  `git diff --check` pass.
+
 Do not rely on duplicate oversampling through the current builder; it dedupes
 exact pairs. If repairs need higher weight, implement sampler weighting or
 split-level curriculum explicitly.
@@ -738,6 +783,399 @@ Use the archived artifacts if this worktree is gone:
   - repair-reference files;
   - local source files for the published SFT dataset.
 
+## 2026-06-26 Progress Update
+
+Completed locally:
+
+- Added deterministic diagnostics/caps for:
+  - `fake_casual_phrase`;
+  - `low_specificity_substitution`;
+  - `broken_informal_grammar`;
+  - `register_mismatch`;
+  - `thanks_padding`.
+- Mirrored the patch into the Prime env package and bumped the local env
+  package version to `0.3.15`.
+- Published Prime env `jayshah5696/humanize-rl-env@0.3.15`.
+- Verified the local wheel includes `ridge_state.pkl` and the bundled task
+  files before publishing.
+- Ran a local Prime eval smoke on `0.3.15`.
+- Restored archived continuation artifacts from
+  `jayshah5696/humanize-rl-research-artifacts-env0314`.
+- Offline-rescored saved late-run rollouts with the patched reward.
+
+Offline rescore result:
+
+| Step | Rows | Mean | Max | High samples `>=0.75` |
+|---:|---:|---:|---:|---:|
+| 140 | `64` | `0.493312` | `0.500000` | `0` |
+| 150 | `64` | `0.490982` | `0.500000` | `0` |
+| 160 | `64` | `0.487403` | `0.500000` | `0` |
+| 170 | `64` | `0.501132` | `0.696955` | `0` |
+| 180 | `64` | `0.500554` | `0.657759` | `0` |
+| 190 | `64` | `0.495079` | `0.500000` | `0` |
+
+Clean-control check:
+
+- Scored the `20` archived clean repair references.
+- New diagnostics false-positive rows: `0/20`.
+- Only `7/20` controls scored `>=0.75`, but those drops came from older
+  diagnostics such as `subject_line`, `missing_entity`, and
+  `invented_temporal_detail`, not the new fake-casual patch.
+
+Prime publish and local smoke:
+
+- Env: `jayshah5696/humanize-rl-env@0.3.15`
+- Prime content hash: `51a8c3ea`
+- Wheel SHA256:
+  `56bffe065a8296052d7aac8153037b3e80c7738ed6f6b20a097289853d99d6a2`
+- Local smoke output:
+  `runs/prime_eval_smoke/qwen35_08b_p5050_env0315/evals/humanize-rl-env--Qwen--Qwen3.5-0.8B/b003a93c/results.jsonl`
+- Model: `Qwen/Qwen3.5-0.8B`
+- Examples / rollouts: `3 / 1`
+- Reward avg/std: `0.557 / 0.221`
+- Rewards: `[0.484, 0.329, 0.857]`
+- Truncation: `0%`
+
+Read:
+
+- The smoke passed technically.
+- Direct hotfix output stayed high.
+- Formal/template-like and too-long outputs stayed low.
+- This is not a hosted training gate by itself; it only validates that the
+  published env loads and scores correctly.
+
+Pangram-style detector decision:
+
+- Treat Pangram or similar AI-detector behavior as an external evaluation rail,
+  not as a Prime reward dependency.
+- Do not add a live detector API call inside the env. It would make hosted
+  reward scoring slower, costlier, and less reproducible.
+- Built a frozen local detector-mimic eval set after `0.3.15` publication:
+  `data/eval/detector_mimic_v01.jsonl`.
+- Public Pangram docs expose document-level fractions and window-level segment
+  labels; the local mimic mirrors that shape with deterministic markers.
+- Added an offline Pangram-export alignment rail:
+  `scripts/eval/compare_detector_mimic_to_pangram.py`.
+  It accepts a saved Pangram JSON/JSONL export for the frozen mimic rows and
+  compares coverage, human/nonhuman label agreement, and AI-fraction deltas.
+  This keeps external-detector calibration available without putting a live API
+  call inside Prime reward scoring.
+- Promotion integration: `scripts/eval/build_sft_promotion_gate.py` now accepts
+  optional `--pangram-alignment-report`. Pangram remains optional for training,
+  but if the external report is supplied for a promotion read, it must pass.
+- 2026-06-29 update: expanded the frozen mimic set with harder human controls
+  that use literal `seamless` / `unlock`, mixed wrapper segments, stacked
+  corporate boilerplate, and a fake-casual plus corporate-gloss reward hack.
+
+Historical gate at this point, later resolved by the hosted-run audit below:
+
+1. Refresh Prime auth and audit hosted smoke `fj9oinokvx5zott096tgfwqw`.
+2. Do not start a Qwen 2B full run until that hosted smoke is audited.
+
+Direct clean-control refresh:
+
+- Report:
+  `runs/prime_eval_smoke/direct_clean_controls_env0315.json`
+- Rows: `10`
+- Mean/min/max: `0.852037` / `0.469274` / `0.975566`
+- Rows `>=0.75`: `9/10`
+- New diagnostic false-positive rows: `0/10`
+- Read: clean direct controls pass the minimum `90%` gate. The one low row
+  failed an older `missing_entity` check, not the fake-casual patch.
+
+Hosted smoke launch:
+
+- Date: 2026-06-27 PDT / 2026-06-28 UTC
+- Config:
+  `configs/prime/llama32_1b_fakecasualfix_env0315_smoke50.toml`
+- Launch command:
+
+```bash
+prime --plain train configs/prime/llama32_1b_fakecasualfix_env0315_smoke50.toml \
+  --yes --output json
+```
+
+- Run ID: `fj9oinokvx5zott096tgfwqw`
+- Run name:
+  `humanize-p5050-fakecasualfix-llama32-1b-smoke50-env0315-r1`
+- Model: `meta-llama/Llama-3.2-1B-Instruct`
+- Env: `jayshah5696/humanize-rl-env@0.3.15`
+- Reason for not using `sprints/Llama-3.2-1B-Instruct`: existing Prime config
+  notes say it rejects this custom env despite zero price.
+- Launch status: `PENDING`, then `RUNNING` on first monitor poll.
+
+Monitoring blocker:
+
+- After launch, Prime authenticated endpoints returned `API key unauthorized`.
+- Affected commands: `prime train get`, `prime train progress`,
+  `prime train list`, `prime whoami`, and `prime wallet`.
+- Resume after `prime login` or a token refresh:
+
+```bash
+prime --plain train get fj9oinokvx5zott096tgfwqw --output json
+prime --plain train progress fj9oinokvx5zott096tgfwqw
+```
+
+Detector-mimic gate v01:
+
+- Frozen set: `data/eval/detector_mimic_v01.jsonl`
+- Runner: `scripts/eval/evaluate_detector_mimic.py`
+- Optional offline Pangram comparison:
+  `scripts/eval/compare_detector_mimic_to_pangram.py`
+- Report:
+  `runs/detector_mimic/detector_mimic_v01_report.json`
+- Scored rows:
+  `runs/detector_mimic/detector_mimic_v01_scored.jsonl`
+- Command:
+
+```bash
+PYTHONPATH=src UV_PROJECT_ENVIRONMENT=.venv-detector-min uv run --no-project \
+  --python 3.12 \
+  --with pydantic \
+  --with click \
+  scripts/eval/evaluate_detector_mimic.py \
+  --input data/eval/detector_mimic_v01.jsonl \
+  --output runs/detector_mimic/detector_mimic_v01_report.json \
+  --scored-output runs/detector_mimic/detector_mimic_v01_scored.jsonl
+```
+
+- Result: `22` rows, `8` human controls, `14` nonhuman controls,
+  `0` false positives, `0` false negatives, mean `fraction_ai` `0.452857`,
+  gate `pass`.
+- Use this as an external detector-style gate before promoting any SFT/RL
+  candidate model.
+- If a real Pangram export is collected, save it outside the reward env and run:
+
+```bash
+uv run scripts/eval/compare_detector_mimic_to_pangram.py \
+  --input data/eval/detector_mimic_v01.jsonl \
+  --pangram-output runs/detector_mimic/pangram_export.json \
+  --output runs/detector_mimic/pangram_alignment_report.json
+```
+
+Validation status:
+
+- Focused reward plus detector tests: `66 passed`.
+- `ruff check` on touched reward, detector-mimic, script, and test files:
+  passed.
+- Hosted-smoke audit remains pending because Prime auth still returns
+  `API key unauthorized`.
+
+Qwen 2B env0315 SFT/RL ablation configs:
+
+- Qwen 0.8B renderer smoke:
+  `configs/prime/qwen35_08b_fakecasualfix_env0315_smoke50.toml`
+- Qwen 2B base RL full template:
+  `configs/prime/qwen35_2b_p5050_env0315_full200_template.toml`
+- Qwen 2B SFT-to-RL full template:
+  `configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml`
+- Qwen 2B dataset SFT target:
+  `configs/prime_rl/qwen35_2b_sft_target_messages_env0314_gate_env0315.toml`
+
+Post-auth launch order:
+
+1. Audit hosted Llama smoke `fj9oinokvx5zott096tgfwqw`.
+2. If it passes, launch the Qwen 0.8B env0315 smoke.
+3. If that passes, run Qwen 2B dataset SFT.
+4. Compare Qwen 2B base RL against Qwen 2B SFT-to-RL.
+5. Run rollout audit plus detector-mimic gate before promoting a candidate.
+
+Config guardrails:
+
+- All new hosted RL configs use env `0.3.15`.
+- Qwen hosted training/eval caps stay at `max_tokens = 1024`.
+- Qwen 2B full templates use `batch_size = 64`, `rollouts_per_example = 8`,
+  and `max_inflight_rollouts = 32`.
+- Config tests: `3 passed`.
+
+Prime auth and hosted-run audit update:
+
+- Prime auth was refreshed successfully on 2026-06-28.
+- Added bundle script:
+  `scripts/eval/audit_prime_run_bundle.py`.
+- Llama 1B smoke `fj9oinokvx5zott096tgfwqw` completed and bundle-gated:
+  - rollout bundle: `pass`
+  - detector-mimic gate: `pass`
+  - step-50 eval delta: p50 `-0.021137`, v02 strict `+0.054831`,
+    v03 strict `+0.067670`
+  - read: stability/exploit pass, not a p50 quality win.
+- Qwen 0.8B r1 `r8xlz0csp79fu0z0elp9h1dv` completed and bundle-gated:
+  - rollout bundle: `pass`
+  - step-50 eval delta: p50 `+0.069854`, v02 strict `-0.064143`,
+    v03 strict `-0.051501`
+  - read: p50 improved but strict-family guardrail failed.
+- Qwen 0.8B r2 `pzcfi8aew2pnxnkhec2augts` completed and bundle-gated:
+  - config: `qwen35_08b_fakecasualfix_env0315_smoke50_lr5e5.toml`
+  - rollout bundle: `pass`
+  - detector-mimic gate: `pass`
+  - step-50 eval delta: p50 `+0.022284`, v02 strict `+0.111589`,
+    v03 strict `+0.125909`
+  - read: r2 clears the Qwen smoke gate.
+- Qwen 2B base RL `o48ryskshkn06b3o1b1kauql` was launched from the full200
+  template, then stopped at latest step `55` after step-50 eval failed:
+  - rollout bundle: `pass`
+  - detector-mimic gate: `pass`
+  - step-50 eval delta: p50 `+0.056013`, v02 strict `-0.168230`,
+    v03 strict `-0.128226`
+  - read: base RL at `8e-5` over-optimizes p50 and hurts strict
+    generalization. Do not continue this base-RL direction.
+- 2026-06-29 matrix update:
+  - script: `scripts/eval/build_prime_ablation_matrix.py`
+  - report: `runs/prime_training_smoke/ablation_matrix_env0315.json`
+  - all saved bundles were refreshed against the expanded `22` row
+    detector-mimic gate before building the matrix.
+  - criteria: completed status, rollout bundle pass, detector-mimic pass, p50
+    delta `>= 0`, v02/v03 strict deltas `>= 0`.
+  - result: `4` runs summarized, `1` selection pass.
+  - selected smoke: `pzcfi8aew2pnxnkhec2augts`
+    (`Qwen/Qwen3.5-0.8B`, lr `5e-5`), score `0.259782`.
+  - rejected full-model base RL: `o48ryskshkn06b3o1b1kauql` because status is
+    `STOPPED` and strict deltas are negative. This keeps the next full-model
+    path as Qwen 2B dataset SFT, then SFT-to-RL.
+  - validation: matrix helper focused tests `3 passed`; broad Prime/reward gate
+    suite `109 passed`; ruff and `git diff --check` pass.
+
+Updated next action:
+
+1. Run Qwen 2B dataset SFT:
+   `configs/prime_rl/qwen35_2b_sft_target_messages_env0314_gate_env0315.toml`.
+2. Evaluate the SFT checkpoint against env `0.3.15`, rollout audit, and
+   detector-mimic gate.
+3. Only then fill
+   `configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml`
+   with the READY SFT checkpoint ID and run SFT-to-RL.
+
+Launch preflight from 2026-06-28:
+
+- Prime CLI auth is restored: `prime --plain whoami` succeeds for
+  `jayshah5696`.
+- Hosted Training `prime train` is still the env/rollout schema. Do not submit
+  `configs/prime_rl/*.toml` through `prime train`.
+- Fresh Prime `prime-rl` source at commit `d700753` exposes
+  `sft = prime_rl.entrypoints.sft:main`, so the dataset-SFT command remains the
+  correct one on Linux/CUDA.
+- Local shell has `HF_TOKEN`, but no `WANDB_API_KEY`; Prime secret store is also
+  empty. Do not launch the tracked Qwen 2B target SFT until W&B is provided as a
+  local env var or Prime secret.
+- Prime sandbox is viable for the launch once secrets are present:
+  create a GPU VM sandbox with a CUDA/PyTorch image, upload the current repo
+  state, install open `prime-rl`, and run:
+  `uv run sft @ /workspace/humanize-rl/configs/prime_rl/qwen35_2b_sft_target_messages_env0314_gate_env0315.toml`.
+- Executable local preflight:
+  `uv run scripts/train/prime_sft_preflight.py --check-hf-viewer`.
+  Current live result: config, local `HF_TOKEN`, HF Dataset Viewer counts, and
+  Prime auth pass; `WANDB_API_KEY` source fails.
+- 2026-06-29 preflight report update:
+  `scripts/train/prime_sft_preflight.py` now supports `--output` and
+  `--no-fail-on-gate`. Current persisted report:
+  `runs/prime_sft_preflight/qwen35_2b_env0315.json`.
+  Gate result is `passed=false`; failed checks: `WANDB_API_KEY source`.
+  Validation: preflight focused tests `6 passed`; broad Prime/reward gate suite
+  `110 passed`; ruff and `git diff --check` pass.
+- Current HF Dataset Viewer counts match the intended dataset:
+  train `4313`, validation `239`, test `241`, total `4793`; the train split
+  exposes a `messages` column.
+- Prime `prime-rl` schema check against current source commit `d700753` passed
+  for `configs/prime_rl/qwen35_2b_sft_target_messages_env0314_gate_env0315.toml`.
+- Generated a secret-free Prime sandbox launch kit:
+  `runs/prime_sft_launch_kit/qwen35_2b_env0315/` and
+  `runs/prime_sft_launch_kit/qwen35_2b_env0315.tar.gz`.
+  The kit copies the exact SFT config, writes a manifest with config SHA
+  `f14efebb82630df65dbbab8441c87c60f687e9672ee0dff035cfa4a8c2bfc65c`,
+  pins `prime-rl` to `d700753`, and includes `run_sft.sh` for the sandbox.
+- Added SFT-to-RL config handoff helper:
+  `scripts/train/prepare_prime_sft_to_rl_config.py`.
+  After the SFT checkpoint is READY, use it to produce a concrete hosted RL
+  config instead of manually editing the placeholder in
+  `configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml`.
+- Added SFT promotion gate helper:
+  `scripts/eval/build_sft_promotion_gate.py`.
+  Before SFT-to-RL, compare base vs SFT rollout audits on the same labels,
+  require detector-mimic pass, and require a human read JSON with `passed=true`
+  and `20 <= sample_count <= 50`; it also requires a passing
+  `sft_output_verification.json` from `scripts/train/verify_prime_sft_output.py`.
+  It can also enforce an optional Pangram-alignment report when a real external
+  detector export has been collected.
+- Added SFT human-read packet helper:
+  `scripts/eval/build_sft_human_read_packet.py`.
+  After SFT candidate audits exist, use it to collect a bounded `20..50` sample
+  packet from top audit samples before manually setting `passed=true` for the
+  promotion gate.
+- Added Prime `prime-rl` SFT output verifier:
+  `scripts/train/verify_prime_sft_output.py`.
+  After SFT finishes, verify `output_dir/weights/step_N` and adapter artifacts
+  exist before treating the run as a usable SFT model for eval or handoff.
+  The verifier accepts both approved S1/S2 datasets and still rejects untracked
+  datasets.
+- Added Prime warm-start checkpoint handoff verifier:
+  `scripts/train/verify_prime_warm_start_checkpoint.py`.
+  Before rendering the after-SFT hosted RL config, verify the checkpoint is
+  present, `READY`, tied to the expected Prime run, and uses
+  `Qwen/Qwen3.5-2B`; pass the resulting report to
+  `scripts/train/prepare_prime_sft_to_rl_config.py` with
+  `--checkpoint-handoff-report`. The renderer now requires this by default;
+  `--allow-unverified-checkpoint` is only for dummy template validation.
+- Tightened the after-SFT config renderer so real SFT-to-RL configs also
+  require a passing `--promotion-gate-report` from
+  `scripts/eval/build_sft_promotion_gate.py`. This enforces the documented rule
+  that SFT must beat base and pass detector/human-read gates before RL.
+- 2026-06-29 rechecked the documented preflight path. The lightweight train
+  helpers now declare inline `uv` script metadata, so
+  `uv run scripts/train/prime_sft_preflight.py --check-hf-viewer` reaches the
+  preflight itself instead of trying to build the full local project deps. Live
+  result: dataset SFT config, local `HF_TOKEN`, HF Dataset Viewer counts, and
+  Prime auth pass; `WANDB_API_KEY` source still fails and Prime secret store is
+  empty.
+- Added SFT eval manifest helper:
+  `scripts/eval/build_sft_eval_manifest.py`.
+  Current template artifact:
+  `runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315/sft_eval_manifest.json`.
+  This records the ordered SFT-to-RL gate:
+  `verify_sft_output`, collect base/SFT rollout audits for `mix_v2_p5050`,
+  `v02_strict`, and `v03_strict`, build the human-read packet, build/pass the
+  promotion gate, verify the Prime READY checkpoint handoff, then render the
+  after-SFT RL config.
+- Decision: do not render or launch the after-SFT RL config until the manifest
+  gates pass: SFT output verification, bounded human-read approval, promotion
+  gate, and checkpoint handoff.
+- Validation: manifest focused tests `2 passed`; broad Prime/reward gate suite
+  `112 passed`.
+- Added Prime audit failure extractor:
+  `scripts/data/build/extract_prime_audit_failures.py`.
+  It converts saved Prime audit JSON top samples into the JSONL failure-set
+  shape consumed by
+  `scripts/data/build/generate_sft_references_from_failures.py`.
+- Generated and cleaned the env0315 S2 repair-reference slice:
+  `data/processed/sft/reference_targets/prime_audit_failure_refs_env0315_clean50.jsonl`.
+  The local SFT candidate built from it accepts all `50` new clean rows, bringing
+  total accepted `prime_failure_reference_generation` rows to `70`.
+- Published the S2 clean50 HF dataset:
+  `jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50`
+  at commit `e1e6b1e839c0dc0450313e5f558c90a6ac925557`.
+- Added S2 config and launch kit:
+  `configs/prime_rl/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315.toml`
+  and `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz`.
+- Added S2 eval/promotion manifest:
+  `runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json`.
+  It keeps the future SFT-to-RL config and run name distinct from S1.
+- Added offline Pangram-export alignment for the frozen detector-mimic set so a
+  real Pangram run can be compared against local mimic behavior before model
+  promotion.
+- SFT promotion gate now accepts optional `--pangram-alignment-report`; the
+  stored S2 manifest records this as optional and does not block launch on a
+  missing Pangram export.
+- S2 clean50 output verification no longer trips on the dataset guardrail; the
+  verifier accepts S1 env0314 and S2 env0315-clean50, while rejecting unknown
+  datasets.
+- Live S2 preflight passes dataset config, local `HF_TOKEN`, HF Dataset Viewer
+  counts `train=4358 validation=242 test=243`, and Prime auth; it still fails
+  `WANDB_API_KEY source`.
+- Decision: next quality-oriented full-model SFT should use S2 clean50 unless
+  the explicit goal is to spend budget on the S1 no-new-repairs baseline. Do not
+  launch until W&B is present.
+- Validation: expanded Prime/reward/SFT data suite `146 passed`; ruff and
+  `git diff --check` pass.
+
 ## What Not To Do Next
 
 - Do not deploy the step-200 checkpoint as a candidate model.
@@ -754,5 +1192,9 @@ Use the archived artifacts if this worktree is gone:
   `https://docs.primeintellect.ai/hosted-training/models-and-pricing`
 - Prime Hosted Training advanced configs:
   `https://docs.primeintellect.ai/hosted-training/advanced-configs`
+- Pangram REST API quickstart:
+  `https://docs.pangram.com/quickstart-rest`
+- Pangram Python SDK:
+  `https://docs.pangram.com/sdk/python`
 - Liquid model library:
   `https://docs.liquid.ai/lfm/models/complete-library`

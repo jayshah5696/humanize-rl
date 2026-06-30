@@ -1,0 +1,59 @@
+name = "humanize-p5050-fakecasualfix-llama32-1b-smoke50-env0315-r1"
+model = "meta-llama/Llama-3.2-1B-Instruct"
+max_steps = 50
+batch_size = 16
+rollouts_per_example = 4
+max_inflight_rollouts = 16
+learning_rate = 1e-4
+lora_alpha = 32
+
+[sampling]
+max_tokens = 1024
+temperature = 0.7
+
+[[env]]
+id = "jayshah5696/humanize-rl-env"
+name = "train_mix_v2_p5050_fakecasualfix_r1"
+version = "0.3.15"
+args = { split = "train", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }
+
+[eval]
+interval = 25
+num_examples = 16
+rollouts_per_example = 1
+eval_base_model = true
+
+[eval.sampling]
+max_tokens = 1024
+temperature = 0.2
+
+[[eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_mix_v2_p5050_env0315"
+version = "0.3.15"
+args = { split = "validation", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }
+
+[[eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_v02_strict_env0315"
+version = "0.3.15"
+args = { split = "validation", task_set = "v02_smoke", reward_mode = "strict" }
+
+[[eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_v03_strict_env0315"
+version = "0.3.15"
+args = { split = "validation", task_set = "v03", reward_mode = "strict" }
+
+[val]
+num_examples = 32
+rollouts_per_example = 1
+interval = 10
+
+[checkpoints]
+interval = 50
+keep_cloud = 2
+
+[adapters]
+interval = 0
+keep_last = 2

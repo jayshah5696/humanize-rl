@@ -189,7 +189,15 @@ def normalize_row(row: dict[str, Any]) -> NormalizedPair:
             row.get("response") or row.get("output") or row.get("completion") or ""
         )
 
-    metadata = {key: value for key, value in row.items() if key not in {"messages"}}
+    nested_metadata = row.get("metadata")
+    metadata = dict(nested_metadata) if isinstance(nested_metadata, dict) else {}
+    metadata.update(
+        {
+            key: value
+            for key, value in row.items()
+            if key not in {"messages", "metadata"}
+        }
+    )
     return NormalizedPair(
         instruction=instruction.strip(),
         response=response.strip(),

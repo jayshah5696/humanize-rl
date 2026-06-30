@@ -121,6 +121,33 @@ UNSUPPORTED_NEGATION_RE = re.compile(
     r"kill(?:ed|s|ing)?|drunk|refunds?|delete it|nobody asked|no one asked)\b",
     re.IGNORECASE,
 )
+FAKE_CASUAL_RE = re.compile(
+    r"\b(?:we got(?: us)?|you guys|we're good|we are good|good stuff|"
+    r"project stuff|technical stuff|personal and professional stuff|"
+    r"doing you a solid|stuff)\b",
+    re.IGNORECASE,
+)
+VAGUE_SUBSTITUTION_RE = re.compile(
+    r"\b(?:stuff|thing|things|something|somebody|someone)\b",
+    re.IGNORECASE,
+)
+BROKEN_INFORMAL_GRAMMAR_RE = re.compile(
+    r"\b(?:we working|we tell you|when stuff good|stuff good again|"
+    r"we got us|we at [A-Z][A-Za-z0-9& .'-]{2,80} want you at|"
+    r"we think we should do some stuff|before day ends)\b",
+    re.IGNORECASE,
+)
+REGISTER_MISMATCH_RE = re.compile(
+    r"\b(?:cut the crap|doing you a solid|screw this|screw it|"
+    r"what the hell|shut up|bullshit|crap)\b",
+    re.IGNORECASE,
+)
+THANKS_PADDING_RE = re.compile(
+    r"(?i)(?:^|[.!?;]\s+)((?:thanks|thank you|appreciate you)"
+    r"(?:\s+for\s+(?:looking|looking out|listening|checking in|the heads up|"
+    r"your time|your feedback|your help|your patience|your support|"
+    r"your collaboration))?[.!]?)\s*$"
+)
 NUMBER_RE = re.compile(r"\b(?:\d+\s?(?:am|pm)|\d+[\d,.:/-]*|[A-Z]+-\d+)\b", re.I)
 ENTITY_RE = re.compile(r"\b(?:[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)*|[A-Z][A-Z0-9_]{2,})\b")
 WORD_RE = re.compile(r"\b[\w'-]+\b")
@@ -137,6 +164,8 @@ REPETITION_MAX_DENSITY = 0.20
 LOW_SOURCE_OVERLAP_MIN_SOURCE_TOKENS = 20
 LOW_SOURCE_OVERLAP_MIN_SHARED_TOKENS = 3
 LOW_SOURCE_OVERLAP_MIN_RATIO = 0.12
+LOW_SPECIFICITY_MIN_SOURCE_TOKENS = 6
+LOW_SPECIFICITY_MAX_SHARED_RATIO = 0.35
 ROMANCE_TASK_RE = re.compile(
     r"\b(?:romance|romantic|rom-com|love stor(?:y|ies))\b",
     re.IGNORECASE,
@@ -228,6 +257,11 @@ PENALTIES: dict[str, float] = {
     "unsupported_negation": -0.45,
     "low_source_overlap": -0.40,
     "instruction_leak": -0.30,
+    "fake_casual_phrase": -0.35,
+    "low_specificity_substitution": -0.50,
+    "broken_informal_grammar": -0.35,
+    "register_mismatch": -0.35,
+    "thanks_padding": -0.20,
 }
 
 # Stop-entities are tokens that match the ENTITY_RE [A-Z][a-z]+ heuristic
@@ -617,6 +651,32 @@ def _allows_salutation(task: RLTask) -> bool:
     return _has_positive_style_permission(context, targets, window=80)
 
 
+def _allows_register_mismatch_phrasing(task: RLTask) -> bool:
+    context = _context_text(task)
+    targets = (
+        r"slang",
+        r"swear(?:ing)?",
+        r"profan(?:e|ity)",
+        r"rough language",
+        r"aggressive",
+    )
+    if _has_negated_style_permission(context, targets):
+        return False
+    return _has_positive_style_permission(context, targets, window=120)
+
+
+def _allows_thanks_padding(task: RLTask) -> bool:
+    if not task.constraints.no_signoff:
+        return True
+    context = _context_text(task)
+    targets = (r"thank(?:s| you)?", r"appreciat(?:e|ion)")
+    if _has_negated_style_permission(context, targets):
+        return False
+    if re.search(r"\b(?:thank|thanks|appreciat(?:e|ion))\b", context, re.I):
+        return True
+    return _has_positive_style_permission(context, targets, window=120)
+
+
 def _matched_phrases(text: str, phrases: list[str]) -> list[str]:
     return sorted(
         {phrase for phrase in phrases if phrase and _contains_phrase(text, phrase)}
@@ -920,6 +980,102 @@ def check_source_overlap(task: RLTask, response: str) -> CheckDiagnostic:
         penalty=0.0 if passed else PENALTIES["low_source_overlap"],
         message=f"shared={len(shared)}/{len(source_tokens)} ratio={ratio:.3f}",
         matches=[] if passed else [f"{len(shared)}/{len(source_tokens)}"],
+    )
+
+
+def check_fake_casual_phrase(task: RLTask, response: str) -> CheckDiagnostic:
+    source = _context_text(task).lower()
+    matches = sorted(
+        {
+            match.group(0).lower()
+            for match in FAKE_CASUAL_RE.finditer(response)
+            if match.group(0).lower() not in source
+            or match.group(0).lower() in {"stuff", "we got", "we got us"}
+        }
+    )
+    return _diagnostic(
+        "fake_casual_phrase",
+        matches,
+        "Response uses fake-casual filler instead of plain human prose.",
+    )
+
+
+def check_low_specificity_substitution(task: RLTask, response: str) -> CheckDiagnostic:
+    source_text = _entity_source_text(task)
+    source_tokens = _content_tokens(source_text)
+    if len(source_tokens) < LOW_SPECIFICITY_MIN_SOURCE_TOKENS:
+        return CheckDiagnostic(
+            "low_specificity_substitution",
+            True,
+            message=f"source_tokens={len(source_tokens)}",
+        )
+
+    source_lower = source_text.lower()
+    vague_terms = sorted(
+        {
+            match.group(0).lower()
+            for match in VAGUE_SUBSTITUTION_RE.finditer(response)
+            if match.group(0).lower() not in source_lower
+        }
+    )
+    if not vague_terms:
+        return CheckDiagnostic("low_specificity_substitution", True)
+
+    response_tokens = _content_tokens(response)
+    shared = source_tokens & response_tokens
+    ratio = len(shared) / len(source_tokens)
+    concrete_facts = bool(
+        task.required_facts
+        or extract_entities(source_text)
+        or extract_numbers(source_text)
+        or extract_temporal_details(source_text)
+    )
+    failed = "stuff" in vague_terms or (
+        concrete_facts and ratio < LOW_SPECIFICITY_MAX_SHARED_RATIO
+    )
+    return CheckDiagnostic(
+        name="low_specificity_substitution",
+        passed=not failed,
+        penalty=0.0 if not failed else PENALTIES["low_specificity_substitution"],
+        message=f"shared={len(shared)}/{len(source_tokens)} ratio={ratio:.3f}",
+        matches=[] if not failed else vague_terms,
+    )
+
+
+def check_broken_informal_grammar(response: str) -> CheckDiagnostic:
+    matches = [
+        match.group(0).strip()
+        for match in BROKEN_INFORMAL_GRAMMAR_RE.finditer(response)
+    ]
+    return _diagnostic(
+        "broken_informal_grammar",
+        sorted(set(matches), key=str.lower),
+        "Response uses broken casual grammar as a human-sounding shortcut.",
+    )
+
+
+def check_register_mismatch(task: RLTask, response: str) -> CheckDiagnostic:
+    matches = [
+        match.group(0).strip().lower()
+        for match in REGISTER_MISMATCH_RE.finditer(response)
+    ]
+    if _allows_register_mismatch_phrasing(task):
+        return CheckDiagnostic("register_mismatch", True, matches=matches)
+    return _diagnostic(
+        "register_mismatch",
+        sorted(set(matches)),
+        "Response uses slang or aggressive phrasing the task did not request.",
+    )
+
+
+def check_thanks_padding(task: RLTask, response: str) -> CheckDiagnostic:
+    matches = [match.group(1).strip() for match in THANKS_PADDING_RE.finditer(response)]
+    if _allows_thanks_padding(task):
+        return CheckDiagnostic("thanks_padding", True, matches=matches)
+    return _diagnostic(
+        "thanks_padding",
+        sorted(set(matches), key=str.lower),
+        "Response adds an unsupported thanks-style closing.",
     )
 
 
@@ -1231,6 +1387,11 @@ def run_deterministic_checks(task: RLTask, response: str) -> CheckReport:
         check_entities(task, response),
         check_unsupported_negation(task, response),
         check_source_overlap(task, response),
+        check_fake_casual_phrase(task, response),
+        check_low_specificity_substitution(task, response),
+        check_broken_informal_grammar(response),
+        check_register_mismatch(task, response),
+        check_thanks_padding(task, response),
         check_ai_tells(task, response),
         check_invented_details(task, response),
         check_refusal(response),

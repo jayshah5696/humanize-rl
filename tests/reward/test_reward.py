@@ -309,6 +309,61 @@ def test_ai_tell_phrase_caps_p50_surface_naturalness() -> None:
     assert result.reward <= 0.70
 
 
+def test_fake_casual_stuff_caps_p50_even_with_perfect_ridge() -> None:
+    task = _task(
+        id="rl_v01_000119",
+        input_text=(
+            "Project Apollo deliverables are ready in the shared folder. "
+            "Feedback is due Friday before the revision closes."
+        ),
+        constraints={
+            "max_words": 35,
+            "no_subject_line": True,
+            "no_signoff": True,
+            "preserve_entities": True,
+        },
+        required_facts=["Project Apollo", "shared folder", "Friday"],
+    )
+    result = score_response(
+        task,
+        "We got stuff we need for Project too. Thanks for looking out.",
+        FakePerfectRidgeScorer(),
+        reward_mode="p50_50_no_penalty",
+    )
+
+    assert "fake_casual_phrase" in result.penalties
+    assert "low_specificity_substitution" in result.penalties
+    assert result.components["semantic_faithfulness"] == 0.0
+    assert result.weighted_components["deterministic"] == 0.0
+    assert result.reward <= 0.50
+
+
+def test_broken_informal_grammar_caps_p50_surface_naturalness() -> None:
+    result = score_response(
+        _task(required_facts=[]),
+        "We working on it now, we tell you when stuff good again.",
+        FakePerfectRidgeScorer(),
+        reward_mode="p50_50_no_penalty",
+    )
+
+    assert "broken_informal_grammar" in result.penalties
+    assert result.components["surface_naturalness"] < 1.0
+    assert result.weighted_components["deterministic"] <= 0.20
+    assert result.reward <= 0.70
+
+
+def test_specific_direct_update_remains_high_reward() -> None:
+    result = score_response(
+        _task(),
+        "Staging recovered at 3 pm after the STRIPE_WEBHOOK_SECRET fix.",
+        FakePerfectRidgeScorer(),
+        reward_mode="p50_50_no_penalty",
+    )
+
+    assert result.penalties == {}
+    assert result.reward > 0.90
+
+
 def test_instruction_leak_caps_p50_deterministic_half() -> None:
     task = _task(
         id="rl_v03_000009",

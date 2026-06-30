@@ -541,6 +541,75 @@ def test_unsupported_negation_and_low_source_overlap_trigger() -> None:
     assert not checks["low_source_overlap"].passed
 
 
+def test_fake_casual_low_specificity_and_thanks_padding_trigger() -> None:
+    task = _task(
+        id="rl_v01_000119",
+        input_text=(
+            "Project Apollo deliverables are ready in the shared folder. "
+            "Feedback is due Friday before the revision closes."
+        ),
+        constraints={
+            "max_words": 35,
+            "no_subject_line": True,
+            "no_signoff": True,
+            "preserve_entities": True,
+        },
+        required_facts=["Project Apollo", "shared folder", "Friday"],
+        forbidden_facts=[],
+    )
+    checks = _by_name(
+        "We got stuff we need for Project too. Thanks for looking out.",
+        task,
+    )
+
+    assert not checks["fake_casual_phrase"].passed
+    assert "we got" in checks["fake_casual_phrase"].matches
+    assert "stuff" in checks["fake_casual_phrase"].matches
+    assert not checks["low_specificity_substitution"].passed
+    assert "stuff" in checks["low_specificity_substitution"].matches
+    assert not checks["thanks_padding"].passed
+    assert "Thanks for looking out." in checks["thanks_padding"].matches
+
+
+def test_broken_informal_grammar_and_register_mismatch_trigger() -> None:
+    checks = _by_name(
+        "We working on it now, we tell you when stuff good again. "
+        "We're doing you a solid here, so cut the crap."
+    )
+
+    assert not checks["broken_informal_grammar"].passed
+    assert "We working" in checks["broken_informal_grammar"].matches
+    assert not checks["register_mismatch"].passed
+    assert "doing you a solid" in checks["register_mismatch"].matches
+    assert "cut the crap" in checks["register_mismatch"].matches
+
+
+def test_real_casual_slack_control_is_not_penalized() -> None:
+    checks = _by_name(
+        "Staging is back at 3 pm after the STRIPE_WEBHOOK_SECRET fix. "
+        "I'll keep an eye on it through handoff."
+    )
+
+    assert checks["fake_casual_phrase"].passed
+    assert checks["low_specificity_substitution"].passed
+    assert checks["broken_informal_grammar"].passed
+    assert checks["register_mismatch"].passed
+    assert checks["thanks_padding"].passed
+
+
+def test_step170_high_reward_survivors_trigger() -> None:
+    checks = _by_name(
+        "We updated wireframes we posted on Figma. "
+        "We wanted feedback before day ends for project we're doing now; "
+        "dev people need those tomorrow; thanks for looking."
+    )
+
+    assert not checks["broken_informal_grammar"].passed
+    assert "before day ends" in checks["broken_informal_grammar"].matches
+    assert not checks["thanks_padding"].passed
+    assert "thanks for looking." in checks["thanks_padding"].matches
+
+
 def test_repeated_ngram_triggers_repetition_diagnostic() -> None:
     checks = _by_name("I want to talk " * 12)
 

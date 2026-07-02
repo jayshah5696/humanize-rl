@@ -143,8 +143,13 @@ promotion gate, generate a concrete hosted RL config, then launch:
 uv run scripts/eval/build_sft_eval_manifest.py \
   --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
   --promotion-root runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID> \
+  --pangram-bulk-items runs/detector_mimic/pangram_bulk_items.json \
   --output runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json
 ```
+
+If `--after-sft-config` or `--rl-run-name` contains `<checkpoint_slug>`, the
+manifest builder replaces it automatically once `--checkpoint-id` is real. The
+template checkpoint id `READY_SFT_CHECKPOINT_ID` keeps placeholders intact.
 
 ```bash
 uv run scripts/train/verify_prime_sft_output.py \
@@ -155,6 +160,7 @@ uv run scripts/train/verify_prime_sft_output.py \
 
 ```bash
 uv run scripts/eval/build_sft_human_read_packet.py \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
   --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
   --candidate-audit mix_v2_p5050=<sft_mix_audit.json> \
   --candidate-audit v02_strict=<sft_v02_audit.json> \
@@ -164,6 +170,7 @@ uv run scripts/eval/build_sft_human_read_packet.py \
 
 ```bash
 uv run scripts/eval/build_sft_promotion_gate.py \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
   --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
   --baseline-audit mix_v2_p5050=<base_mix_audit.json> \
   --baseline-audit v02_strict=<base_v02_audit.json> \
@@ -186,6 +193,8 @@ uv run scripts/train/verify_prime_warm_start_checkpoint.py \
 
 ```bash
 uv run scripts/train/prepare_prime_sft_to_rl_config.py \
+  --template configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
   --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
   --checkpoint-handoff-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/checkpoint_handoff.json \
   --promotion-gate-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/promotion_gate.json \

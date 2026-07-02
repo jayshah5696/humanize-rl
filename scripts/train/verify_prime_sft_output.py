@@ -33,6 +33,42 @@ def _load_toml(path: Path) -> dict[str, Any]:
         return tomllib.load(handle)
 
 
+def _load_json(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text())
+    if not isinstance(data, dict):
+        raise click.ClickException(f"{path} must contain a JSON object")
+    return data
+
+
+def _manifest_gate(
+    path: Path | None,
+    *,
+    config_path: Path,
+    output_path: Path,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    if path is None:
+        return None, []
+
+    report = _load_json(path)
+    failures: list[str] = []
+    if report.get("artifact") != "sft_eval_manifest":
+        failures.append("SFT eval manifest artifact is invalid")
+
+    manifest_config = report.get("config")
+    if not isinstance(manifest_config, dict):
+        failures.append("SFT eval manifest missing config object")
+    elif manifest_config.get("path") != str(config_path):
+        failures.append("SFT eval manifest config path mismatch")
+
+    required = report.get("required_artifacts")
+    if not isinstance(required, dict):
+        failures.append("SFT eval manifest missing required_artifacts object")
+    elif required.get("sft_output_verification") != str(output_path):
+        failures.append("SFT eval manifest sft_output_verification path mismatch")
+
+    return report, failures
+
+
 def _step_number(path: Path) -> int | None:
     match = STEP_DIR_RE.match(path.name)
     if match is None:
@@ -90,9 +126,17 @@ def build_sft_output_report(
     step: int | None,
     output_path: Path,
     require_adapter: bool,
+    sft_eval_manifest_path: Path | None = None,
 ) -> dict[str, Any]:
     """Verify a Prime prime-rl SFT output has a usable checkpoint snapshot."""
     failures: list[str] = []
+    manifest, manifest_failures = _manifest_gate(
+        sft_eval_manifest_path,
+        config_path=config_path,
+        output_path=output_path,
+    )
+    failures.extend(manifest_failures)
+
     config = _load_toml(config_path)
     config_output_dir = Path(str(config.get("output_dir") or ""))
     resolved_output_dir = output_dir or config_output_dir
@@ -146,6 +190,13 @@ def build_sft_output_report(
         "safetensors_files": _relative_files(resolved_output_dir, safetensors_files),
         "adapter_artifact_count": len(adapter_files),
         "adapter_artifacts": _relative_files(resolved_output_dir, adapter_files),
+        "sft_eval_manifest": {
+            "path": str(sft_eval_manifest_path)
+            if sft_eval_manifest_path is not None
+            else None,
+            "checkpoint_id": manifest.get("checkpoint_id") if manifest else None,
+            "promotion_root": manifest.get("promotion_root") if manifest else None,
+        },
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
@@ -168,6 +219,13 @@ def build_sft_output_report(
 )
 @click.option("--step", type=int, default=None, help="Specific SFT step to verify.")
 @click.option(
+    "--sft-eval-manifest",
+    "sft_eval_manifest_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="SFT eval manifest that defines the expected verification report path.",
+)
+@click.option(
     "--output",
     "output_path",
     type=click.Path(path_type=Path, dir_okay=False),
@@ -184,6 +242,7 @@ def cli(
     config_path: Path,
     output_dir: Path | None,
     step: int | None,
+    sft_eval_manifest_path: Path | None,
     output_path: Path,
     require_adapter: bool,
     no_fail_on_gate: bool,
@@ -195,6 +254,7 @@ def cli(
         step=step,
         output_path=output_path,
         require_adapter=require_adapter,
+        sft_eval_manifest_path=sft_eval_manifest_path,
     )
     click.echo(
         "sft_output={gate} step={step} safetensors={safetensors} adapters={adapters} report={report}".format(

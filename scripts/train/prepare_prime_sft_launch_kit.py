@@ -36,6 +36,7 @@ EXPECTED_SPLIT_ROWS_BY_DATASET = {
     },
 }
 KIT_DIR_NAME = "prime_sft_launch_kit"
+SFT_EVAL_MANIFEST_NAME = "sft_eval_manifest.json"
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
@@ -72,12 +73,33 @@ def current_git_dirty() -> bool:
     return bool(_run_git(["status", "--porcelain"]))
 
 
+def _eval_manifest_summary(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    try:
+        payload = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"SFT eval manifest is not valid JSON: {path}") from exc
+    if payload.get("artifact") != "sft_eval_manifest":
+        raise click.ClickException("SFT eval manifest artifact must be sft_eval_manifest")
+    return {
+        "source_path": str(path),
+        "kit_path": f"{KIT_DIR_NAME}/{SFT_EVAL_MANIFEST_NAME}",
+        "sha256": _sha256(path),
+        "checkpoint_id": payload.get("checkpoint_id"),
+        "checkpoint_slug": payload.get("checkpoint_slug"),
+        "promotion_root": payload.get("promotion_root"),
+        "gate_order": payload.get("gate_order", []),
+    }
+
+
 def build_manifest(
     *,
     config_path: Path,
     prime_rl_ref: str,
     git_commit: str | None,
     git_dirty: bool,
+    eval_manifest_path: Path | None = None,
 ) -> dict[str, Any]:
     config = _load_toml(config_path)
     dataset_name = str(config.get("data", {}).get("name") or "")
@@ -110,6 +132,7 @@ def build_manifest(
             "splits": EXPECTED_SPLIT_ROWS_BY_DATASET.get(dataset_name, {}),
             "format": "messages",
         },
+        "sft_eval_manifest": _eval_manifest_summary(eval_manifest_path),
     }
 
 
@@ -155,13 +178,25 @@ uv run sft @ /workspace/{KIT_DIR_NAME}/config.toml
 """
 
 
-def _readme(prime_rl_ref: str, archive_path: Path) -> str:
+def _readme(
+    prime_rl_ref: str,
+    archive_path: Path,
+    *,
+    includes_eval_manifest: bool,
+) -> str:
     archive_local_path = archive_path.as_posix()
     archive_name = archive_path.name
+    eval_manifest_note = ""
+    if includes_eval_manifest:
+        eval_manifest_note = f"""
+This kit includes `{SFT_EVAL_MANIFEST_NAME}`. After SFT finishes, use it as the
+post-SFT verification, rollout-audit, promotion, and SFT-to-RL handoff checklist.
+"""
     return f"""# Prime SFT Launch Kit
 
 This kit is for Prime open `prime-rl` dataset SFT. Do not submit this config
 through `prime train`; Hosted Training uses the env/rollout schema.
+{eval_manifest_note}
 
 Upload the archive:
 
@@ -201,15 +236,19 @@ def write_launch_kit(
     prime_rl_ref: str,
     git_commit: str | None,
     git_dirty: bool,
+    eval_manifest_path: Path | None = None,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(config_path, output_dir / "config.toml")
+    if eval_manifest_path is not None:
+        shutil.copyfile(eval_manifest_path, output_dir / SFT_EVAL_MANIFEST_NAME)
 
     manifest = build_manifest(
         config_path=config_path,
         prime_rl_ref=prime_rl_ref,
         git_commit=git_commit,
         git_dirty=git_dirty,
+        eval_manifest_path=eval_manifest_path,
     )
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n"
@@ -220,7 +259,13 @@ def write_launch_kit(
     run_script.chmod(0o755)
 
     archive_path = output_dir.with_suffix(".tar.gz")
-    (output_dir / "README.md").write_text(_readme(prime_rl_ref, archive_path))
+    (output_dir / "README.md").write_text(
+        _readme(
+            prime_rl_ref,
+            archive_path,
+            includes_eval_manifest=eval_manifest_path is not None,
+        )
+    )
 
     with tarfile.open(archive_path, "w:gz") as tar:
         for path in sorted(output_dir.iterdir()):
@@ -251,7 +296,19 @@ def write_launch_kit(
     show_default=True,
     help="PrimeIntellect-ai/prime-rl commit or ref to check out in the sandbox.",
 )
-def cli(config_path: Path, output_dir: Path, prime_rl_ref: str) -> None:
+@click.option(
+    "--eval-manifest",
+    "eval_manifest_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="Optional SFT eval/promotion manifest to include in the launch kit.",
+)
+def cli(
+    config_path: Path,
+    output_dir: Path,
+    prime_rl_ref: str,
+    eval_manifest_path: Path | None,
+) -> None:
     """Create a secret-free Prime SFT launch kit for a sandbox/pod."""
 
     archive_path = write_launch_kit(
@@ -260,6 +317,7 @@ def cli(config_path: Path, output_dir: Path, prime_rl_ref: str) -> None:
         prime_rl_ref=prime_rl_ref,
         git_commit=current_git_commit(),
         git_dirty=current_git_dirty(),
+        eval_manifest_path=eval_manifest_path,
     )
     click.echo(f"launch_kit={output_dir}")
     click.echo(f"archive={archive_path}")

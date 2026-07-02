@@ -64,6 +64,44 @@ def _sft_output_report(passed: bool = True) -> dict:
     }
 
 
+def _eval_manifest(
+    *,
+    checkpoint_id: str = "ckpt_ready_123",
+    baseline_audits: dict[str, Path],
+    candidate_audits: dict[str, Path],
+    detector: Path,
+    human: Path,
+    sft_output: Path,
+    output: Path,
+    pangram: Path | None = None,
+) -> dict:
+    return {
+        "artifact": "sft_eval_manifest",
+        "checkpoint_id": checkpoint_id,
+        "detector_report": {
+            "path": str(detector),
+            "exists": True,
+            "required_now": True,
+        },
+        "pangram_alignment_report": {
+            "path": str(pangram) if pangram is not None else "runs/detector_mimic/pangram_alignment_report.json",
+            "exists": pangram is not None,
+            "required_now": False,
+        },
+        "required_artifacts": {
+            "baseline_audits": {
+                label: str(path) for label, path in baseline_audits.items()
+            },
+            "candidate_audits": {
+                label: str(path) for label, path in candidate_audits.items()
+            },
+            "human_read_packet": str(human),
+            "sft_output_verification": str(sft_output),
+            "promotion_gate": str(output),
+        },
+    }
+
+
 def test_build_sft_promotion_gate_passes_when_sft_improves_and_gates_pass(
     tmp_path: Path,
 ) -> None:
@@ -94,6 +132,95 @@ def test_build_sft_promotion_gate_passes_when_sft_improves_and_gates_pass(
     assert report["pangram_alignment"]["path"] is None
     assert report["pangram_alignment"]["passed"] is None
     assert output.exists()
+
+
+def test_build_sft_promotion_gate_binds_to_eval_manifest(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline_mix.json"
+    candidate = tmp_path / "candidate_mix.json"
+    detector = tmp_path / "detector.json"
+    human = tmp_path / "human.json"
+    sft_output = tmp_path / "sft_output.json"
+    manifest = tmp_path / "sft_eval_manifest.json"
+    output = tmp_path / "gate.json"
+    baseline_audits = {"mix_v2_p5050": baseline}
+    candidate_audits = {"mix_v2_p5050": candidate}
+    _write_json(baseline, _audit(0.52))
+    _write_json(candidate, _audit(0.58))
+    _write_json(detector, _detector_report())
+    _write_json(human, _human_read())
+    _write_json(sft_output, _sft_output_report())
+    _write_json(
+        manifest,
+        _eval_manifest(
+            baseline_audits=baseline_audits,
+            candidate_audits=candidate_audits,
+            detector=detector,
+            human=human,
+            sft_output=sft_output,
+            output=output,
+        ),
+    )
+
+    report = build_sft_promotion_gate(
+        checkpoint_id="ckpt_ready_123",
+        baseline_audits=baseline_audits,
+        candidate_audits=candidate_audits,
+        detector_report_path=detector,
+        human_read_path=human,
+        sft_output_verification_path=sft_output,
+        sft_eval_manifest_path=manifest,
+        output_path=output,
+    )
+
+    assert report["promotion_gate"]["passed"] is True
+    assert report["sft_eval_manifest"]["path"] == str(manifest)
+    assert report["sft_eval_manifest"]["checkpoint_id"] == "ckpt_ready_123"
+
+
+def test_build_sft_promotion_gate_rejects_manifest_audit_path_mismatch(
+    tmp_path: Path,
+) -> None:
+    baseline = tmp_path / "baseline_mix.json"
+    candidate = tmp_path / "candidate_mix.json"
+    detector = tmp_path / "detector.json"
+    human = tmp_path / "human.json"
+    sft_output = tmp_path / "sft_output.json"
+    manifest = tmp_path / "sft_eval_manifest.json"
+    output = tmp_path / "gate.json"
+    baseline_audits = {"mix_v2_p5050": baseline}
+    candidate_audits = {"mix_v2_p5050": candidate}
+    _write_json(baseline, _audit(0.52))
+    _write_json(candidate, _audit(0.58))
+    _write_json(detector, _detector_report())
+    _write_json(human, _human_read())
+    _write_json(sft_output, _sft_output_report())
+    _write_json(
+        manifest,
+        _eval_manifest(
+            baseline_audits={"mix_v2_p5050": tmp_path / "other_baseline.json"},
+            candidate_audits=candidate_audits,
+            detector=detector,
+            human=human,
+            sft_output=sft_output,
+            output=output,
+        ),
+    )
+
+    report = build_sft_promotion_gate(
+        checkpoint_id="ckpt_ready_123",
+        baseline_audits=baseline_audits,
+        candidate_audits=candidate_audits,
+        detector_report_path=detector,
+        human_read_path=human,
+        sft_output_verification_path=sft_output,
+        sft_eval_manifest_path=manifest,
+        output_path=output,
+    )
+
+    assert report["promotion_gate"]["passed"] is False
+    assert "SFT eval manifest baseline_audits path mismatch" in report[
+        "promotion_gate"
+    ]["failures"]
 
 
 def test_build_sft_promotion_gate_accepts_passing_pangram_alignment(
@@ -315,6 +442,37 @@ def test_build_sft_promotion_gate_requires_sft_output_verification(
 
     assert report["promotion_gate"]["passed"] is False
     assert "sft_output_verification_missing" in report["promotion_gate"]["failures"]
+
+
+def test_build_sft_promotion_gate_rejects_template_checkpoint_id(
+    tmp_path: Path,
+) -> None:
+    baseline = tmp_path / "baseline_mix.json"
+    candidate = tmp_path / "candidate_mix.json"
+    detector = tmp_path / "detector.json"
+    human = tmp_path / "human.json"
+    sft_output = tmp_path / "sft_output.json"
+    output = tmp_path / "gate.json"
+    _write_json(baseline, _audit(0.52))
+    _write_json(candidate, _audit(0.58))
+    _write_json(detector, _detector_report())
+    _write_json(human, _human_read())
+    _write_json(sft_output, _sft_output_report())
+
+    report = build_sft_promotion_gate(
+        checkpoint_id="READY_SFT_CHECKPOINT_ID",
+        baseline_audits={"mix_v2_p5050": baseline},
+        candidate_audits={"mix_v2_p5050": candidate},
+        detector_report_path=detector,
+        human_read_path=human,
+        sft_output_verification_path=sft_output,
+        output_path=output,
+    )
+
+    assert report["promotion_gate"]["passed"] is False
+    assert "checkpoint_id is missing or placeholder" in report["promotion_gate"][
+        "failures"
+    ]
 
 
 def test_build_sft_promotion_gate_rejects_failed_sft_output_verification(

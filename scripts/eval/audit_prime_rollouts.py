@@ -16,6 +16,34 @@ from humanize_rl.reward.tasks import RLTask, load_tasks
 
 DEFAULT_TASKSET = Path("data/rl/humanize_tasks_rl_mix_v2_p5050_filtered.jsonl")
 DEFAULT_HIGH_REWARD_THRESHOLD = 0.75
+EVAL_LABEL_SPECS: dict[str, tuple[Path, RewardMode]] = {
+    "mix_v2_p5050": (
+        Path("data/rl/humanize_tasks_rl_mix_v2_p5050_filtered.jsonl"),
+        "p50_50_no_penalty",
+    ),
+    "v02_strict": (
+        Path("environments/humanize_rl_env/humanize_rl_env/humanize_tasks_v02_smoke.jsonl"),
+        "strict",
+    ),
+    "v03_strict": (
+        Path("data/rl/humanize_tasks_v03_filtered.jsonl"),
+        "strict",
+    ),
+}
+
+
+def resolve_audit_inputs(
+    *,
+    eval_label: str | None,
+    taskset_path: Path | None,
+    reward_mode: RewardMode | None,
+) -> tuple[Path, RewardMode]:
+    """Resolve an eval label shorthand into taskset and reward mode inputs."""
+    label_taskset: Path = DEFAULT_TASKSET
+    label_reward_mode: RewardMode = "p50_50_no_penalty"
+    if eval_label:
+        label_taskset, label_reward_mode = EVAL_LABEL_SPECS[eval_label]
+    return taskset_path or label_taskset, reward_mode or label_reward_mode
 
 
 def _as_json(value: Any) -> Any:
@@ -192,11 +220,17 @@ def build_rollout_audit(
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
 )
 @click.option(
+    "--eval-label",
+    type=click.Choice(sorted(EVAL_LABEL_SPECS)),
+    default=None,
+    help="Shorthand for the taskset and reward mode used by a promotion eval label.",
+)
+@click.option(
     "--taskset",
     "taskset_path",
-    default=DEFAULT_TASKSET,
-    show_default=True,
+    default=None,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Override taskset JSONL. Defaults to --eval-label or p50 taskset.",
 )
 @click.option(
     "--output",
@@ -207,8 +241,8 @@ def build_rollout_audit(
 @click.option(
     "--reward-mode",
     type=click.Choice(["strict", "scalar_softened", "p50_50_no_penalty"]),
-    default="p50_50_no_penalty",
-    show_default=True,
+    default=None,
+    help="Override reward mode. Defaults to --eval-label or p50_50_no_penalty.",
 )
 @click.option(
     "--ridge-path",
@@ -223,18 +257,24 @@ def build_rollout_audit(
 @click.option("--top-n", default=5, show_default=True)
 def main(
     rollout_path: Path,
-    taskset_path: Path,
+    eval_label: str | None,
+    taskset_path: Path | None,
     output_path: Path,
-    reward_mode: RewardMode,
+    reward_mode: RewardMode | None,
     ridge_path: Path | None,
     high_reward_threshold: float,
     top_n: int,
 ) -> None:
     """Write a JSON audit for Prime rollout samples."""
-    report = build_rollout_audit(
-        rollout_path=rollout_path,
+    resolved_taskset, resolved_reward_mode = resolve_audit_inputs(
+        eval_label=eval_label,
         taskset_path=taskset_path,
         reward_mode=reward_mode,
+    )
+    report = build_rollout_audit(
+        rollout_path=rollout_path,
+        taskset_path=resolved_taskset,
+        reward_mode=resolved_reward_mode,
         ridge_path=ridge_path,
         high_reward_threshold=high_reward_threshold,
         top_n=top_n,

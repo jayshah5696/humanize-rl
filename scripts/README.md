@@ -37,8 +37,8 @@ All specialized scripts are organized into these workflow subdirectories:
 
 ### Workflows
 - **`scripts/label/`**: Labeling engines, quality judges, and verification gates.
-- **`scripts/eval/`**: Audit scripts, scorer/reward evaluations, Prime ablation matrices, detector-mimic and Pangram-export comparisons, SFT eval manifests, SFT/RL promotion gates, and MLX output evaluations.
-- **`scripts/train/`**: Training pipelines, local MLX tuning scripts, smoke test wrappers, and Prime SFT launch/output/checkpoint/config handoff helpers.
+- **`scripts/eval/`**: Audit scripts, scorer/reward evaluations, Prime ablation matrices, detector-mimic runs, Pangram bulk exports and alignment comparisons, SFT eval manifests, SFT/RL promotion gates, and MLX output evaluations.
+- **`scripts/train/`**: Training pipelines, local MLX tuning scripts, smoke test wrappers, and Prime SFT launch/output/checkpoint/config handoff helpers, including `verify_prime_sft_launch_readiness.py` for the final pre-spend SFT launch artifact check.
 
 ### Frameworks & Infrastructure
 - **`scripts/mlx/`**: MLX weights conversion, quantization, and merge utilities.

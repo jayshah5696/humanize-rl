@@ -4661,3 +4661,663 @@ expanded Prime/reward/SFT data suite: 146 passed
 ruff check: pass
 git diff --check: pass
 ```
+
+### SFT Eval Rollout Audit Command Plan
+
+Date: 2026-06-29
+
+Change:
+
+- Added `--eval-label` to `scripts/eval/audit_prime_rollouts.py`.
+- Labels:
+  - `mix_v2_p5050` uses
+    `data/rl/humanize_tasks_rl_mix_v2_p5050_filtered.jsonl` with
+    `p50_50_no_penalty`.
+  - `v02_strict` uses
+    `environments/humanize_rl_env/humanize_rl_env/humanize_tasks_v02_smoke.jsonl`
+    with `strict`.
+  - `v03_strict` uses `data/rl/humanize_tasks_v03_filtered.jsonl` with
+    `strict`.
+- Updated the S2 clean50 eval manifest so it records `baseline_rollouts`,
+  `candidate_rollouts`, `audit_specs`, and six concrete audit commands for base
+  and SFT across those three labels.
+- Audit commands pin `scikit-learn>=1.8,<1.9` to avoid ridge pickle version
+  drift during local rescoring.
+
+Decision:
+
+- This only plans auditing of saved rollout JSONs. It does not replace the need
+  to collect actual base/SFT rollouts after SFT finishes.
+- Prime login is healthy, but the tracked S2 SFT launch still waits on
+  `WANDB_API_KEY` locally or in Prime secrets.
+
+Validation:
+
+```text
+audit_prime_rollouts/build_sft_eval_manifest focused tests: 5 passed
+audit_prime_rollouts --help with pinned deps: pass
+expanded Prime/reward/SFT data suite: 149 passed
+S2 clean50 preflight: Prime auth pass, WANDB_API_KEY source fail
+ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Launch Kit Carries Eval Manifest
+
+Date: 2026-06-29
+
+Change:
+
+- Added optional `--eval-manifest` to
+  `scripts/train/prepare_prime_sft_launch_kit.py`.
+- When supplied, the launch kit copies the SFT eval manifest to
+  `prime_sft_launch_kit/sft_eval_manifest.json`, includes it in the tarball,
+  and records its hash, checkpoint placeholder, promotion root, and gate order
+  in `manifest.json`.
+- Regenerated
+  `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz` with the S2
+  eval manifest embedded.
+
+Decision:
+
+- Keep the S2 run artifact tied to its post-SFT verification and SFT-to-RL
+  handoff checklist. This reduces the chance of launching S2 but later using an
+  S1 or stale promotion manifest.
+- This still does not launch SFT. W&B remains the launch gate.
+
+Validation:
+
+```text
+prepare_prime_sft_launch_kit focused tests: 5 passed
+S2 kit tar includes prime_sft_launch_kit/sft_eval_manifest.json
+S2 kit manifest records promotion root and gate order
+expanded Prime/reward/SFT data suite: 150 passed
+S2 clean50 preflight: Prime auth pass, WANDB_API_KEY source fail
+ruff check: pass
+git diff --check: pass
+```
+
+### SFT Eval Manifest Checkpoint Slug Materialization
+
+Date: 2026-06-29
+
+Change:
+
+- Updated `scripts/eval/build_sft_eval_manifest.py` so a real
+  `--checkpoint-id` replaces `<checkpoint_slug>` in the future after-SFT RL
+  config path and W&B run name.
+- The template checkpoint id `READY_SFT_CHECKPOINT_ID` keeps placeholders intact
+  for reusable manifest templates.
+- Added `checkpoint_slug` to the SFT eval manifest and to the launch-kit summary
+  when an eval manifest is packaged.
+- Regenerated the S2 clean50 eval manifest and the S2 launch kit tarball.
+
+Decision:
+
+- Use placeholder-preserving manifests for pre-launch templates.
+- After SFT completes, rebuild the manifest with the real checkpoint id so the
+  SFT-to-RL config path and run name are concrete and tied to that checkpoint.
+
+Validation:
+
+```text
+build_sft_eval_manifest focused tests: 2 passed
+materialization smoke: ckpt_ready_123 -> ckpt-ready-123
+template manifest keeps <checkpoint_slug>: pass
+focused manifest/launch-kit/SFT-to-RL tests: 18 passed
+expanded Prime/reward/SFT data suite: 150 passed
+S2 clean50 preflight: Prime auth pass, WANDB_API_KEY source fail
+ruff check: pass
+git diff --check: pass
+```
+
+### SFT Promotion Placeholder Gate Hardening
+
+Date: 2026-06-29
+
+Change:
+
+- Updated `scripts/eval/build_sft_human_read_packet.py` and
+  `scripts/eval/build_sft_promotion_gate.py` to reject both placeholder
+  checkpoint strings:
+  - `READY_SFT_CHECKPOINT_ID`
+  - `FILL_WITH_READY_SFT_CHECKPOINT_ID`
+- Added regressions proving the S2 template checkpoint cannot produce a
+  human-read packet or pass the SFT promotion gate.
+
+Decision:
+
+- Template manifests are for handoff only. Any human-read packet or promotion
+  gate must use a real READY checkpoint id from the completed SFT run.
+
+Validation:
+
+```text
+human-read/promotion focused tests: 14 passed
+expanded Prime/reward/SFT data suite: 152 passed
+S2 clean50 preflight: Prime auth pass, WANDB_API_KEY source fail
+ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Launch Readiness Verifier
+
+Date: 2026-06-30
+
+Change:
+
+- Added `scripts/train/verify_prime_sft_launch_readiness.py`.
+- Added regression tests covering:
+  - matching config/preflight/launch-kit/eval-manifest artifacts pass;
+  - W&B-only preflight failure blocks launch readiness;
+  - launch-kit config hash drift fails.
+- Wrote current S2 readiness report:
+  `runs/prime_sft_preflight/qwen35_2b_env0315_clean50_launch_readiness.json`.
+
+Decision:
+
+- Before launching S2, run the readiness verifier after refreshing preflight and
+  regenerating the launch kit. The verifier must pass, not only the standalone
+  preflight.
+- Current S2 artifact consistency is good: config hash and packaged eval
+  manifest hash match. Launch readiness still fails only because
+  `WANDB_API_KEY source` fails.
+
+Validation:
+
+```text
+verify_prime_sft_launch_readiness focused tests: 3 passed
+current S2 launch readiness: fail, failures=["preflight gate failed: WANDB_API_KEY source"]
+focused preflight/launch-kit/readiness tests: 16 passed
+expanded Prime/reward/SFT data suite: 155 passed
+ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Launch Archive Readiness Check
+
+Date: 2026-06-30
+
+Change:
+
+- Extended `scripts/train/verify_prime_sft_launch_readiness.py` with
+  `--launch-archive`.
+- The readiness report now verifies the uploaded tarball has:
+  - `prime_sft_launch_kit/config.toml`
+  - `prime_sft_launch_kit/manifest.json`
+  - `prime_sft_launch_kit/sft_eval_manifest.json`
+  - `prime_sft_launch_kit/run_sft.sh`
+  - `prime_sft_launch_kit/README.md`
+- It also compares the archived config, manifest, and eval manifest against the
+  current source artifacts.
+- Regenerated the S2 launch kit archive:
+  `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz`.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+launch_archive_sha256=efef87de57617b11e01690aa2888b3f135a777c5fdf389d9b21a76c8ca2706da
+```
+
+Decision:
+
+- Treat `qwen35_2b_env0315_clean50_launch_readiness.json` as the final
+  pre-spend gate. It must pass after W&B is present, proving both the local kit
+  directory and upload tarball match the S2 config and eval manifest.
+
+Validation:
+
+```text
+verify_prime_sft_launch_readiness focused tests: 4 passed
+current S2 launch readiness: fail only on WANDB_API_KEY source
+focused preflight/launch-kit/readiness tests: 17 passed
+expanded Prime/reward/SFT data suite: 156 passed
+ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 W&B Source Recheck
+
+Date: 2026-06-30
+
+Result:
+
+- `/private/tmp/humanize_rl_prime_wandb.env`: missing.
+- Prime secret list: empty.
+- Current S2 launch readiness therefore remains blocked only on
+  `WANDB_API_KEY source`.
+
+Housekeeping:
+
+- Added `scripts/train/verify_prime_sft_launch_readiness.py` to
+  `scripts/README.md`.
+- Added the readiness script to the lightweight train-script inline `uv`
+  metadata regression.
+
+Validation:
+
+```text
+focused preflight/launch-kit/readiness tests: 17 passed
+expanded Prime/reward/SFT data suite: 156 passed
+ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Launch Runner/README Archive Match
+
+Date: 2026-06-30
+
+Change:
+
+- Extended `scripts/train/verify_prime_sft_launch_readiness.py` to compare the
+  archived `run_sft.sh` and `README.md` against the local S2 launch kit.
+- Added regressions for stale archived runner/readme files.
+- Refreshed
+  `runs/prime_sft_preflight/qwen35_2b_env0315_clean50_launch_readiness.json`.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+launch_archive_sha256=efef87de57617b11e01690aa2888b3f135a777c5fdf389d9b21a76c8ca2706da
+runner_sha256=703f933925db9b3ca00019167c839d339e7b4fef623aa9e3405a2362f4ec661f
+readme_sha256=15a96e2cf8ad5dbc44113a9a6879c0beb96669571d3b0e841270b0584fb7005d
+```
+
+Decision:
+
+- Prime auth is now passing in preflight.
+- Do not launch S2 until `WANDB_API_KEY` is present locally or as a Prime
+  secret. Current `prime --plain secret list --output json` returns an empty
+  secret list.
+
+Validation:
+
+```text
+focused preflight/launch-kit/readiness tests: 19 passed
+expanded Prime/reward/SFT data suite: 158 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Eval Manifest Pins After-SFT Template
+
+Date: 2026-07-01
+
+Change:
+
+- Updated `scripts/eval/build_sft_eval_manifest.py` so the post-SFT handoff
+  manifest records the exact after-SFT hosted RL template and includes
+  `--template` in the render command.
+- Regenerated the S2 clean50 eval manifest, launch kit, tarball, preflight
+  report, and launch-readiness report.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+sft_eval_manifest_sha256=92df8ad93946c55cfc631737f34dfb14efbc8b404a39ac7423046610f5e65b36
+launch_archive_sha256=3c96fdc3bb1d3dd1cf2c33d990f8086351d3df4f52b52a3022da95731c4bdcc4
+after_sft_template=configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml
+```
+
+Decision:
+
+- The S2 clean50 checkpoint will still render from the shared env0315 Qwen 2B
+  after-SFT RL template. The clean50 branch is distinguished by checkpoint id,
+  promotion root, rendered config path, and run name.
+- Keep launch blocked until W&B is available. Prime auth, HF token, HF Dataset
+  Viewer counts, and artifact consistency pass.
+
+Validation:
+
+```text
+focused SFT handoff/launch tests: 24 passed
+expanded Prime/reward/SFT data suite: 158 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Renderer Requires Eval Manifest
+
+Date: 2026-07-01
+
+Change:
+
+- Updated `scripts/eval/build_sft_eval_manifest.py` to record SHA256 for the
+  pinned after-SFT hosted RL template.
+- Updated `scripts/train/prepare_prime_sft_to_rl_config.py` so real after-SFT
+  config rendering requires `--sft-eval-manifest` and verifies:
+  - manifest checkpoint id matches;
+  - manifest after-SFT config path matches `--output`;
+  - manifest checkpoint handoff and promotion-gate paths match;
+  - manifest template path and SHA256 match the current template file.
+- Updated `scripts/train/verify_prime_sft_launch_readiness.py` so the pre-spend
+  S2 readiness report also checks the pinned after-SFT template hash.
+- Regenerated the S2 clean50 eval manifest, launch kit, tarball, preflight
+  report, and launch-readiness report.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+sft_eval_manifest_sha256=12e163cd317a4dfc4151b950dc9ac9fd405cd4cc24f7a8361f4ba5a9e1875440
+launch_archive_sha256=f9ad23eff8f76dd01d080673a0e0d4f7bd0be6097e47f0b2f244e1c3022fb3e5
+after_sft_template_sha256=bb283712c27dff808e7c81bd65ebe042874d492bf4367f927512bad3e38815ca
+```
+
+Decision:
+
+- Keep S2 blocked until W&B is available.
+- Once SFT finishes, rebuild the eval manifest with the real checkpoint id and
+  use that same manifest when rendering the after-SFT RL config.
+
+Validation:
+
+```text
+focused SFT handoff/launch tests: 27 passed
+expanded Prime/reward/SFT data suite: 161 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 SFT Output Verification Uses Eval Manifest
+
+Date: 2026-07-01
+
+Change:
+
+- Updated the S2 eval manifest so the `verify_sft_output` command passes
+  `--sft-eval-manifest`.
+- Updated `scripts/train/verify_prime_sft_output.py` so, when supplied, the
+  eval manifest must match:
+  - the SFT config path;
+  - the expected `sft_output_verification.json` output path.
+- Regenerated the S2 clean50 eval manifest, launch kit, tarball, preflight
+  report, and launch-readiness report.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+sft_eval_manifest_sha256=126a0cf9baac6973fd117621c23827ff4eac6ce097bc1cfae867073653420d39
+launch_archive_sha256=d0f0fcb53fca44c5bb4c048795f736182c872f6951eeb5f3252976b64e7ca95e
+after_sft_template_sha256=bb283712c27dff808e7c81bd65ebe042874d492bf4367f927512bad3e38815ca
+```
+
+Decision:
+
+- Use the eval manifest as the post-SFT handoff contract for both output
+  verification and after-SFT RL config rendering.
+- S2 remains blocked only on W&B.
+
+Validation:
+
+```text
+focused SFT handoff tests: 34 passed
+expanded Prime/reward/SFT data suite: 163 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Promotion Gate Uses Eval Manifest
+
+Date: 2026-07-01
+
+Change:
+
+- Updated the S2 eval manifest so the `build_promotion_gate` command passes
+  `--sft-eval-manifest`.
+- Updated `scripts/eval/build_sft_promotion_gate.py` so, when supplied, the
+  eval manifest must match:
+  - checkpoint id;
+  - base and SFT audit paths;
+  - detector report path;
+  - optional Pangram alignment path when supplied or required;
+  - human-read packet path;
+  - SFT output verification path;
+  - promotion gate output path.
+- Regenerated the S2 clean50 eval manifest, launch kit, tarball, preflight
+  report, and launch-readiness report.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+sft_eval_manifest_sha256=18846849cfc391f86b5660fc36a4973f3ade0f6fa0a5b7aa5e8657b95bf4c11e
+launch_archive_sha256=af45f94b4953f7a5a533b5df37a8101b39a25f80c42ae0dd8111bfdf56e4ac82
+after_sft_template_sha256=bb283712c27dff808e7c81bd65ebe042874d492bf4367f927512bad3e38815ca
+```
+
+Decision:
+
+- Use the eval manifest as the single post-SFT handoff contract for output
+  verification, promotion, and after-SFT RL config rendering.
+- S2 remains blocked only on W&B.
+
+Validation:
+
+```text
+focused SFT handoff tests: 46 passed
+expanded Prime/reward/SFT data suite: 165 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Human-Read Packet Uses Eval Manifest
+
+Date: 2026-07-01
+
+Change:
+
+- Updated the S2 eval manifest so the `build_human_read_packet` command passes
+  `--sft-eval-manifest`.
+- Updated `scripts/eval/build_sft_human_read_packet.py` so, when supplied, the
+  eval manifest must match:
+  - checkpoint id;
+  - candidate audit paths;
+  - human-read packet output path.
+- Regenerated the S2 clean50 eval manifest, launch kit, tarball, preflight
+  report, and launch-readiness report.
+- Updated `configs/prime/README.md` so the manual human-read packet command
+  uses the eval manifest too.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+sft_eval_manifest_sha256=1babc7f14d5ccf50d22884e3b47fc4a5684b7052e4f37e38a96d18ef23db84a0
+launch_manifest_sha256=8e24daaaeb848703c87db98523b1b4a5ed4b67ea2c3f7f0018928189b5302fc7
+launch_archive_sha256=4ef4b0d55ed4357d4e70de23b667dc903d28ca5d77de5e5949e875c102490161
+preflight_report_sha256=91eb45dbc8422085ecfe2d1b21588048e51361cf0dd357cf08116d2b7d3870d9
+launch_readiness_sha256=ec7c3649ac3679082b898bd4fd95f0359460ea8a105f5537571c16573c3fe8e7
+```
+
+Decision:
+
+- Use the eval manifest as the single post-SFT handoff contract for output
+  verification, human read, promotion, and after-SFT RL config rendering.
+- S2 remains gated only on W&B.
+
+Validation:
+
+```text
+focused SFT handoff tests: 52 passed
+expanded Prime/reward/SFT data suite: 167 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Prime S2 Live Model Availability Preflight
+
+Date: 2026-07-01
+
+Change:
+
+- Added a live Prime hosted-training model availability check to
+  `scripts/train/prime_sft_preflight.py`.
+- The check reads the configured model name and verifies it appears in
+  `prime train models --output json` with `at_capacity=false`.
+- Refreshed the S2 clean50 preflight and launch-readiness reports.
+
+Current readiness:
+
+```text
+Prime train model availability: pass - Qwen/Qwen3.5-2B available; training_price_per_mtok=0.15
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+preflight_report_sha256=31c3d195807ec3bd7069abf18dbbcbde5896249599be2827440ba6f491337e29
+launch_readiness_sha256=ec7c3649ac3679082b898bd4fd95f0359460ea8a105f5537571c16573c3fe8e7
+sft_eval_manifest_sha256=1babc7f14d5ccf50d22884e3b47fc4a5684b7052e4f37e38a96d18ef23db84a0
+launch_archive_sha256=4ef4b0d55ed4357d4e70de23b667dc903d28ca5d77de5e5949e875c102490161
+```
+
+Decision:
+
+- Keep S2 as the next quality-oriented Qwen 2B dataset-SFT candidate.
+- Do not launch until W&B is present, but no longer treat hosted model
+  availability as assumed. It is now checked live before spend.
+
+Validation:
+
+```text
+focused SFT launch/handoff tests: 63 passed
+expanded Prime/reward/SFT data suite: 170 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Pangram Alignment Counts AI-Assisted Risk
+
+Date: 2026-07-01
+
+Change:
+
+- Updated `src/humanize_rl/scoring/pangram_alignment.py` so Pangram alignment
+  records `fraction_ai_assisted` and computes
+  `fraction_nonhuman = fraction_ai + fraction_ai_assisted`, capped at `1.0`.
+- The alignment delta now compares the local mimic risk against Pangram's
+  nonhuman fraction, not only `fraction_ai`.
+- Added a regression where Pangram returns `prediction_short="AI-Assisted"` and
+  low `fraction_ai`; this now stays visible as detector risk.
+
+Decision:
+
+- Keep Pangram offline and optional for training, but count AI-assisted output
+  as nonhuman risk when a real Pangram export is used for promotion review.
+- Do not launch S2; W&B is still the only launch blocker.
+
+Validation:
+
+```text
+pangram/detector focused tests: 14 passed
+expanded Prime/reward/SFT data suite: 171 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```
+
+### Pangram Bulk Items Handoff
+
+Date: 2026-07-01
+
+Change:
+
+- Added `scripts/eval/export_detector_mimic_for_pangram.py`.
+- The script writes the frozen detector-mimic rows as SDK-ready
+  `items=[{"id": ..., "text": ...}]` for `Pangram.submit_bulk(items=...)`.
+- Added inline script metadata/path bootstrapping so these commands run with
+  plain `uv run scripts/...`:
+  - `scripts/eval/evaluate_detector_mimic.py`
+  - `scripts/eval/export_detector_mimic_for_pangram.py`
+  - `scripts/eval/compare_detector_mimic_to_pangram.py`
+- Generated `runs/detector_mimic/pangram_bulk_items.json`.
+
+Current detector/Pangram artifacts:
+
+```text
+detector_mimic_rows=22
+detector_gate=pass
+false_positive=0
+false_negative=0
+pangram_bulk_items_sha256=70ce023f0884848059ca167134b1e4188daa62620b26168371cda5411a878951
+detector_mimic_report_sha256=129467b5d930205d1342a71f855640baddd2a1abe7c7d61a033231f2d58375c6
+detector_mimic_scored_sha256=54538b124c0183ffc6aaf64e616262e2dba87b63bc3b76e3607ca49a985ffd5e
+detector_mimic_input_sha256=b19909edb513e38080152bb96c9169e588297501e7d7b4ead720101c1991c7c8
+```
+
+Decision:
+
+- Use `pangram_bulk_items.json` as the exact external-detector handoff. Pangram
+  results must keep these row IDs so `compare_detector_mimic_to_pangram.py`
+  can verify coverage and alignment before promotion.
+- Keep Pangram offline and outside Prime reward scoring.
+- Do not launch S2; W&B is still the only launch blocker.
+
+Validation:
+
+```text
+detector/Pangram focused tests: 16 passed
+expanded Prime/reward/SFT data suite: 173 passed
+changed Python files ruff check: pass
+git diff --check: pass
+export/compare/detector plain uv --help: pass
+export_detector_mimic_for_pangram generated 22 items
+detector-mimic plain uv run: pass
+```
+
+### S2 Eval Manifest Pins Pangram Bulk Handoff
+
+Date: 2026-07-01
+
+Change:
+
+- Added `--pangram-bulk-items` to `scripts/eval/build_sft_eval_manifest.py`.
+- The S2 eval manifest now records:
+  - `pangram_bulk_items.path`;
+  - `pangram_bulk_items.exists`;
+  - `pangram_bulk_items.required_now=false`;
+  - `pangram_bulk_items.sha256` when the file exists.
+- Added `external_detector_handoff` commands for:
+  - exporting `runs/detector_mimic/pangram_bulk_items.json`;
+  - comparing a saved `runs/detector_mimic/pangram_export.json`.
+- Updated `scripts/train/verify_prime_sft_launch_readiness.py` to verify the
+  recorded Pangram bulk-items hash when the optional file exists.
+- Regenerated the S2 clean50 eval manifest, launch kit, tarball, preflight
+  report, and launch-readiness report.
+
+Current readiness:
+
+```text
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+pangram_bulk_items_sha256=70ce023f0884848059ca167134b1e4188daa62620b26168371cda5411a878951
+sft_eval_manifest_sha256=4136e6f33904fa4e597d8eb03e1a4eaf25da58b0b6d50c735fe51eb736b5b318
+launch_manifest_sha256=82e4ae95c7f12171ec83e8a38d5e8353a184f4427b1395f5ec2cec56c6cd1404
+launch_archive_sha256=ec76f850c50f6b358802a10caf5a2de355f2b34cf4a32ad78983fc026f6b5c8b
+preflight_report_sha256=31c3d195807ec3bd7069abf18dbbcbde5896249599be2827440ba6f491337e29
+launch_readiness_sha256=aae92d2221d1d6939e283e102ed0ffb0bd82b43386d914b336c39a46ba348cfe
+```
+
+Decision:
+
+- Treat `pangram_bulk_items.json` as part of the S2 post-SFT handoff contract,
+  but not as a mandatory training input.
+- Keep the Pangram API outside Prime reward scoring.
+- Do not launch S2; W&B is still the only launch blocker.
+
+Validation:
+
+```text
+focused manifest/readiness/Pangram tests: 26 passed
+expanded Prime/reward/SFT data suite: 174 passed
+changed Python files ruff check: pass
+git diff --check: pass
+```

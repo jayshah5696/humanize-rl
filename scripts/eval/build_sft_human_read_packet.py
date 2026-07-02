@@ -16,6 +16,12 @@ DEFAULT_MIN_SAMPLES = 20
 DEFAULT_MAX_SAMPLES = 50
 DEFAULT_SAMPLES_PER_AUDIT = 20
 PLACEHOLDER_CHECKPOINT = "FILL_WITH_READY_SFT_CHECKPOINT_ID"
+PLACEHOLDER_CHECKPOINTS = frozenset(
+    {
+        PLACEHOLDER_CHECKPOINT,
+        "READY_SFT_CHECKPOINT_ID",
+    }
+)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -35,12 +41,45 @@ def _parse_labeled_path(value: str) -> tuple[str, Path]:
 
 
 def _validate_checkpoint_id(checkpoint_id: str) -> None:
-    if not checkpoint_id or checkpoint_id == PLACEHOLDER_CHECKPOINT:
+    if not checkpoint_id or checkpoint_id in PLACEHOLDER_CHECKPOINTS:
         raise click.ClickException(
             "checkpoint-id must be a READY SFT checkpoint, not the placeholder"
         )
     if any(char.isspace() for char in checkpoint_id):
         raise click.ClickException("checkpoint-id must not contain whitespace")
+
+
+def _string_map(paths: dict[str, Path]) -> dict[str, str]:
+    return {label: str(path) for label, path in sorted(paths.items())}
+
+
+def _eval_manifest_gate(
+    path: Path | None,
+    *,
+    checkpoint_id: str,
+    candidate_audits: dict[str, Path],
+    output_path: Path,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    if path is None:
+        return None, []
+
+    report = _load_json(path)
+    failures: list[str] = []
+    if report.get("artifact") != "sft_eval_manifest":
+        failures.append("SFT eval manifest artifact is invalid")
+    if report.get("checkpoint_id") != checkpoint_id:
+        failures.append("SFT eval manifest checkpoint_id mismatch")
+
+    required = report.get("required_artifacts")
+    if not isinstance(required, dict):
+        failures.append("SFT eval manifest missing required_artifacts object")
+    else:
+        if required.get("candidate_audits") != _string_map(candidate_audits):
+            failures.append("SFT eval manifest candidate_audits path mismatch")
+        if required.get("human_read_packet") != str(output_path):
+            failures.append("SFT eval manifest human_read_packet path mismatch")
+
+    return report, failures
 
 
 def _candidate_samples(
@@ -81,6 +120,7 @@ def build_human_read_packet(
     checkpoint_id: str,
     candidate_audits: dict[str, Path],
     output_path: Path,
+    sft_eval_manifest_path: Path | None = None,
     samples_per_audit: int = DEFAULT_SAMPLES_PER_AUDIT,
     min_samples: int = DEFAULT_MIN_SAMPLES,
     max_samples: int = DEFAULT_MAX_SAMPLES,
@@ -93,6 +133,14 @@ def build_human_read_packet(
         raise click.ClickException("max-samples must be >= min-samples")
     if samples_per_audit < 1:
         raise click.ClickException("samples-per-audit must be positive")
+    sft_eval_manifest, manifest_failures = _eval_manifest_gate(
+        sft_eval_manifest_path,
+        checkpoint_id=checkpoint_id,
+        candidate_audits=candidate_audits,
+        output_path=output_path,
+    )
+    if manifest_failures:
+        raise click.ClickException("; ".join(manifest_failures))
 
     samples: list[dict[str, Any]] = []
     for label, path in sorted(candidate_audits.items()):
@@ -119,6 +167,17 @@ def build_human_read_packet(
         "sample_count": len(samples),
         "candidate_audits": {
             label: str(path) for label, path in sorted(candidate_audits.items())
+        },
+        "sft_eval_manifest": {
+            "path": str(sft_eval_manifest_path)
+            if sft_eval_manifest_path is not None
+            else None,
+            "checkpoint_id": sft_eval_manifest.get("checkpoint_id")
+            if sft_eval_manifest
+            else None,
+            "promotion_root": sft_eval_manifest.get("promotion_root")
+            if sft_eval_manifest
+            else None,
         },
         "review_requirements": {
             "set_passed_true_only_after_review": True,
@@ -148,6 +207,13 @@ def build_human_read_packet(
     help="SFT candidate rollout audit as LABEL=PATH.",
 )
 @click.option(
+    "--sft-eval-manifest",
+    "sft_eval_manifest_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="SFT eval manifest that defines expected human-read artifact paths.",
+)
+@click.option(
     "--output",
     "output_path",
     type=click.Path(path_type=Path, dir_okay=False),
@@ -160,6 +226,7 @@ def build_human_read_packet(
 def cli(
     checkpoint_id: str,
     candidate_audit: tuple[str, ...],
+    sft_eval_manifest_path: Path | None,
     output_path: Path,
     samples_per_audit: int,
     min_samples: int,
@@ -169,6 +236,7 @@ def cli(
     packet = build_human_read_packet(
         checkpoint_id=checkpoint_id,
         candidate_audits=dict(_parse_labeled_path(value) for value in candidate_audit),
+        sft_eval_manifest_path=sft_eval_manifest_path,
         output_path=output_path,
         samples_per_audit=samples_per_audit,
         min_samples=min_samples,

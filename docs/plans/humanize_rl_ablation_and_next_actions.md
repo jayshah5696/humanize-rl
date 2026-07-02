@@ -636,15 +636,21 @@ Minimum useful repair set:
 - S2 live preflight report:
   `runs/prime_sft_preflight/qwen35_2b_env0315_clean50.json`.
   Result: config, local `HF_TOKEN`, HF Dataset Viewer counts, and Prime auth
-  pass; `WANDB_API_KEY source` fails.
+  pass; live `prime train models` shows `Qwen/Qwen3.5-2B` available at
+  `training_price_per_mtok=0.15`; `WANDB_API_KEY source` fails.
 - Generated S2 launch kit:
   `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50/` and
   `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz`.
+  The kit now embeds `sft_eval_manifest.json` so the sandbox artifact carries
+  the exact post-SFT gate order and S2 promotion root.
 - Generated S2 post-SFT eval manifest:
   `runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json`.
   It writes future after-SFT RL outputs under
   `configs/prime/qwen35_2b_p5050_after_sft_env0315_clean50_<checkpoint_slug>.toml`
   and uses W&B run names ending in `env0315-clean50-<checkpoint_slug>`.
+  It now also records `audit_specs`, base/SFT rollout placeholders, and concrete
+  `--eval-label` audit commands for `mix_v2_p5050`, `v02_strict`, and
+  `v03_strict` with `scikit-learn>=1.8,<1.9` pinned for ridge parity.
 - SFT output verification now accepts both approved dataset-SFT corpora:
   `jayshah5696/humanize-rl-prime-sft-messages-env0314` and
   `jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50`. Unknown
@@ -652,7 +658,7 @@ Minimum useful repair set:
 - Decision: use S2 clean50 for the next quality-oriented Qwen 2B SFT run unless
   intentionally spending budget on the S1 no-new-repairs baseline. Do not launch
   either path until the W&B gate passes.
-- Validation: expanded Prime/reward/SFT data suite `146 passed`; ruff and
+- Validation: expanded Prime/reward/SFT data suite `152 passed`; ruff and
   `git diff --check` pass.
 
 Do not rely on duplicate oversampling through the current builder; it dedupes
@@ -857,9 +863,14 @@ Pangram-style detector decision:
 - Added an offline Pangram-export alignment rail:
   `scripts/eval/compare_detector_mimic_to_pangram.py`.
   It accepts a saved Pangram JSON/JSONL export for the frozen mimic rows and
-  compares coverage, human/nonhuman label agreement, and AI-fraction deltas.
+  compares coverage, human/nonhuman label agreement, and nonhuman-fraction
+  deltas.
   This keeps external-detector calibration available without putting a live API
   call inside Prime reward scoring.
+- 2026-07-01 update: Pangram v3 exposes `fraction_ai_assisted` alongside
+  `fraction_ai`; the alignment rail now treats
+  `fraction_ai + fraction_ai_assisted` as the external detector-risk fraction
+  so AI-assisted text cannot look safe just because `fraction_ai` is low.
 - Promotion integration: `scripts/eval/build_sft_promotion_gate.py` now accepts
   optional `--pangram-alignment-report`. Pangram remains optional for training,
   but if the external report is supplied for a promotion read, it must pass.
@@ -920,6 +931,8 @@ Detector-mimic gate v01:
 
 - Frozen set: `data/eval/detector_mimic_v01.jsonl`
 - Runner: `scripts/eval/evaluate_detector_mimic.py`
+- Pangram bulk export:
+  `scripts/eval/export_detector_mimic_for_pangram.py`
 - Optional offline Pangram comparison:
   `scripts/eval/compare_detector_mimic_to_pangram.py`
 - Report:
@@ -929,11 +942,7 @@ Detector-mimic gate v01:
 - Command:
 
 ```bash
-PYTHONPATH=src UV_PROJECT_ENVIRONMENT=.venv-detector-min uv run --no-project \
-  --python 3.12 \
-  --with pydantic \
-  --with click \
-  scripts/eval/evaluate_detector_mimic.py \
+uv run scripts/eval/evaluate_detector_mimic.py \
   --input data/eval/detector_mimic_v01.jsonl \
   --output runs/detector_mimic/detector_mimic_v01_report.json \
   --scored-output runs/detector_mimic/detector_mimic_v01_scored.jsonl
@@ -944,7 +953,16 @@ PYTHONPATH=src UV_PROJECT_ENVIRONMENT=.venv-detector-min uv run --no-project \
   gate `pass`.
 - Use this as an external detector-style gate before promoting any SFT/RL
   candidate model.
-- If a real Pangram export is collected, save it outside the reward env and run:
+- To collect a real Pangram export, first write SDK-ready bulk items:
+
+```bash
+uv run scripts/eval/export_detector_mimic_for_pangram.py \
+  --input data/eval/detector_mimic_v01.jsonl \
+  --output runs/detector_mimic/pangram_bulk_items.json
+```
+
+- Submit `payload["items"]` to `Pangram.submit_bulk(items=...)`, then save the
+  result outside the reward env and compare:
 
 ```bash
 uv run scripts/eval/compare_detector_mimic_to_pangram.py \
@@ -952,6 +970,11 @@ uv run scripts/eval/compare_detector_mimic_to_pangram.py \
   --pangram-output runs/detector_mimic/pangram_export.json \
   --output runs/detector_mimic/pangram_alignment_report.json
 ```
+
+- The S2 eval manifest records `runs/detector_mimic/pangram_bulk_items.json`
+  as an optional external-detector handoff artifact and pins its SHA256 when it
+  exists. Launch readiness verifies that hash so the Pangram calibration payload
+  cannot drift silently before SFT spend.
 
 Validation status:
 
@@ -1155,12 +1178,45 @@ Launch preflight from 2026-06-28:
 - Added S2 config and launch kit:
   `configs/prime_rl/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315.toml`
   and `runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz`.
+  The launch kit now packages the S2 eval manifest as
+  `prime_sft_launch_kit/sft_eval_manifest.json`.
 - Added S2 eval/promotion manifest:
   `runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json`.
   It keeps the future SFT-to-RL config and run name distinct from S1.
+  It pins the after-SFT RL template:
+  `configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml`.
+  It records that template's SHA256 and the SFT-to-RL renderer now requires the
+  eval manifest so stale template or artifact-path drift fails before rendering
+  a concrete RL config.
+  The SFT output verifier also accepts the eval manifest and rejects config or
+  verification-report path drift before promotion.
+  The SFT human-read packet also accepts the eval manifest and rejects candidate
+  audit or human-read output path drift before manual review.
+  The SFT promotion gate also accepts the eval manifest and rejects base/SFT
+  audit, detector, human-read, SFT-output, Pangram, or promotion-report path
+  drift.
+  It also stores base/SFT rollout placeholders and concrete audit commands for
+  `mix_v2_p5050`, `v02_strict`, and `v03_strict`, using `--eval-label` defaults
+  and pinned `scikit-learn>=1.8,<1.9`.
+  Real checkpoint manifests now auto-replace `<checkpoint_slug>` in the
+  after-SFT config path and hosted RL run name while template manifests keep the
+  placeholder.
+- Human-read and promotion-gate scripts now reject both template checkpoint
+  strings, `READY_SFT_CHECKPOINT_ID` and `FILL_WITH_READY_SFT_CHECKPOINT_ID`, so
+  the S2 template manifest cannot be accidentally promoted before a real
+  checkpoint exists.
+- Added S2 launch-readiness verification:
+  `runs/prime_sft_preflight/qwen35_2b_env0315_clean50_launch_readiness.json`.
+  It checks the S2 config, preflight report, launch-kit manifest, config hash,
+  launch archive contents, eval manifest hash, and archived runner/readme files
+  agree before launch. It also verifies the pinned after-SFT template hash in
+  the eval manifest. Current result: artifact/archive/template consistency
+  passes, but launch readiness fails on `WANDB_API_KEY source`.
 - Added offline Pangram-export alignment for the frozen detector-mimic set so a
   real Pangram run can be compared against local mimic behavior before model
   promotion.
+- The S2 eval manifest now records the SDK-ready Pangram bulk-items handoff and
+  its hash as an optional external-detector artifact.
 - SFT promotion gate now accepts optional `--pangram-alignment-report`; the
   stored S2 manifest records this as optional and does not block launch on a
   missing Pangram export.
@@ -1168,13 +1224,17 @@ Launch preflight from 2026-06-28:
   verifier accepts S1 env0314 and S2 env0315-clean50, while rejecting unknown
   datasets.
 - Live S2 preflight passes dataset config, local `HF_TOKEN`, HF Dataset Viewer
-  counts `train=4358 validation=242 test=243`, and Prime auth; it still fails
+  counts `train=4358 validation=242 test=243`, Prime auth, and Prime hosted
+  training model availability for `Qwen/Qwen3.5-2B`; it still fails
   `WANDB_API_KEY source`.
+- 2026-06-30 W&B source recheck: `/private/tmp/humanize_rl_prime_wandb.env` is
+  missing and the Prime secret list is empty.
 - Decision: next quality-oriented full-model SFT should use S2 clean50 unless
   the explicit goal is to spend budget on the S1 no-new-repairs baseline. Do not
   launch until W&B is present.
-- Validation: expanded Prime/reward/SFT data suite `146 passed`; ruff and
-  `git diff --check` pass.
+- Validation: expanded Prime/reward/SFT data suite `174 passed`; launch
+  readiness report fails only on `WANDB_API_KEY source`; changed Python files
+  pass ruff and `git diff --check` passes.
 
 ## What Not To Do Next
 

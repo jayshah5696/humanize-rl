@@ -8,9 +8,12 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import click
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from humanize_rl.scoring.detector_mimic import DetectorMimicRow
 from humanize_rl.scoring.pangram_alignment import (

@@ -98,6 +98,14 @@ def dataset_name_from_config(path: Path) -> str:
     return str(config.get("data", {}).get("name") or DATASET_ENV0314)
 
 
+def model_name_from_config(path: Path) -> str:
+    try:
+        config = _load_toml(path)
+    except (FileNotFoundError, tomllib.TOMLDecodeError):
+        return "Qwen/Qwen3.5-2B"
+    return str(config.get("model", {}).get("name") or "Qwen/Qwen3.5-2B")
+
+
 def check_local_secret(env: dict[str, str], name: str, detail: str) -> Check:
     if env.get(name):
         return Check(f"local {name}", True, "set")
@@ -134,6 +142,46 @@ def get_prime_secret_names() -> set[str]:
         raise RuntimeError(detail or "prime secret list failed")
     payload = json.loads(result.stdout)
     return {secret["name"] for secret in payload.get("secrets", [])}
+
+
+def get_prime_train_models() -> list[dict[str, Any]]:
+    result = _run_prime(["train", "models", "--output", "json"])
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(detail or "prime train models failed")
+    payload = json.loads(result.stdout)
+    models = payload.get("models", [])
+    if not isinstance(models, list):
+        raise RuntimeError("prime train models returned no models list")
+    return [model for model in models if isinstance(model, dict)]
+
+
+def check_prime_train_model_availability(
+    model_name: str, models: list[dict[str, Any]]
+) -> Check:
+    for model in models:
+        if model.get("name") != model_name:
+            continue
+        if bool(model.get("at_capacity")):
+            return Check(
+                "Prime train model availability",
+                False,
+                f"{model_name} is listed but at capacity",
+            )
+        price = model.get(
+            "effective_training_price_per_mtok",
+            model.get("training_price_per_mtok"),
+        )
+        return Check(
+            "Prime train model availability",
+            True,
+            f"{model_name} available; training_price_per_mtok={price}",
+        )
+    return Check(
+        "Prime train model availability",
+        False,
+        f"{model_name} not listed by prime train models",
+    )
 
 
 def check_wandb_source(
@@ -297,6 +345,17 @@ def cli(
             prime_secret_names = get_prime_secret_names()
         except (RuntimeError, json.JSONDecodeError) as exc:
             checks.append(Check("Prime secret list", False, str(exc)))
+        try:
+            prime_train_models = get_prime_train_models()
+        except (RuntimeError, json.JSONDecodeError) as exc:
+            checks.append(Check("Prime train model availability", False, str(exc)))
+        else:
+            checks.append(
+                check_prime_train_model_availability(
+                    model_name_from_config(config_path),
+                    prime_train_models,
+                )
+            )
         checks.append(check_wandb_source(env, prime_secret_names))
 
     click.echo(render_checks(checks))

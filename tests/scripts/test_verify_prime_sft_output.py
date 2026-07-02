@@ -44,6 +44,33 @@ def _write_step(output_dir: Path, step: int = 200) -> Path:
     return step_dir
 
 
+def _write_eval_manifest(
+    path: Path,
+    *,
+    config: Path,
+    report_path: Path,
+    checkpoint_id: str = "READY_SFT_CHECKPOINT_ID",
+) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "artifact": "sft_eval_manifest",
+                "checkpoint_id": checkpoint_id,
+                "config": {
+                    "path": str(config),
+                    "exists": True,
+                    "required_now": True,
+                },
+                "required_artifacts": {
+                    "sft_output_verification": str(report_path),
+                },
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+
+
 def test_build_sft_output_report_passes_complete_step(tmp_path: Path) -> None:
     output_dir = tmp_path / "outputs" / "sft"
     config = tmp_path / "config.toml"
@@ -66,6 +93,59 @@ def test_build_sft_output_report_passes_complete_step(tmp_path: Path) -> None:
     assert report["safetensors_count"] == 1
     assert report["adapter_artifact_count"] == 2
     assert report_path.exists()
+
+
+def test_build_sft_output_report_binds_to_eval_manifest(tmp_path: Path) -> None:
+    output_dir = tmp_path / "outputs" / "sft"
+    config = tmp_path / "config.toml"
+    report_path = tmp_path / "report.json"
+    eval_manifest = tmp_path / "sft_eval_manifest.json"
+    _write_config(config, output_dir)
+    _write_step(output_dir)
+    _write_eval_manifest(eval_manifest, config=config, report_path=report_path)
+
+    report = build_sft_output_report(
+        config_path=config,
+        output_dir=None,
+        step=200,
+        output_path=report_path,
+        require_adapter=True,
+        sft_eval_manifest_path=eval_manifest,
+    )
+
+    assert report["passed"] is True
+    assert report["sft_eval_manifest"]["path"] == str(eval_manifest)
+    assert report["sft_eval_manifest"]["checkpoint_id"] == "READY_SFT_CHECKPOINT_ID"
+
+
+def test_build_sft_output_report_rejects_manifest_report_path_mismatch(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs" / "sft"
+    config = tmp_path / "config.toml"
+    report_path = tmp_path / "report.json"
+    eval_manifest = tmp_path / "sft_eval_manifest.json"
+    _write_config(config, output_dir)
+    _write_step(output_dir)
+    _write_eval_manifest(
+        eval_manifest,
+        config=config,
+        report_path=tmp_path / "other_report.json",
+    )
+
+    report = build_sft_output_report(
+        config_path=config,
+        output_dir=None,
+        step=200,
+        output_path=report_path,
+        require_adapter=True,
+        sft_eval_manifest_path=eval_manifest,
+    )
+
+    assert report["passed"] is False
+    assert "SFT eval manifest sft_output_verification path mismatch" in report[
+        "failures"
+    ]
 
 
 def test_build_sft_output_report_accepts_clean50_s2_dataset(tmp_path: Path) -> None:

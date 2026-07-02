@@ -6,6 +6,7 @@
 # ///
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import tomllib
@@ -30,6 +31,10 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise click.ClickException(f"{path} must contain a JSON object")
     return data
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _validate_checkpoint_id(checkpoint_id: str) -> None:
@@ -84,6 +89,55 @@ def _validate_promotion_gate_report(path: Path, checkpoint_id: str) -> None:
         )
 
 
+def _validate_sft_eval_manifest(
+    path: Path,
+    *,
+    checkpoint_id: str,
+    template_path: Path,
+    output_path: Path,
+    checkpoint_handoff_report_path: Path | None,
+    promotion_gate_report_path: Path | None,
+) -> None:
+    report = _load_json(path)
+    if report.get("artifact") != "sft_eval_manifest":
+        raise click.ClickException("SFT eval manifest artifact is invalid")
+    report_checkpoint_id = report.get("checkpoint_id")
+    if report_checkpoint_id != checkpoint_id:
+        raise click.ClickException(
+            f"SFT eval manifest id {report_checkpoint_id} != {checkpoint_id}"
+        )
+
+    required = report.get("required_artifacts")
+    if not isinstance(required, dict):
+        raise click.ClickException("SFT eval manifest missing required_artifacts")
+    expected_paths = {
+        "after_sft_template": str(template_path),
+        "after_sft_config": str(output_path),
+    }
+    if checkpoint_handoff_report_path is not None:
+        expected_paths["checkpoint_handoff"] = str(checkpoint_handoff_report_path)
+    if promotion_gate_report_path is not None:
+        expected_paths["promotion_gate"] = str(promotion_gate_report_path)
+
+    for key, expected in expected_paths.items():
+        actual = required.get(key)
+        if actual != expected:
+            raise click.ClickException(
+                f"SFT eval manifest {key} {actual} != {expected}"
+            )
+
+    template_report = report.get("after_sft_template")
+    if not isinstance(template_report, dict):
+        raise click.ClickException("SFT eval manifest missing after_sft_template")
+    if template_report.get("path") != str(template_path):
+        raise click.ClickException("SFT eval manifest after_sft_template path mismatch")
+    template_sha = template_report.get("sha256")
+    if template_sha and template_sha != _sha256(template_path):
+        raise click.ClickException(
+            "SFT eval manifest after_sft_template sha256 does not match"
+        )
+
+
 def _replace_assignment(text: str, key: str, value: str) -> str:
     pattern = re.compile(rf'^{re.escape(key)}\s*=\s*"[^"]*"', flags=re.MULTILINE)
     replacement = f'{key} = "{value}"'
@@ -101,6 +155,7 @@ def prepare_after_sft_config(
     run_name: str | None = None,
     checkpoint_handoff_report_path: Path | None = None,
     promotion_gate_report_path: Path | None = None,
+    sft_eval_manifest_path: Path | None = None,
     allow_unverified_checkpoint: bool = False,
 ) -> None:
     _validate_checkpoint_id(checkpoint_id)
@@ -118,6 +173,20 @@ def prepare_after_sft_config(
         )
     if promotion_gate_report_path is not None:
         _validate_promotion_gate_report(promotion_gate_report_path, checkpoint_id)
+    if sft_eval_manifest_path is None and not allow_unverified_checkpoint:
+        raise click.ClickException(
+            "SFT eval manifest is required; pass "
+            "--allow-unverified-checkpoint only for template validation"
+        )
+    if sft_eval_manifest_path is not None:
+        _validate_sft_eval_manifest(
+            sft_eval_manifest_path,
+            checkpoint_id=checkpoint_id,
+            template_path=template_path,
+            output_path=output_path,
+            checkpoint_handoff_report_path=checkpoint_handoff_report_path,
+            promotion_gate_report_path=promotion_gate_report_path,
+        )
     data = _load_toml(template_path)
     _validate_template(data)
 
@@ -170,6 +239,13 @@ def prepare_after_sft_config(
     help="Passing report from build_sft_promotion_gate.py.",
 )
 @click.option(
+    "--sft-eval-manifest",
+    "sft_eval_manifest_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="SFT eval manifest that defines the post-SFT handoff contract.",
+)
+@click.option(
     "--run-name",
     default=None,
     help="Optional hosted RL run name override.",
@@ -185,6 +261,7 @@ def cli(
     checkpoint_id: str,
     checkpoint_handoff_report_path: Path | None,
     promotion_gate_report_path: Path | None,
+    sft_eval_manifest_path: Path | None,
     run_name: str | None,
     allow_unverified_checkpoint: bool,
 ) -> None:
@@ -196,6 +273,7 @@ def cli(
         checkpoint_id=checkpoint_id,
         checkpoint_handoff_report_path=checkpoint_handoff_report_path,
         promotion_gate_report_path=promotion_gate_report_path,
+        sft_eval_manifest_path=sft_eval_manifest_path,
         allow_unverified_checkpoint=allow_unverified_checkpoint,
         run_name=run_name,
     )

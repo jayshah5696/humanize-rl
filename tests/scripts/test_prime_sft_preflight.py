@@ -6,6 +6,7 @@ from click.testing import CliRunner
 from scripts.train.prime_sft_preflight import (
     DATASET_ENV0315_CLEAN50,
     check_hf_dataset_viewer,
+    check_prime_train_model_availability,
     check_sft_config,
     cli,
 )
@@ -16,6 +17,7 @@ def test_lightweight_train_scripts_declare_inline_uv_dependencies():
         "scripts/train/prime_sft_preflight.py",
         "scripts/train/prepare_prime_sft_launch_kit.py",
         "scripts/train/prepare_prime_sft_to_rl_config.py",
+        "scripts/train/verify_prime_sft_launch_readiness.py",
     ]
 
     for script_path in script_paths:
@@ -146,6 +148,43 @@ def test_s2_prime_sft_config_passes_static_preflight() -> None:
 
     assert check.ok
     assert DATASET_ENV0315_CLEAN50 in check.detail
+
+
+def test_check_prime_train_model_availability_passes_when_model_is_available():
+    check = check_prime_train_model_availability(
+        "Qwen/Qwen3.5-2B",
+        [
+            {
+                "name": "Qwen/Qwen3.5-2B",
+                "at_capacity": False,
+                "effective_training_price_per_mtok": 0.15,
+            }
+        ],
+    )
+
+    assert check.ok
+    assert "Qwen/Qwen3.5-2B available" in check.detail
+    assert "training_price_per_mtok=0.15" in check.detail
+
+
+def test_check_prime_train_model_availability_fails_when_model_is_at_capacity():
+    check = check_prime_train_model_availability(
+        "Qwen/Qwen3.5-2B",
+        [{"name": "Qwen/Qwen3.5-2B", "at_capacity": True}],
+    )
+
+    assert not check.ok
+    assert "at capacity" in check.detail
+
+
+def test_check_prime_train_model_availability_fails_when_model_is_missing():
+    check = check_prime_train_model_availability(
+        "Qwen/Qwen3.5-2B",
+        [{"name": "Qwen/Qwen3.5-4B", "at_capacity": False}],
+    )
+
+    assert not check.ok
+    assert "not listed" in check.detail
 
 
 def test_check_hf_dataset_viewer_fails_without_messages_column():

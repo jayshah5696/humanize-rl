@@ -1,9 +1,19 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "click>=8.1",
+#   "pydantic>=2",
+# ]
+# ///
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import click
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from humanize_rl.scoring.detector_mimic import (
     DetectorMimicRow,

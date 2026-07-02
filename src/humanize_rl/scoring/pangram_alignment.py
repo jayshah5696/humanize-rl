@@ -28,6 +28,7 @@ class PangramDetection(BaseModel):
     fraction_ai: float
     fraction_ai_assisted: float | None = None
     fraction_human: float | None = None
+    fraction_nonhuman: float
     window_count: int = 0
 
 
@@ -43,6 +44,8 @@ class PangramAlignmentRow(BaseModel):
     pangram_prediction_short: str
     pangram_label: NormalizedDetectorLabel
     pangram_fraction_ai: float
+    pangram_fraction_ai_assisted: float | None = None
+    pangram_fraction_nonhuman: float
     fraction_ai_abs_delta: float
     label_agreement: bool
     gate_error: str = ""
@@ -216,6 +219,16 @@ def _detection_from_mapping(mapping: Mapping[str, Any]) -> PangramDetection | No
     if normalized_label is None or fraction_ai is None:
         return None
 
+    fraction_ai_assisted = _as_fraction(
+        _first(
+            mapping,
+            (
+                ("fraction_ai_assisted",),
+                ("ai_assisted_fraction",),
+                ("fraction_assisted",),
+            ),
+        )
+    )
     windows = mapping.get("windows")
     return PangramDetection(
         id=_as_text(
@@ -250,19 +263,11 @@ def _detection_from_mapping(mapping: Mapping[str, Any]) -> PangramDetection | No
         prediction_short=prediction_short,
         normalized_label=normalized_label,
         fraction_ai=round(fraction_ai, 6),
-        fraction_ai_assisted=_as_fraction(
-            _first(
-                mapping,
-                (
-                    ("fraction_ai_assisted",),
-                    ("ai_assisted_fraction",),
-                    ("fraction_assisted",),
-                ),
-            )
-        ),
+        fraction_ai_assisted=fraction_ai_assisted,
         fraction_human=_as_fraction(
             _first(mapping, (("fraction_human",), ("human_fraction",)))
         ),
+        fraction_nonhuman=round(min(1.0, fraction_ai + (fraction_ai_assisted or 0.0)), 6),
         window_count=len(windows) if isinstance(windows, list) else 0,
     )
 
@@ -357,7 +362,7 @@ def build_pangram_alignment_report(
         mimic = score_detector_mimic_text(row.text)
         mimic_label = _mimic_label(mimic.prediction_short)
         label_agreement = _labels_agree(mimic_label, detection.normalized_label)
-        abs_delta = abs(mimic.fraction_ai - detection.fraction_ai)
+        abs_delta = abs(mimic.fraction_ai - detection.fraction_nonhuman)
         alignment_rows.append(
             PangramAlignmentRow(
                 id=row.id,
@@ -369,6 +374,8 @@ def build_pangram_alignment_report(
                 pangram_prediction_short=detection.prediction_short,
                 pangram_label=detection.normalized_label,
                 pangram_fraction_ai=detection.fraction_ai,
+                pangram_fraction_ai_assisted=detection.fraction_ai_assisted,
+                pangram_fraction_nonhuman=detection.fraction_nonhuman,
                 fraction_ai_abs_delta=round(abs_delta, 6),
                 label_agreement=label_agreement,
                 gate_error="" if label_agreement else "label_disagreement",

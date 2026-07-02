@@ -26,6 +26,12 @@ HIGH_REWARD_COUNTERS = (
     "high_rescored_with_all_caps",
     "high_rescored_with_option_or_wrapper",
 )
+PLACEHOLDER_CHECKPOINTS = frozenset(
+    {
+        "FILL_WITH_READY_SFT_CHECKPOINT_ID",
+        "READY_SFT_CHECKPOINT_ID",
+    }
+)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -111,6 +117,69 @@ def _sft_output_gate(path: Path | None) -> tuple[dict[str, Any] | None, list[str
     return report, failures
 
 
+def _string_map(paths: dict[str, Path]) -> dict[str, str]:
+    return {label: str(path) for label, path in sorted(paths.items())}
+
+
+def _eval_manifest_gate(
+    path: Path | None,
+    *,
+    checkpoint_id: str,
+    baseline_audits: dict[str, Path],
+    candidate_audits: dict[str, Path],
+    detector_report_path: Path,
+    human_read_path: Path,
+    sft_output_verification_path: Path | None,
+    output_path: Path,
+    pangram_alignment_report_path: Path | None,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    if path is None:
+        return None, []
+
+    report = _load_json(path)
+    failures: list[str] = []
+    if report.get("artifact") != "sft_eval_manifest":
+        failures.append("SFT eval manifest artifact is invalid")
+    if report.get("checkpoint_id") != checkpoint_id:
+        failures.append("SFT eval manifest checkpoint_id mismatch")
+
+    required = report.get("required_artifacts")
+    if not isinstance(required, dict):
+        failures.append("SFT eval manifest missing required_artifacts object")
+    else:
+        expected_required: dict[str, Any] = {
+            "baseline_audits": _string_map(baseline_audits),
+            "candidate_audits": _string_map(candidate_audits),
+            "human_read_packet": str(human_read_path),
+            "promotion_gate": str(output_path),
+        }
+        if sft_output_verification_path is not None:
+            expected_required["sft_output_verification"] = str(
+                sft_output_verification_path
+            )
+        for key, expected in expected_required.items():
+            if required.get(key) != expected:
+                failures.append(f"SFT eval manifest {key} path mismatch")
+
+    detector_report = report.get("detector_report")
+    if not isinstance(detector_report, dict):
+        failures.append("SFT eval manifest missing detector_report object")
+    elif detector_report.get("path") != str(detector_report_path):
+        failures.append("SFT eval manifest detector_report path mismatch")
+
+    pangram_report = report.get("pangram_alignment_report")
+    if isinstance(pangram_report, dict):
+        if bool(pangram_report.get("required_now")) and pangram_alignment_report_path is None:
+            failures.append("SFT eval manifest requires pangram_alignment_report")
+        if pangram_alignment_report_path is not None:
+            if pangram_report.get("path") != str(pangram_alignment_report_path):
+                failures.append(
+                    "SFT eval manifest pangram_alignment_report path mismatch"
+                )
+
+    return report, failures
+
+
 def _comparison_allowed_drop(
     label: str,
     min_p50_delta: float,
@@ -131,16 +200,29 @@ def build_sft_promotion_gate(
     sft_output_verification_path: Path | None,
     output_path: Path,
     pangram_alignment_report_path: Path | None = None,
+    sft_eval_manifest_path: Path | None = None,
     min_p50_delta: float = 0.0,
     max_strict_drop: float = 0.0,
 ) -> dict[str, Any]:
     """Build a promotion report proving an SFT checkpoint is ready for RL."""
     failures: list[str] = []
-    if not checkpoint_id or checkpoint_id == "FILL_WITH_READY_SFT_CHECKPOINT_ID":
+    if not checkpoint_id or checkpoint_id in PLACEHOLDER_CHECKPOINTS:
         failures.append("checkpoint_id is missing or placeholder")
 
     sft_output, sft_output_failures = _sft_output_gate(sft_output_verification_path)
     failures.extend(sft_output_failures)
+    sft_eval_manifest, manifest_failures = _eval_manifest_gate(
+        sft_eval_manifest_path,
+        checkpoint_id=checkpoint_id,
+        baseline_audits=baseline_audits,
+        candidate_audits=candidate_audits,
+        detector_report_path=detector_report_path,
+        human_read_path=human_read_path,
+        sft_output_verification_path=sft_output_verification_path,
+        output_path=output_path,
+        pangram_alignment_report_path=pangram_alignment_report_path,
+    )
+    failures.extend(manifest_failures)
 
     if set(baseline_audits) != set(candidate_audits):
         failures.append("baseline/candidate audit labels differ")
@@ -222,6 +304,17 @@ def build_sft_promotion_gate(
             "passed": bool(sft_output and sft_output.get("passed")),
             "report": sft_output,
         },
+        "sft_eval_manifest": {
+            "path": str(sft_eval_manifest_path)
+            if sft_eval_manifest_path is not None
+            else None,
+            "checkpoint_id": sft_eval_manifest.get("checkpoint_id")
+            if sft_eval_manifest
+            else None,
+            "promotion_root": sft_eval_manifest.get("promotion_root")
+            if sft_eval_manifest
+            else None,
+        },
         "promotion_gate": {
             "passed": not failures,
             "failures": failures,
@@ -273,6 +366,13 @@ def build_sft_promotion_gate(
     help="Passing report from verify_prime_sft_output.py.",
 )
 @click.option(
+    "--sft-eval-manifest",
+    "sft_eval_manifest_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="SFT eval manifest that defines expected promotion artifact paths.",
+)
+@click.option(
     "--output",
     "output_path",
     type=click.Path(path_type=Path, dir_okay=False),
@@ -290,6 +390,7 @@ def cli(
     human_read: Path,
     pangram_alignment_report_path: Path | None,
     sft_output_verification_path: Path,
+    sft_eval_manifest_path: Path | None,
     output_path: Path,
     min_p50_delta: float,
     max_strict_drop: float,
@@ -306,6 +407,7 @@ def cli(
         pangram_alignment_report_path=pangram_alignment_report_path,
         human_read_path=human_read,
         sft_output_verification_path=sft_output_verification_path,
+        sft_eval_manifest_path=sft_eval_manifest_path,
         output_path=output_path,
         min_p50_delta=min_p50_delta,
         max_strict_drop=max_strict_drop,

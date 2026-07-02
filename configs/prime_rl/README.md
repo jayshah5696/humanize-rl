@@ -83,7 +83,8 @@ For S2:
 ```bash
 uv run scripts/train/prepare_prime_sft_launch_kit.py \
   --config configs/prime_rl/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315.toml \
-  --output-dir runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50
+  --output-dir runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50 \
+  --eval-manifest runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json
 ```
 
 S2 post-SFT eval/promotion manifest:
@@ -92,9 +93,27 @@ S2 post-SFT eval/promotion manifest:
 uv run scripts/eval/build_sft_eval_manifest.py \
   --config configs/prime_rl/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315.toml \
   --promotion-root runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50 \
+  --after-sft-template configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml \
   --after-sft-config 'configs/prime/qwen35_2b_p5050_after_sft_env0315_clean50_<checkpoint_slug>.toml' \
   --rl-run-name 'humanize-p5050-qwen35-2b-after-sft-env0315-clean50-<checkpoint_slug>' \
   --output runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json
+```
+
+When `--checkpoint-id` is a real checkpoint instead of
+`READY_SFT_CHECKPOINT_ID`, `<checkpoint_slug>` in the after-SFT config path and
+RL run name is replaced automatically with a filesystem-safe slug.
+
+Before spending the S2 launch, verify the config, preflight report, launch kit,
+launch archive, runner script, README, and eval manifest still match:
+
+```bash
+uv run scripts/train/verify_prime_sft_launch_readiness.py \
+  --config configs/prime_rl/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315.toml \
+  --preflight-report runs/prime_sft_preflight/qwen35_2b_env0315_clean50.json \
+  --launch-manifest runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50/manifest.json \
+  --launch-archive runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz \
+  --eval-manifest runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json \
+  --output runs/prime_sft_preflight/qwen35_2b_env0315_clean50_launch_readiness.json
 ```
 
 Current generated paths:
@@ -104,6 +123,8 @@ runs/prime_sft_launch_kit/qwen35_2b_env0315/
 runs/prime_sft_launch_kit/qwen35_2b_env0315.tar.gz
 runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50/
 runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50.tar.gz
+runs/prime_sft_launch_kit/qwen35_2b_env0315_clean50/sft_eval_manifest.json
+runs/prime_sft_preflight/qwen35_2b_env0315_clean50_launch_readiness.json
 runs/prime_sft_promotion/TEMPLATE_QWEN35_2B_ENV0315_CLEAN50/sft_eval_manifest.json
 ```
 
@@ -122,6 +143,10 @@ If a real Pangram export is collected for the frozen detector rows, compare it
 against the local mimic offline:
 
 ```bash
+uv run scripts/eval/export_detector_mimic_for_pangram.py \
+  --input data/eval/detector_mimic_v01.jsonl \
+  --output runs/detector_mimic/pangram_bulk_items.json
+
 uv run scripts/eval/compare_detector_mimic_to_pangram.py \
   --input data/eval/detector_mimic_v01.jsonl \
   --pangram-output runs/detector_mimic/pangram_export.json \

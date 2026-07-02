@@ -33,6 +33,7 @@ def test_load_pangram_detections_accepts_v3_task_payload() -> None:
     assert detection.prediction_short == "AI"
     assert detection.normalized_label == "ai"
     assert detection.fraction_ai == 0.8
+    assert detection.fraction_nonhuman == 0.9
     assert detection.window_count == 1
 
 
@@ -80,6 +81,42 @@ def test_pangram_alignment_passes_when_external_labels_match_mimic() -> None:
     assert report.summary.label_disagreement_rows == 0
     assert report.summary.gate_passed
     assert report.rows[0].source_match == "id"
+
+
+def test_pangram_alignment_counts_ai_assisted_fraction_as_detector_risk() -> None:
+    rows = [
+        DetectorMimicRow(
+            id="assisted_1",
+            text="Whether you're updating docs or sending notes, this version helps"
+            " unlock value at scale.",
+            expected_label="mixed",
+        )
+    ]
+    pangram_export = {
+        "results": [
+            {
+                "id": "assisted_1",
+                "prediction_short": "AI-Assisted",
+                "fraction_ai": 0.0,
+                "fraction_ai_assisted": 0.64,
+                "fraction_human": 0.36,
+            }
+        ]
+    }
+
+    report = build_pangram_alignment_report(
+        rows,
+        pangram_export,
+        source="fixture",
+        max_mean_abs_fraction_delta=0.40,
+    )
+
+    assert report.rows[0].pangram_label == "mixed"
+    assert report.rows[0].pangram_fraction_ai == 0.0
+    assert report.rows[0].pangram_fraction_ai_assisted == 0.64
+    assert report.rows[0].pangram_fraction_nonhuman == 0.64
+    assert report.summary.mean_abs_fraction_delta < 0.40
+    assert report.summary.gate_passed is True
 
 
 def test_pangram_alignment_fails_on_missing_and_disagreement() -> None:

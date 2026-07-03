@@ -8,6 +8,40 @@ from scripts.train.verify_prime_sft_launch_readiness import (
     build_launch_readiness_report,
 )
 
+PINNED_RUN_SCRIPT = """#!/usr/bin/env bash
+git fetch --depth 1 origin d700753 || true
+git checkout d700753
+git config --global url."https://github.com/".insteadOf git@github.com:
+git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+cat > sitecustomize.py <<'PY'
+try:
+    import torch
+
+    torch.backends.cudnn.enabled = False
+except Exception:
+    pass
+PY
+export PYTHONPATH="/workspace/prime-rl:${PYTHONPATH:-}"
+export TORCH_CUDNN_V8_API_DISABLED=1
+git config -f .gitmodules --get-regexp '^submodule\\..*\\.url$' | while read -r key url; do
+  case "$url" in
+    git@github.com:*) https_url="https://github.com/${url#git@github.com:}" ;;
+    ssh://git@github.com/*) https_url="https://github.com/${url#ssh://git@github.com/}" ;;
+    *) https_url="$url" ;;
+  esac
+  git config -f .gitmodules "$key" "$https_url"
+done
+git submodule sync --recursive
+git submodule update --init --recursive --force
+PYTHON_BIN="$(uv run python -c 'import sys; print(sys.executable)')"
+if ! "$PYTHON_BIN" -c 'import flash_attn_2_cuda' >/dev/null 2>&1; then
+  apt_install cuda-nvcc-12-8 g++-12 ninja-build
+  export FLASH_ATTN_CUDA_ARCHS="80"
+  "$PYTHON_BIN" -m pip install --no-cache-dir --no-build-isolation --no-deps flash-attn==2.8.3.post1
+fi
+uv run sft @ /workspace/prime_sft_launch_kit/config.toml
+"""
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -28,7 +62,7 @@ output_dir = "outputs/prime_sft/qwen35_2b_sft_target_messages_env0315_clean50_ga
 name = "Qwen/Qwen3.5-2B"
 
 [data]
-name = "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50"
+name = "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat"
 splits = ["train"]
 """.strip()
         + "\n"
@@ -41,7 +75,7 @@ def _write_launch_archive(
     config: Path,
     launch_manifest: Path,
     eval_manifest: Path,
-    run_script: str = "#!/usr/bin/env bash\nuv run sft @ config.toml\n",
+    run_script: str = PINNED_RUN_SCRIPT,
     readme: str = "# kit\n",
 ) -> None:
     kit_dir = archive_path.parent / "prime_sft_launch_kit"
@@ -78,8 +112,22 @@ def _write_matching_artifacts(tmp_path: Path) -> tuple[Path, Path, Path, Path, P
         preflight,
         {
             "artifact": "prime_sft_preflight",
+            "checks": [
+                {
+                    "detail": "Prime CLI version: 0.6.14",
+                    "name": "Prime CLI version",
+                    "passed": True,
+                }
+            ],
             "config": str(config),
             "gate": {"passed": True, "failed_checks": []},
+            "launch_policy": {
+                "runner": "prime_sandbox",
+                "wandb_source": {
+                    "local_env_required": True,
+                    "prime_secret_allowed": False,
+                },
+            },
         },
     )
     _write_json(
@@ -111,10 +159,11 @@ def _write_matching_artifacts(tmp_path: Path) -> tuple[Path, Path, Path, Path, P
         launch_manifest,
         {
             "artifact": "prime_sft_launch_kit",
+            "prime_rl_ref": "d700753",
             "config": {
                 "source_path": str(config),
                 "sha256": _sha256(config),
-                "data": "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50",
+                "data": "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat",
                 "model": "Qwen/Qwen3.5-2B",
             },
             "sft_eval_manifest": {
@@ -131,9 +180,7 @@ def _write_matching_artifacts(tmp_path: Path) -> tuple[Path, Path, Path, Path, P
         launch_manifest=launch_manifest,
         eval_manifest=eval_manifest,
     )
-    (launch_manifest.parent / "run_sft.sh").write_text(
-        "#!/usr/bin/env bash\nuv run sft @ config.toml\n"
-    )
+    (launch_manifest.parent / "run_sft.sh").write_text(PINNED_RUN_SCRIPT)
     (launch_manifest.parent / "README.md").write_text("# kit\n")
     return config, preflight, launch_manifest, eval_manifest, launch_archive
 
@@ -156,7 +203,25 @@ def test_build_launch_readiness_report_passes_matching_artifacts(tmp_path: Path)
     assert report["passed"] is True
     assert report["failures"] == []
     assert report["preflight"]["gate_passed"] is True
+    assert report["preflight"]["sha256"] == _sha256(preflight)
+    assert report["preflight"]["checks"] == [
+        {
+            "detail": "Prime CLI version: 0.6.14",
+            "name": "Prime CLI version",
+            "passed": True,
+        }
+    ]
+    assert report["preflight"]["launch_policy"] == {
+        "runner": "prime_sandbox",
+        "wandb_source": {
+            "local_env_required": True,
+            "prime_secret_allowed": False,
+        },
+    }
     assert report["launch_kit"]["config_sha256"] == _sha256(config)
+    assert report["launch_kit"]["prime_rl_ref"] == "d700753"
+    assert report["launch_kit"]["expected_prime_rl_ref"] == "d700753"
+    assert report["launch_kit"]["runner_uses_expected_prime_rl_ref"] is True
     assert report["launch_archive"]["path"] == str(launch_archive)
     assert report["launch_archive"]["runner_sha256"] == _sha256(
         launch_manifest.parent / "run_sft.sh"
@@ -205,6 +270,97 @@ def test_build_launch_readiness_report_blocks_wandb_missing_preflight(
 
     assert report["passed"] is False
     assert "preflight gate failed: WANDB_API_KEY source" in report["failures"]
+
+
+def test_build_launch_readiness_report_rejects_prime_secret_only_policy(
+    tmp_path: Path,
+) -> None:
+    config, preflight, launch_manifest, eval_manifest, launch_archive = (
+        _write_matching_artifacts(tmp_path)
+    )
+    payload = json.loads(preflight.read_text())
+    payload["launch_policy"]["wandb_source"] = {
+        "local_env_required": False,
+        "prime_secret_allowed": True,
+    }
+    _write_json(preflight, payload)
+    output = tmp_path / "readiness.json"
+
+    report = build_launch_readiness_report(
+        config_path=config,
+        preflight_report_path=preflight,
+        launch_manifest_path=launch_manifest,
+        eval_manifest_path=eval_manifest,
+        launch_archive_path=launch_archive,
+        output_path=output,
+    )
+
+    assert report["passed"] is False
+    assert "preflight allows Prime-only W&B secret for sandbox launch" in report[
+        "failures"
+    ]
+
+
+def test_build_launch_readiness_report_rejects_unpinned_prime_rl_ref(
+    tmp_path: Path,
+) -> None:
+    config, preflight, launch_manifest, eval_manifest, launch_archive = (
+        _write_matching_artifacts(tmp_path)
+    )
+    payload = json.loads(launch_manifest.read_text())
+    payload["prime_rl_ref"] = "main"
+    _write_json(launch_manifest, payload)
+    _write_launch_archive(
+        archive_path=launch_archive,
+        config=config,
+        launch_manifest=launch_manifest,
+        eval_manifest=eval_manifest,
+    )
+    output = tmp_path / "readiness.json"
+
+    report = build_launch_readiness_report(
+        config_path=config,
+        preflight_report_path=preflight,
+        launch_manifest_path=launch_manifest,
+        eval_manifest_path=eval_manifest,
+        launch_archive_path=launch_archive,
+        output_path=output,
+    )
+
+    assert report["passed"] is False
+    assert "launch kit prime_rl_ref main != d700753" in report["failures"]
+
+
+def test_build_launch_readiness_report_rejects_runner_wrong_prime_rl_ref(
+    tmp_path: Path,
+) -> None:
+    config, preflight, launch_manifest, eval_manifest, launch_archive = (
+        _write_matching_artifacts(tmp_path)
+    )
+    bad_runner = PINNED_RUN_SCRIPT.replace("d700753", "main")
+    (launch_manifest.parent / "run_sft.sh").write_text(bad_runner)
+    _write_launch_archive(
+        archive_path=launch_archive,
+        config=config,
+        launch_manifest=launch_manifest,
+        eval_manifest=eval_manifest,
+        run_script=bad_runner,
+    )
+    output = tmp_path / "readiness.json"
+
+    report = build_launch_readiness_report(
+        config_path=config,
+        preflight_report_path=preflight,
+        launch_manifest_path=launch_manifest,
+        eval_manifest_path=eval_manifest,
+        launch_archive_path=launch_archive,
+        output_path=output,
+    )
+
+    assert report["passed"] is False
+    assert "launch runner does not checkout expected prime_rl_ref d700753" in report[
+        "failures"
+    ]
 
 
 def test_build_launch_readiness_report_fails_config_hash_mismatch(
@@ -271,7 +427,7 @@ def test_build_launch_readiness_report_fails_stale_archive_runner(
         _write_matching_artifacts(tmp_path)
     )
     local_runner = launch_manifest.parent / "run_sft.sh"
-    local_runner.write_text("#!/usr/bin/env bash\nuv run sft @ config.toml\n")
+    local_runner.write_text(PINNED_RUN_SCRIPT)
     _write_launch_archive(
         archive_path=launch_archive,
         config=config,
@@ -279,7 +435,7 @@ def test_build_launch_readiness_report_fails_stale_archive_runner(
         eval_manifest=eval_manifest,
         run_script="#!/usr/bin/env bash\necho stale\n",
     )
-    local_runner.write_text("#!/usr/bin/env bash\nuv run sft @ config.toml\n")
+    local_runner.write_text(PINNED_RUN_SCRIPT)
     output = tmp_path / "readiness.json"
 
     report = build_launch_readiness_report(

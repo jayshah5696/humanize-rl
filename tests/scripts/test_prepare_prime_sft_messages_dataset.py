@@ -21,6 +21,12 @@ def _row(idx: int, *, source: str = "prime_failure_reference_generation") -> dic
         "source": source,
         "mode": "rewrite",
         "domain": "chat",
+        "metadata": {"source": source, "input_index": idx},
+        "quality": {"judge_keep": True, "judge_reason": "ok"},
+        "license": "project_synthetic",
+        "release_eligible": True,
+        "split": "train",
+        "task_type": "slack_chat",
     }
 
 
@@ -50,7 +56,23 @@ def test_prepare_prime_sft_messages_dataset_writes_hub_folder(tmp_path: Path) ->
 
     assert report["row_counts"] == {"train": 2, "validation": 1, "test": 1}
     assert report["repair_reference_rows"] == 3
+    assert report["training_columns"] == [
+        "id",
+        "messages",
+        "domain",
+        "task_type",
+        "mode",
+        "source",
+        "license",
+        "release_eligible",
+        "split",
+    ]
+    assert report["dropped_training_columns"] == ["metadata", "quality"]
     assert (output_dir / "data" / "validation.jsonl").exists()
+    train_row = json.loads((output_dir / "data" / "train.jsonl").read_text().splitlines()[0])
+    assert set(train_row) == set(report["training_columns"])
+    assert "metadata" not in train_row
+    assert "quality" not in train_row
     assert (output_dir / "README.md").read_text().startswith("---\nconfigs:")
     assert "user/repo" in (output_dir / "README.md").read_text()
     assert (output_dir / "reports" / "quality_report.md").exists()

@@ -22,7 +22,7 @@ dropout = 0.0
 name = "qwen3.5"
 
 [data]
-name = "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50"
+name = "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat"
 splits = ["train"]
 seq_len = 4096
 batch_size = 128
@@ -41,7 +41,7 @@ interval = 25
 eval_on_start = true
 
 [val.data]
-name = "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50"
+name = "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat"
 splits = ["validation"]
 seq_len = 4096
 batch_size = 64

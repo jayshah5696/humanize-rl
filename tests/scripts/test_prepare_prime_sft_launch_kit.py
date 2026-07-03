@@ -85,7 +85,7 @@ def test_build_manifest_uses_clean50_expected_split_counts(tmp_path: Path) -> No
     config = tmp_path / "config.toml"
     _write_config_for_dataset(
         config,
-        dataset="jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50",
+        dataset="jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat",
     )
 
     manifest = build_manifest(
@@ -97,7 +97,7 @@ def test_build_manifest_uses_clean50_expected_split_counts(tmp_path: Path) -> No
 
     assert (
         manifest["expected_dataset"]["name"]
-        == "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50"
+        == "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat"
     )
     assert manifest["expected_dataset"]["splits"] == {
         "train": 4358,
@@ -125,7 +125,23 @@ def test_write_launch_kit_creates_secret_free_run_files(tmp_path: Path) -> None:
 
     assert manifest["artifact"] == "prime_sft_launch_kit"
     assert "prime train" in readme
+    assert "Prime global secrets are not" in readme
+    assert "automatically injected" in readme
     assert "uv run sft @" in runner
+    assert 'url."https://github.com/".insteadOf git@github.com:' in runner
+    assert 'url."https://github.com/".insteadOf ssh://git@github.com/' in runner
+    assert "git config -f .gitmodules" in runner
+    assert 'https_url="https://github.com/' in runner
+    assert "git submodule sync --recursive" in runner
+    assert "git submodule update --init --recursive --force" in runner
+    assert "cat > sitecustomize.py" in runner
+    assert "torch.backends.cudnn.enabled = False" in runner
+    assert 'PYTHONPATH="/workspace/prime-rl:${PYTHONPATH:-}"' in runner
+    assert "TORCH_CUDNN_V8_API_DISABLED=1" in runner
+    assert "apt_install cuda-nvcc-12-8 g++-12 ninja-build" in runner
+    assert "import flash_attn_2_cuda" in runner
+    assert 'FLASH_ATTN_CUDA_ARCHS="80"' in runner
+    assert "--no-build-isolation --no-deps flash-attn==2.8.3.post1" in runner
     assert "WANDB_API_KEY" in runner
     assert "wandb_test" not in readme + runner + json.dumps(manifest)
     assert archive_path.exists()
@@ -142,7 +158,7 @@ def test_write_launch_kit_can_package_sft_eval_manifest(tmp_path: Path) -> None:
     eval_manifest = tmp_path / "sft_eval_manifest.json"
     _write_config_for_dataset(
         config,
-        dataset="jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50",
+        dataset="jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat",
     )
     eval_manifest.write_text(
         json.dumps(

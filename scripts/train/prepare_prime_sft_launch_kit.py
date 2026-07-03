@@ -34,6 +34,11 @@ EXPECTED_SPLIT_ROWS_BY_DATASET = {
         "validation": 242,
         "test": 243,
     },
+    "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat": {
+        "train": 4358,
+        "validation": 242,
+        "test": 243,
+    },
 }
 KIT_DIR_NAME = "prime_sft_launch_kit"
 SFT_EVAL_MANIFEST_NAME = "sft_eval_manifest.json"
@@ -155,9 +160,18 @@ export WANDB_API_KEY
 export WANDB_MODE="${{WANDB_MODE:-online}}"
 export PATH="$HOME/.local/bin:$PATH"
 
+apt_install() {{
+  if command -v sudo >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y "$@"
+  else
+    apt-get update
+    apt-get install -y "$@"
+  fi
+}}
+
 if ! command -v git >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
-  apt-get update
-  apt-get install -y git curl
+  apt_install git curl
 fi
 
 if ! command -v uv >/dev/null 2>&1; then
@@ -173,6 +187,45 @@ fi
 cd /workspace/prime-rl
 git fetch --depth 1 origin {prime_rl_ref} || true
 git checkout {prime_rl_ref}
+cat > sitecustomize.py <<'PY'
+try:
+    import torch
+
+    torch.backends.cudnn.enabled = False
+except Exception:
+    pass
+PY
+export PYTHONPATH="/workspace/prime-rl:${{PYTHONPATH:-}}"
+export TORCH_CUDNN_V8_API_DISABLED=1
+git config --global url."https://github.com/".insteadOf git@github.com:
+git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+if [ -f .gitmodules ]; then
+  git config -f .gitmodules --get-regexp '^submodule\\..*\\.url$' | while read -r key url; do
+    case "$url" in
+      git@github.com:*) https_url="https://github.com/${{url#git@github.com:}}" ;;
+      ssh://git@github.com/*) https_url="https://github.com/${{url#ssh://git@github.com/}}" ;;
+      *) https_url="$url" ;;
+    esac
+    git config -f .gitmodules "$key" "$https_url"
+  done
+fi
+git submodule sync --recursive
+git submodule update --init --recursive --force
+
+PYTHON_BIN="$(uv run python -c 'import sys; print(sys.executable)')"
+if ! "$PYTHON_BIN" -c 'import flash_attn_2_cuda' >/dev/null 2>&1; then
+  if [ ! -x /usr/local/cuda-12.8/bin/nvcc ] || ! gcc -print-prog-name=cc1plus | grep -q '^/'; then
+    apt_install cuda-nvcc-12-8 g++-12 ninja-build
+  fi
+  "$PYTHON_BIN" -m ensurepip --upgrade >/dev/null 2>&1 || true
+  "$PYTHON_BIN" -m pip install 'setuptools<81,>=77' wheel ninja
+  export CUDA_HOME=/usr/local/cuda-12.8
+  export PATH="$CUDA_HOME/bin:$PATH"
+  export TORCH_CUDA_ARCH_LIST="8.0"
+  export FLASH_ATTN_CUDA_ARCHS="80"
+  export MAX_JOBS="${{MAX_JOBS:-4}}"
+  "$PYTHON_BIN" -m pip install --no-cache-dir --no-build-isolation --no-deps flash-attn==2.8.3.post1
+fi
 
 uv run sft @ /workspace/{KIT_DIR_NAME}/config.toml
 """
@@ -210,7 +263,9 @@ Unpack it in the sandbox:
 prime --plain sandbox run <sandbox_id> -- bash -lc 'mkdir -p /workspace && tar -xzf /tmp/{archive_name} -C /workspace'
 ```
 
-Run SFT with secrets passed from your local shell:
+Run SFT with secrets passed from your local shell. Prime global secrets are not
+automatically injected by `prime sandbox run`; this command needs local
+`HF_TOKEN` and `WANDB_API_KEY` values because it passes them with `-e`:
 
 ```bash
 prime --plain sandbox run <sandbox_id> \\

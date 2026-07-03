@@ -23,6 +23,7 @@ APPROVED_DATASETS = frozenset(
     {
         "jayshah5696/humanize-rl-prime-sft-messages-env0314",
         "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50",
+        "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat",
     }
 )
 STEP_DIR_RE = re.compile(r"^step_(\d+)$")

@@ -5321,3 +5321,614 @@ expanded Prime/reward/SFT data suite: 174 passed
 changed Python files ruff check: pass
 git diff --check: pass
 ```
+
+### Pangram Bulk Detection Runner
+
+Date: 2026-07-01
+
+Change:
+
+- Added `scripts/eval/run_pangram_bulk_detection.py`.
+- The runner reads `runs/detector_mimic/pangram_bulk_items.json`, calls the
+  Pangram SDK bulk flow, writes submission metadata to
+  `runs/detector_mimic/pangram_bulk_submit.json`, and writes raw results to
+  `runs/detector_mimic/pangram_export.json`.
+- The script has `--dry-run` so the frozen 22-row payload can be validated
+  without `PANGRAM_API_KEY` or an external API call.
+- Updated the S2 eval manifest `external_detector_handoff` to include:
+  - `pangram_export_command`;
+  - `pangram_bulk_run_command`;
+  - `pangram_alignment_command`.
+- Regenerated the S2 clean50 eval manifest, launch kit, tarball, preflight
+  report, and launch-readiness report.
+
+Current readiness:
+
+```text
+PANGRAM_API_KEY=missing
+WANDB_API_KEY=missing
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+pangram_bulk_items_sha256=70ce023f0884848059ca167134b1e4188daa62620b26168371cda5411a878951
+pangram_bulk_dry_run_sha256=55d1840eeb7f6bb31752822092cda2831c64b1ba0de2036d6cd0ed6674ad70a3
+sft_eval_manifest_sha256=60289822348ae19d3fe79c363149c1aa2beb126be943dd4e001cb6314e7cc102
+launch_manifest_sha256=e1e85ebc38440d4d367760dec6562db9603b3ab2909e33b58c19218fddccc242
+launch_archive_sha256=8368ad18a832b22280347de33bf9fdc5214d1ccea7f9199e90c4243cbaa81c9a
+preflight_report_sha256=31c3d195807ec3bd7069abf18dbbcbde5896249599be2827440ba6f491337e29
+launch_readiness_sha256=3517e3df1bd626928b8b6284bce793840e408d57cfeaafa9f0e48472e2c97ded
+```
+
+Decision:
+
+- The Pangram rail now has a complete offline-to-online path:
+  export frozen rows, submit/wait/fetch through Pangram bulk detection, then
+  compare the result against the local mimic.
+- Keep `PANGRAM_API_KEY` outside the repo and do not call Pangram unless the key
+  is intentionally present.
+- Keep Pangram outside Prime reward scoring.
+- Do not launch S2; W&B is still the only launch blocker.
+
+Validation:
+
+```text
+run_pangram_bulk_detection focused tests: 2 passed
+focused Pangram/manifest/readiness tests: 28 passed
+expanded Prime/reward/SFT data suite: 176 passed
+active changed Python files ruff check: pass
+git diff --check: pass
+run_pangram_bulk_detection --help: pass
+run_pangram_bulk_detection --dry-run: 22 items
+Pangram SDK method surface check: submit_bulk/wait_for_bulk/get_bulk_results present
+```
+
+### Prime S2 Preflight Toolchain Evidence
+
+Date: 2026-07-01
+
+Change:
+
+- Added a `Prime CLI version` check to `scripts/train/prime_sft_preflight.py`.
+- Updated `scripts/train/verify_prime_sft_launch_readiness.py` so readiness
+  embeds the preflight report SHA256 and normalized preflight check details.
+- Refreshed the S2 clean50 preflight and launch-readiness reports.
+
+Current readiness:
+
+```text
+Prime CLI version=0.6.14
+HF Dataset Viewer=train=4358 validation=242 test=243
+Prime auth=pass
+Qwen/Qwen3.5-2B availability=pass training_price_per_mtok=0.15
+WANDB_API_KEY=missing
+PANGRAM_API_KEY=missing
+Prime secret list=[]
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+preflight_report_sha256=7b24ff8c686a4311128c0ad9e1f5beb9749ec41015a729f21dd5162ad498b7b7
+launch_readiness_sha256=fd96132c6b7dbe50efcf9080bee9050dba660a289898b119acc7750a327b753a
+launch_manifest_sha256=e1e85ebc38440d4d367760dec6562db9603b3ab2909e33b58c19218fddccc242
+launch_archive_sha256=8368ad18a832b22280347de33bf9fdc5214d1ccea7f9199e90c4243cbaa81c9a
+sft_eval_manifest_sha256=60289822348ae19d3fe79c363149c1aa2beb126be943dd4e001cb6314e7cc102
+pangram_bulk_items_sha256=70ce023f0884848059ca167134b1e4188daa62620b26168371cda5411a878951
+```
+
+Decision:
+
+- Prime login/auth is good enough for the S2 preflight path.
+- Do not launch S2 yet. W&B is still the only failed launch gate.
+- Keep Pangram optional and outside Prime reward scoring.
+
+Validation:
+
+```text
+focused preflight/readiness tests: 20 passed
+targeted changed train/preflight/readiness ruff check: pass
+live S2 preflight refresh: pass except WANDB_API_KEY source
+live S2 readiness refresh: fail only on WANDB_API_KEY source
+```
+
+### Prime S2 Sandbox W&B Gate Tightening
+
+Date: 2026-07-02
+
+Change:
+
+- Checked the live Prime CLI sandbox surface:
+  `prime sandbox run --help` supports `-e KEY=VALUE` and does not show automatic
+  Prime global-secret injection.
+- Tightened `scripts/train/prime_sft_preflight.py` so a Prime-only
+  `WANDB_API_KEY` secret no longer passes the default sandbox SFT gate.
+- Added `--allow-prime-wandb-secret` as an explicit escape hatch for a future
+  non-sandbox or custom secret-injected path.
+- Updated `scripts/train/prepare_prime_sft_launch_kit.py` so generated launch
+  kit READMEs state that local `HF_TOKEN` and `WANDB_API_KEY` are required for
+  the `prime sandbox run -e ...` command.
+- Regenerated the S2 clean50 launch kit, preflight report, and launch-readiness
+  report.
+
+Current readiness:
+
+```text
+Prime CLI version=0.6.14
+HF Dataset Viewer=train=4358 validation=242 test=243
+Prime auth=pass
+Qwen/Qwen3.5-2B availability=pass training_price_per_mtok=0.15
+WANDB_API_KEY=missing
+PANGRAM_API_KEY=missing
+Prime secret list=[]
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+WANDB_API_KEY source detail="set local WANDB_API_KEY before sandbox SFT launch"
+preflight_report_sha256=0ebd4bbba2575cf76e9c6f5f685242cca9782c62f4d54e87e815778b54c0759f
+launch_readiness_sha256=dec30da54678aab792c39f03de5b0bb91db61ac4c6bea2c21bbcd90ae1be458b
+launch_manifest_sha256=a358a265b89d8ecf251e3c556988698cc816a07698067b0b588f6cf9864c3731
+launch_archive_sha256=c75957e342efce4e1f6fc93cdc33889dc25d57c111eb572e92ffd3e04e6713b4
+sft_eval_manifest_sha256=60289822348ae19d3fe79c363149c1aa2beb126be943dd4e001cb6314e7cc102
+pangram_bulk_items_sha256=70ce023f0884848059ca167134b1e4188daa62620b26168371cda5411a878951
+```
+
+Decision:
+
+- For the S2 sandbox launch kit, require local `WANDB_API_KEY`. A Prime global
+  secret alone is not launch-ready because the current sandbox CLI does not
+  inject it.
+- Keep the launch blocked until local W&B is present and readiness passes.
+- Keep Pangram optional and outside Prime reward scoring.
+
+Validation:
+
+```text
+focused preflight/launch-kit/readiness tests: 27 passed
+targeted changed train/preflight/readiness ruff check: pass
+live S2 preflight refresh: pass except local WANDB_API_KEY source
+live S2 readiness refresh: fail only on local WANDB_API_KEY source
+```
+
+### Prime S2 Preflight Policy In Readiness
+
+Date: 2026-07-02
+
+Change:
+
+- Added `launch_policy` to `scripts/train/prime_sft_preflight.py` JSON output:
+  - `runner=prime_sandbox`;
+  - `wandb_source.local_env_required=true`;
+  - `wandb_source.prime_secret_allowed=false`.
+- Updated `scripts/train/verify_prime_sft_launch_readiness.py` so S2 readiness
+  rejects a preflight report that allows Prime-only W&B secrets for the sandbox
+  launch path.
+- Refreshed the S2 clean50 preflight and launch-readiness reports.
+
+Current readiness:
+
+```text
+Prime CLI version=0.6.14
+HF Dataset Viewer=train=4358 validation=242 test=243
+Prime auth=pass
+Qwen/Qwen3.5-2B availability=pass training_price_per_mtok=0.15
+launch_policy.runner=prime_sandbox
+launch_policy.wandb_source.local_env_required=true
+launch_policy.wandb_source.prime_secret_allowed=false
+WANDB_API_KEY=missing
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+preflight_report_sha256=c03b287a3ee33331d64b9772f1701e0e93882d290a0c8153535aea7efb9c2bef
+launch_readiness_sha256=629dcd93b1bed4b7af23f6362696dbb4d0b08e901b26c2f38cd1030c70d6f269
+launch_manifest_sha256=a358a265b89d8ecf251e3c556988698cc816a07698067b0b588f6cf9864c3731
+launch_archive_sha256=c75957e342efce4e1f6fc93cdc33889dc25d57c111eb572e92ffd3e04e6713b4
+sft_eval_manifest_sha256=60289822348ae19d3fe79c363149c1aa2beb126be943dd4e001cb6314e7cc102
+```
+
+Decision:
+
+- Treat the W&B source policy as part of the pre-spend launch contract, not just
+  as README prose.
+- Keep S2 blocked until local `WANDB_API_KEY` is present and readiness passes.
+
+Validation:
+
+```text
+focused preflight/launch-kit/readiness tests: 28 passed
+targeted changed train/preflight/readiness ruff check: pass
+live S2 readiness refresh: fail only on local WANDB_API_KEY source
+```
+
+### Prime S2 Target Config Guard
+
+Date: 2026-07-02
+
+Change:
+
+- Extended `scripts/train/prime_sft_preflight.py` so `dataset SFT config`
+  rejects smoke/config drift away from the intended S2 target shape:
+  - `max_steps=200`;
+  - `model.seq_len=4096`;
+  - `data.seq_len=4096`;
+  - train/validation batches `128/64`;
+  - assistant-only train/eval loss masks;
+  - LoRA `rank=32 alpha=64`;
+  - `optim.lr=2e-5`;
+  - checkpoint interval `50`;
+  - sharded safetensors weight snapshots.
+- The successful config check now records target facts in the preflight detail.
+- Refreshed the S2 clean50 preflight and launch-readiness reports.
+
+Current readiness:
+
+```text
+dataset SFT config=Qwen/Qwen3.5-2B on jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50; max_steps=200 train_batch=128 val_batch=64 lr=2e-05 lora_rank=32
+launch_policy.runner=prime_sandbox
+launch_policy.wandb_source.local_env_required=true
+WANDB_API_KEY=missing
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+preflight_report_sha256=706e0bac3b7dcacacec737ae057590faa480d2fca2219728bfddc4b9b4bee087
+launch_readiness_sha256=7fa6c5d12dfbe2b6d202eda395bca44c88f0a049a23c48cf9a0916b1e3935a7a
+launch_manifest_sha256=a358a265b89d8ecf251e3c556988698cc816a07698067b0b588f6cf9864c3731
+launch_archive_sha256=c75957e342efce4e1f6fc93cdc33889dc25d57c111eb572e92ffd3e04e6713b4
+sft_eval_manifest_sha256=60289822348ae19d3fe79c363149c1aa2beb126be943dd4e001cb6314e7cc102
+```
+
+Decision:
+
+- Treat the target SFT hyperparameters as launch-contract fields, not informal
+  README expectations.
+- Keep S2 blocked until local `WANDB_API_KEY` is present and readiness passes.
+
+Validation:
+
+```text
+focused preflight/launch-kit/readiness tests: 29 passed
+targeted changed train/preflight/readiness ruff check: pass
+live S2 readiness refresh: fail only on local WANDB_API_KEY source
+```
+
+### Prime S2 Runtime Ref Guard
+
+Date: 2026-07-02
+
+Change:
+
+- Updated `scripts/train/verify_prime_sft_launch_readiness.py` so launch
+  readiness requires `launch_manifest.prime_rl_ref=d700753`.
+- Added `--expected-prime-rl-ref` with default `d700753` for future intentional
+  runtime-pin changes.
+- Readiness now records both `prime_rl_ref` and `expected_prime_rl_ref`.
+- Refreshed the S2 clean50 launch-readiness report.
+
+Current readiness:
+
+```text
+launch_kit.prime_rl_ref=d700753
+launch_kit.expected_prime_rl_ref=d700753
+WANDB_API_KEY=missing
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+preflight_report_sha256=706e0bac3b7dcacacec737ae057590faa480d2fca2219728bfddc4b9b4bee087
+launch_readiness_sha256=27043fc771d295a8123b0448f1595f92e96824a3e2552b2fbb93f55c9046f7bf
+launch_manifest_sha256=a358a265b89d8ecf251e3c556988698cc816a07698067b0b588f6cf9864c3731
+launch_archive_sha256=c75957e342efce4e1f6fc93cdc33889dc25d57c111eb572e92ffd3e04e6713b4
+sft_eval_manifest_sha256=60289822348ae19d3fe79c363149c1aa2beb126be943dd4e001cb6314e7cc102
+```
+
+Decision:
+
+- Treat the Prime `prime-rl` runtime ref as a launch-contract field.
+- Keep S2 blocked until local `WANDB_API_KEY` is present and readiness passes.
+
+Validation:
+
+```text
+focused preflight/launch-kit/readiness tests: 30 passed
+targeted changed train/preflight/readiness ruff check: pass
+live S2 readiness refresh: fail only on local WANDB_API_KEY source
+```
+
+### Prime S2 Runner Runtime Ref Guard
+
+Date: 2026-07-02
+
+Change:
+
+- Extended `scripts/train/verify_prime_sft_launch_readiness.py` so readiness
+  inspects `run_sft.sh`.
+- The runner must contain both:
+  - `git fetch --depth 1 origin d700753`;
+  - `git checkout d700753`.
+- Readiness now records `runner_uses_expected_prime_rl_ref=true`.
+- Refreshed the S2 clean50 launch-readiness report.
+
+Current readiness:
+
+```text
+launch_kit.prime_rl_ref=d700753
+launch_kit.expected_prime_rl_ref=d700753
+launch_kit.runner_uses_expected_prime_rl_ref=true
+runner_sha256=703f933925db9b3ca00019167c839d339e7b4fef623aa9e3405a2362f4ec661f
+WANDB_API_KEY=missing
+passed=false
+failures=["preflight gate failed: WANDB_API_KEY source"]
+preflight_report_sha256=706e0bac3b7dcacacec737ae057590faa480d2fca2219728bfddc4b9b4bee087
+launch_readiness_sha256=f608f6621f7eb32354aafcf75a9689e745f5112ced2f51538e0bc45a526a8211
+launch_manifest_sha256=a358a265b89d8ecf251e3c556988698cc816a07698067b0b588f6cf9864c3731
+launch_archive_sha256=c75957e342efce4e1f6fc93cdc33889dc25d57c111eb572e92ffd3e04e6713b4
+sft_eval_manifest_sha256=60289822348ae19d3fe79c363149c1aa2beb126be943dd4e001cb6314e7cc102
+```
+
+Decision:
+
+- Treat the actual sandbox runner checkout commands as launch-contract fields,
+  not just the manifest's declared `prime_rl_ref`.
+- Keep S2 blocked until local `WANDB_API_KEY` is present and readiness passes.
+
+Validation:
+
+```text
+focused preflight/launch-kit/readiness tests: 31 passed
+targeted changed train/preflight/readiness ruff check: pass
+live S2 readiness refresh: fail only on local WANDB_API_KEY source
+```
+
+### Prime S2 Env Lock And Launch State
+
+Date: 2026-07-02
+
+Change:
+
+- Locked env `0.3.15` for the next full-model SFT plus RL ablation.
+- Stopped further reward/env hardening for this branch unless launched SFT/RL
+  evals expose a concrete failure.
+- Rechecked live Prime state for the launch path:
+  - Prime auth passes;
+  - no Prime sandboxes exist;
+  - `Qwen/Qwen3.5-2B` Hosted Training is currently at capacity;
+  - `Qwen/Qwen3.5-9B` Hosted Training is available, but remains behind the Qwen
+    2B branch in the study order;
+  - Hosted SFT with W&B configured stops before launch because local
+    `WANDB_API_KEY` is absent.
+
+Decision:
+
+- Use S2 clean50 as the next quality-oriented Qwen 2B dataset-SFT branch.
+- After a promoted S2 checkpoint exists, render the S2 after-SFT RL config and
+  launch Qwen 2B RL-after-SFT.
+- Do not spend on S1 unless explicitly running the no-new-repairs baseline.
+- The only execution decision left is whether to provide online W&B and launch
+  the tracked sandbox SFT, or intentionally waive tracking and run an offline
+  sandbox SFT.
+
+Validation:
+
+```text
+env/config/ablation gate subset: 23 passed, 2 skipped
+focused preflight/launch-kit/readiness tests: 31 passed
+live S2 preflight: pass except local WANDB_API_KEY source
+live S2 readiness: fail only on local WANDB_API_KEY source
+prime sandbox list: 0 sandboxes
+prime train models: Qwen/Qwen3.5-2B at_capacity=true, Qwen/Qwen3.5-9B at_capacity=false
+hosted SFT launch check: blocked before spend on missing WANDB_API_KEY
+```
+
+### Prime S2 Pod Launch Attempt
+
+Date: 2026-07-02
+
+Change:
+
+- Rechecked live Prime docs before spending: GPU sandboxes are currently
+  CPU-only/roadmap, so the prior sandbox launch path is stale for GPU SFT.
+- Pivoted the S2 clean50 launch attempt to Prime GPU pods with the `prime_rl`
+  image.
+- Prime CLI was upgraded from `0.6.14`; the installer reported `0.6.16`, while
+  `prime --plain --version` reports `0.6.15`.
+- Live availability found `A100_80GB x1` options; the only row accepted by
+  `pods create` in the attempted set was Crusoe `08e3e6`.
+- Uploaded the local public SSH key to the Prime SSH key API as
+  `codex-id-ed25519-20260702` after the API showed zero account SSH keys.
+- Created and terminated two `A100_80GB x1` pods:
+  - `71b5034cc93941cd8c9ceeee4edc11d5`
+    (`humanize-s2-sft-a100-r1`), terminated after SSH public-key denial;
+  - `183c7c922f9842cd9a2bac97317dd8bd`
+    (`humanize-s2-sft-a100-r2`), terminated after the same denial even after
+    uploading the account SSH key.
+- `prime --plain pods list --output json` showed zero active pods after
+  termination.
+
+Decision:
+
+- Keep env `0.3.15` and S2 clean50 locked; the SFT/RL blocker is Prime pod SSH
+  access, not reward design or SFT config readiness.
+- Do not pass secrets through `prime pods create --env` for this workflow:
+  the CLI echoed env values during the first pod creation attempt.
+- Next launch step should fix Prime pod key injection before provisioning a new
+  GPU pod. The most direct candidates are a Prime-dashboard SSH key check or a
+  fresh RSA key upload/recreate attempt.
+- Treat sandbox wording in S2 launch docs as obsolete for GPU execution until
+  Prime GPU sandboxes ship; use pods for open `prime-rl` SFT/RL runs.
+
+Validation:
+
+```text
+prime docs check: GPU sandboxes currently CPU-only/roadmap
+prime availability: Crusoe A100_80GB x1 row 08e3e6 accepted by pods create
+prime ssh keys API before upload: total_count=0
+prime ssh key upload: codex-id-ed25519-20260702 created and primary
+pod r1: ACTIVE/FINISHED then SSH Permission denied (publickey), terminated
+pod r2: ACTIVE/FINISHED then SSH Permission denied (publickey), terminated
+prime pods list after cleanup: 0 active pods
+wallet impact observed after r1: about $0.02
+```
+
+### Prime S2 MassedCompute Pod Runtime Bootstrap
+
+Date: 2026-07-03
+
+Change:
+
+- Kept the S2 clean50 Qwen 2B run on Prime infrastructure, not local hardware.
+- Uploaded a fresh RSA key to Prime and used it for a new MassedCompute pod:
+  `62abc46cde1f4705b0ce65ab702005ae`
+  (`humanize-s2-sft-a100-massed-r1`), `A100_80GB x1`,
+  `ubuntu@154.54.100.38`.
+- Confirmed this pod is active through `prime --plain pods list --output json`.
+- MassedCompute rejected the `prime_rl` image, Datacrunch `prime_rl` returned
+  no valid GPU configuration, and Crusoe `prime_rl` pods still failed SSH key
+  auth. The live Prime path is therefore MassedCompute Ubuntu CUDA plus runtime
+  bootstrap.
+- Refreshed the S2 launch kit locally and copied it to the pod:
+  - archive:
+    `9d0419131be9d84d4bb6ea29914479e8db6395afffef7bfe3ed6d355ca082e5c`;
+  - runner:
+    `7cf0a338f99f617bb6448f4c570e7adff3cd0760a2d4520ee36295e776220807`;
+  - config:
+    `b3775839dda7abac69be33eb28b1c83c74c2e9c486d9293f3e6f087cd2d5d18a`;
+  - manifest:
+    `fe3d5ef43131021b2ffcb7ffdcc2ae8622e4120d981bb0249029f72f31651054`.
+- Patched the launch runner to:
+  - use sudo-aware apt installation;
+  - rewrite GitHub SSH submodule URLs to HTTPS;
+  - force recursive submodule init for `prime-rl@d700753`;
+  - bootstrap missing `flash-attn==2.8.3.post1` with CUDA 12.8 nvcc,
+    `g++-12`, `ninja`, and `FLASH_ATTN_CUDA_ARCHS=80`.
+- The active remote bootstrap is compiling `flash-attn` inside Prime's `uv run`
+  Python/Torch environment on the A100 pod. SFT should start only after
+  `flash_attn_2_cuda` imports successfully.
+
+Decision:
+
+- Use Prime pods for open `prime-rl` dataset SFT/RL until Prime GPU sandboxes
+  exist.
+- Do not pass secrets through `prime pods create --env`; the CLI can echo env
+  values. Use the pod-side `/workspace/sft.env` instead.
+- Waive online W&B for this launch. The pod uses `WANDB_MODE=offline` and
+  `WANDB_API_KEY=offline`; local launch readiness still records missing
+  `WANDB_API_KEY`, but that is no longer blocking this Prime-pod run.
+- Do not start another pod or another `flash-attn` build while the active build
+  is still running.
+
+Validation:
+
+```text
+prime docs check: prime-rl supports uv run sft/rl; GPU sandboxes are CPU-only; pods are the GPU path
+prime active pod: 62abc46cde1f4705b0ce65ab702005ae ACTIVE A100_80GB x1
+remote SSH: pass with RSA key
+local/remote launch archive hashes: match
+focused launch-kit/readiness tests: 16 passed
+launch readiness: fail only on WANDB_API_KEY source, intentionally waived for offline pod run
+remote runtime state: flash-attn source build in progress on Prime pod with only sm_80 gencode
+```
+
+### Prime S2 Prime-Compatible Dataset Relaunch
+
+Date: 2026-07-03
+
+Change:
+
+- The first S2 pod SFT run reached `uv run sft`, built/imported
+  `flash-attn==2.8.3.post1`, downloaded `Qwen/Qwen3.5-2B`, initialized the
+  Qwen3.5 renderer and LoRA trainer, then failed at dataset load.
+- Failure root cause:
+  `ValueError: Feature type 'Json' not found`. The old S2 Hub dataset exposed
+  the nested `quality` column as `_type: Json`, which the Prime `datasets`
+  stack pinned in `prime-rl@d700753` does not accept.
+- Built and published a Prime-compatible replacement dataset with identical
+  rows and splits, but training rows now keep only Prime-safe fields:
+  `id`, `messages`, `domain`, `task_type`, `mode`, `source`, `license`,
+  `release_eligible`, and `split`.
+- New dataset:
+  `jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat`
+  at HF commit `8f1d484cea21affed944479fdb3ef590de03a6ba`.
+- Dataset Viewer verified:
+  `train=4358`, `validation=242`, `test=243`; features are `Value` plus
+  `messages` as `List`, with no `Json` feature type.
+- Updated the active S2 config to the `-primecompat` dataset and rebuilt the
+  launch kit:
+  - config:
+    `40071c8db47c0830a21d6dfb65c6a787971d0ab8aa20877663385ea68d12ade9`;
+  - preflight:
+    `feedb1cbbda0ab9010514895c9155e42b48d42b72eca9bdc4f3dca3dad88e595`;
+  - readiness:
+    `77824beb531ed817dff70d414ac00ae37f9ff92118dd9959f243725ee92fca14`;
+  - launch manifest:
+    `0bcc844688127d6abd2f84f93583cf4cb5e9860413642bbd33384de7318e91f6`;
+  - runner:
+    `7cf0a338f99f617bb6448f4c570e7adff3cd0760a2d4520ee36295e776220807`;
+  - archive:
+    `05e91c189140f9d2c4e6b6c0185b1225349fede07631fcc7314fa8e3fb753358`;
+  - dataset manifest:
+    `4c0026965bc23f873f5a17b5b8f3e1cb65c0dece17a833df281eda764a44ec5e`.
+- Added a preflight guard that fails any HF Dataset Viewer feature exposing
+  `_type: Json`, so this exact Prime load failure is caught before launch.
+- Restaged the rebuilt kit on the Prime A100 pod
+  `62abc46cde1f4705b0ce65ab702005ae` and moved the old failed output
+  directory aside:
+  `outputs/prime_sft/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315_failed_json_feature_20260703T0526Z`.
+- First `-primecompat` relaunch on the same Prime pod:
+  - PID: `20530`;
+  - PID file: `/workspace/s2_sft_logs/run_sft_primecompat.pid`;
+  - outer log:
+    `/workspace/s2_sft_logs/run_sft_primecompat_20260703T053505Z.log`;
+  - trainer log:
+    `/workspace/prime-rl/outputs/prime_sft/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315/logs/trainer.log`;
+  - offline W&B run:
+    `outputs/prime_sft/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315/wandb/offline-run-20260703_053529-v4wgvlpl`.
+- That first `-primecompat` relaunch passed dataset load and emitted step-0
+  metrics, then failed at `05:43:08Z` with:
+  `RuntimeError: CUDNN_BACKEND_TENSOR_DESCRIPTOR cudnnFinalize failed
+  ptrDesc->finalize() cudnn_status: CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH`.
+- Added a guarded runner path that writes `sitecustomize.py` in
+  `/workspace/prime-rl`, disables `torch.backends.cudnn.enabled`, and exports
+  `TORCH_CUDNN_V8_API_DISABLED=1` for the trainer interpreter.
+- Guarded launch-kit hashes:
+  - launch manifest:
+    `3ccd9dd11608ef52adf94f16f657730245046a09f0d445ae92f42ed97bc45887`;
+  - runner:
+    `02e117cc4934b77fc5ab5c65ff0bc2fcf9f04eb080ddab91b70e8ca8c0e9dbf7`;
+  - archive:
+    `191342cf4bb07e5741e18dbe4c509037285b311a9cc17d129d7fa08ad6ea1836`;
+  - readiness:
+    `34237d4ecc6eb90d0bff601532962d18e96f286b82dda39dab4a1928bd6d8335`.
+- Guarded S2 SFT relaunch on the same Prime pod:
+  - PID: `22250`;
+  - PID file: `/workspace/s2_sft_logs/run_sft_cudnn_guard.pid`;
+  - outer log:
+    `/workspace/s2_sft_logs/run_sft_cudnn_guard_20260703T054716Z.log`;
+  - trainer log:
+    `/workspace/prime-rl/outputs/prime_sft/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315/logs/trainer.log`;
+  - offline W&B run:
+    `outputs/prime_sft/qwen35_2b_sft_target_messages_env0315_clean50_gate_env0315/wandb/offline-run-20260703_054740-sxt2aig3`.
+
+Live status:
+
+```text
+SFT location: Prime A100 pod, not local
+pod: 62abc46cde1f4705b0ce65ab702005ae humanize-s2-sft-a100-massed-r1
+dataset load: pass, train=4358 validation=242 test=243
+trainer: Starting training loop (max_steps=200)
+step 0 validation: Loss 2.0132
+step 0 train: Loss 2.1609, Grad. Norm 2.3594, LR 2.00e-05
+step 1 train: Loss 2.1475, Grad. Norm 2.1875, throughput 2545 tokens/s
+step 2 train: Loss 2.0988, Grad. Norm 1.7734, throughput 2544 tokens/s
+memory: Peak Mem. 20.2/79.2 GiB
+latest GPU poll: 64% utilization, 21653/81920 MiB used
+```
+
+Decision:
+
+- The S2 SFT ablation is now live on Prime GPU infrastructure.
+- Keep online W&B waived for this run; the offline W&B directory is the run
+  record until we choose to sync it.
+- Do not launch RL-after-SFT until this SFT run produces a real checkpoint and
+  passes the S2 promotion gates.
+- Do not use the old `clean50` dataset for Prime SFT; use `clean50-primecompat`
+  for active Prime runs.
+
+Validation:
+
+```text
+prepare_prime_sft_messages_dataset / preflight / launch-kit / readiness / config / output verifier focused tests: 45 passed
+local datasets load: train=4358 validation=242 test=243, no Json feature
+HF Dataset Viewer: pass - train=4358 validation=242 test=243
+launch readiness: fail only on local WANDB_API_KEY source, intentionally waived for offline pod run
+remote SFT: passed prior Json feature failure point, passed prior cuDNN crash point, and emitted step 2 metrics
+```

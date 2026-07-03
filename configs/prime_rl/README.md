@@ -46,9 +46,16 @@ uv run scripts/train/prime_sft_preflight.py \
 
 The lightweight train helpers declare inline `uv` script dependencies, so this
 preflight does not need to build the full local project environment.
+The live preflight also records the installed Prime CLI version, Prime auth,
+Prime model availability, HF Dataset Viewer counts, and the W&B source gate.
 
-If W&B is missing, add it to Prime's secret store from a shell where the env var
-is already set:
+For this sandbox launch path, W&B must be available in the local shell as
+`WANDB_API_KEY` before running `prime sandbox run`. Prime global secrets are not
+automatically injected into sandbox commands; the sandbox command below passes
+secrets with `-e KEY=VALUE`.
+
+Optionally mirror the key to Prime's global secret store for account bookkeeping
+from a shell where the env var is already set:
 
 ```bash
 prime --plain secret create \
@@ -56,6 +63,11 @@ prime --plain secret create \
   --value "$WANDB_API_KEY" \
   --description "Weights and Biases tracking token"
 ```
+
+Do not treat a Prime-only secret as sufficient for this launch kit unless a
+future runner explicitly retrieves or injects that secret into local
+`WANDB_API_KEY`. The preflight defaults to the sandbox-safe behavior and writes
+that W&B source policy into its JSON report.
 
 The tracked launch path is a Linux/CUDA Prime sandbox or pod running the open
 `prime-rl` package, not `prime train` Hosted Training. A sandbox launch should
@@ -116,6 +128,13 @@ uv run scripts/train/verify_prime_sft_launch_readiness.py \
   --output runs/prime_sft_preflight/qwen35_2b_env0315_clean50_launch_readiness.json
 ```
 
+The readiness report embeds the preflight report SHA256 and preflight check
+details, so the final gate records the Prime CLI/toolchain state used for the
+launch decision. It also rejects a preflight report that allowed Prime-only W&B
+secrets for this sandbox launch path and a launch kit whose `prime_rl_ref` is
+not the pinned `d700753` runtime ref. The runner script itself must also fetch
+and check out `d700753`; a matching manifest alone is not enough.
+
 Current generated paths:
 
 ```text
@@ -132,8 +151,12 @@ This is still dataset SFT on:
 
 ```text
 jayshah5696/humanize-rl-prime-sft-messages-env0314
-jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50
+jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat
 ```
+
+The older `humanize-rl-prime-sft-messages-env0315-clean50` repo is a historical
+artifact. It exposes a nested `quality` field as `_type: Json`, which
+`prime-rl@d700753` rejects during dataset load.
 
 The `gate_env0315` suffix means the resulting checkpoint must be evaluated
 against env `0.3.15`, the rollout audit, and the detector-mimic gate before it
@@ -146,6 +169,13 @@ against the local mimic offline:
 uv run scripts/eval/export_detector_mimic_for_pangram.py \
   --input data/eval/detector_mimic_v01.jsonl \
   --output runs/detector_mimic/pangram_bulk_items.json
+
+uv run scripts/eval/run_pangram_bulk_detection.py \
+  --input runs/detector_mimic/pangram_bulk_items.json \
+  --output runs/detector_mimic/pangram_export.json \
+  --submit-report runs/detector_mimic/pangram_bulk_submit.json \
+  --timeout 3600 \
+  --poll-interval 2
 
 uv run scripts/eval/compare_detector_mimic_to_pangram.py \
   --input data/eval/detector_mimic_v01.jsonl \

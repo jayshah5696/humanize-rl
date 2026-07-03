@@ -17,14 +17,27 @@ import click
 
 DEFAULT_INPUT_DIR = Path("data/processed/sft/gemma4_e2b_v04_prime_env0315_clean50")
 DEFAULT_OUTPUT_DIR = Path(
-    "runs/hf_datasets/humanize-rl-prime-sft-messages-env0315-clean50"
+    "runs/hf_datasets/humanize-rl-prime-sft-messages-env0315-clean50-primecompat"
 )
-DEFAULT_REPO_ID = "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50"
+DEFAULT_REPO_ID = (
+    "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat"
+)
 SPLIT_FILES = {
     "train": "train.jsonl",
     "validation": "valid.jsonl",
     "test": "test.jsonl",
 }
+PRIME_SAFE_FIELDS = (
+    "id",
+    "messages",
+    "domain",
+    "task_type",
+    "mode",
+    "source",
+    "license",
+    "release_eligible",
+    "split",
+)
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -56,6 +69,14 @@ def _validate_messages(row: dict[str, Any], *, split: str, index: int) -> None:
     for message in messages:
         if not isinstance(message, dict) or not str(message.get("content") or "").strip():
             raise click.ClickException(f"{split} row {index} has empty message content")
+
+
+def _prime_safe_row(row: dict[str, Any]) -> dict[str, Any]:
+    safe = {field: row[field] for field in PRIME_SAFE_FIELDS if field in row}
+    for field in ("id", "domain", "task_type", "mode", "source", "license", "split"):
+        safe.setdefault(field, "")
+    safe["release_eligible"] = bool(row.get("release_eligible", False))
+    return safe
 
 
 def _copy_if_exists(src: Path, dst: Path) -> str | None:
@@ -134,7 +155,8 @@ Accepted repair-reference rows: `{repair_rows}`.
 
 ## Schema
 
-Each row includes a `messages` column with exactly two turns:
+Training rows are restricted to Prime-compatible feature types. Each row includes
+a `messages` column with exactly two turns:
 
 ```json
 [
@@ -143,7 +165,9 @@ Each row includes a `messages` column with exactly two turns:
 ]
 ```
 
-Extra columns preserve provenance for auditing and filtering.
+Nested audit fields such as `quality` and `metadata` are kept in the local
+builder reports, not in the Hub training rows, because Prime's pinned
+`datasets` stack does not accept Hub features exported as `_type: Json`.
 
 ## Intended Use
 
@@ -171,6 +195,7 @@ def prepare_prime_sft_messages_dataset(
     row_counts: dict[str, int] = {}
     split_sha256: dict[str, str] = {}
     all_rows: list[dict[str, Any]] = []
+    observed_columns: set[str] = set()
     for split, file_name in SPLIT_FILES.items():
         src = input_dir / file_name
         if not src.exists():
@@ -178,8 +203,9 @@ def prepare_prime_sft_messages_dataset(
         rows = _load_jsonl(src)
         for index, row in enumerate(rows, start=1):
             _validate_messages(row, split=split, index=index)
+            observed_columns.update(row.keys())
         dst = data_dir / f"{split}.jsonl"
-        _write_jsonl(dst, rows)
+        _write_jsonl(dst, [_prime_safe_row(row) for row in rows])
         row_counts[split] = len(rows)
         split_sha256[split] = _sha256(dst)
         all_rows.extend(rows)
@@ -220,6 +246,10 @@ def prepare_prime_sft_messages_dataset(
         "row_counts": row_counts,
         "total_rows": sum(row_counts.values()),
         "split_sha256": split_sha256,
+        "training_columns": list(PRIME_SAFE_FIELDS),
+        "dropped_training_columns": sorted(
+            observed_columns.difference(PRIME_SAFE_FIELDS)
+        ),
         "source_counts": dict(sorted(source_counts.items())),
         "mode_counts": dict(sorted(mode_counts.items())),
         "repair_reference_rows": repair_rows,

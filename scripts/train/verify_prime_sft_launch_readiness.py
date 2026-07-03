@@ -14,6 +14,8 @@ from typing import Any
 
 import click
 
+EXPECTED_PRIME_RL_REF = "d700753"
+
 
 def _load_json(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text())
@@ -34,6 +36,50 @@ def _as_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value]
+
+
+def _as_check_reports(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    checks = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        checks.append(
+            {
+                "detail": str(item.get("detail") or ""),
+                "name": str(item.get("name") or ""),
+                "passed": bool(item.get("passed")),
+            }
+        )
+    return checks
+
+
+def _as_mapping(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return value
+
+
+def _runner_uses_prime_rl_ref(runner_text: str, expected_prime_rl_ref: str) -> bool:
+    return (
+        f"git fetch --depth 1 origin {expected_prime_rl_ref}" in runner_text
+        and f"git checkout {expected_prime_rl_ref}" in runner_text
+        and 'url."https://github.com/".insteadOf git@github.com:' in runner_text
+        and 'url."https://github.com/".insteadOf ssh://git@github.com/' in runner_text
+        and "git config -f .gitmodules" in runner_text
+        and 'https_url="https://github.com/' in runner_text
+        and "git submodule sync --recursive" in runner_text
+        and "git submodule update --init --recursive --force" in runner_text
+        and "cat > sitecustomize.py" in runner_text
+        and "torch.backends.cudnn.enabled = False" in runner_text
+        and 'PYTHONPATH="/workspace/prime-rl:${PYTHONPATH:-}"' in runner_text
+        and "TORCH_CUDNN_V8_API_DISABLED=1" in runner_text
+        and "apt_install cuda-nvcc-12-8 g++-12 ninja-build" in runner_text
+        and "import flash_attn_2_cuda" in runner_text
+        and 'FLASH_ATTN_CUDA_ARCHS="80"' in runner_text
+        and "--no-build-isolation --no-deps flash-attn==2.8.3.post1" in runner_text
+    )
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -65,6 +111,7 @@ def build_launch_readiness_report(
     eval_manifest_path: Path,
     launch_archive_path: Path,
     output_path: Path,
+    expected_prime_rl_ref: str = EXPECTED_PRIME_RL_REF,
 ) -> dict[str, Any]:
     """Verify the SFT launch handoff artifacts are mutually consistent."""
     failures: list[str] = []
@@ -82,12 +129,33 @@ def build_launch_readiness_report(
     if eval_manifest.get("artifact") != "sft_eval_manifest":
         failures.append("eval manifest artifact is not sft_eval_manifest")
 
+    prime_rl_ref = str(launch_manifest.get("prime_rl_ref") or "")
+    if prime_rl_ref != expected_prime_rl_ref:
+        actual = prime_rl_ref or "<missing>"
+        failures.append(
+            f"launch kit prime_rl_ref {actual} != {expected_prime_rl_ref}"
+        )
+
     config_text = str(config_path)
     if preflight.get("config") != config_text:
         failures.append("preflight config path does not match launch config")
 
     preflight_gate = preflight.get("gate", {})
     failed_checks = _as_list(preflight_gate.get("failed_checks"))
+    preflight_checks = _as_check_reports(preflight.get("checks"))
+    preflight_policy = _as_mapping(preflight.get("launch_policy"))
+    wandb_policy = _as_mapping(preflight_policy.get("wandb_source"))
+    if not preflight_policy:
+        failures.append("preflight launch_policy is missing")
+    elif preflight_policy.get("runner") != "prime_sandbox":
+        failures.append("preflight runner policy is not prime_sandbox")
+    if not wandb_policy:
+        failures.append("preflight W&B source policy is missing")
+    else:
+        if bool(wandb_policy.get("prime_secret_allowed")):
+            failures.append("preflight allows Prime-only W&B secret for sandbox launch")
+        if not bool(wandb_policy.get("local_env_required")):
+            failures.append("preflight does not require local WANDB_API_KEY")
     if not bool(preflight_gate.get("passed")):
         detail = ", ".join(failed_checks) if failed_checks else "unknown"
         failures.append(f"preflight gate failed: {detail}")
@@ -195,6 +263,7 @@ def build_launch_readiness_report(
 
     kit_file_shas: dict[str, str | None] = {}
     archive_file_shas: dict[str, str | None] = {}
+    runner_uses_expected_prime_rl_ref = False
     for filename, report_key in (
         ("run_sft.sh", "runner_sha256"),
         ("README.md", "readme_sha256"),
@@ -203,6 +272,17 @@ def build_launch_readiness_report(
         local_sha = None
         if local_path.exists():
             local_sha = _sha256(local_path)
+            if filename == "run_sft.sh":
+                runner_text = local_path.read_text()
+                runner_uses_expected_prime_rl_ref = _runner_uses_prime_rl_ref(
+                    runner_text,
+                    expected_prime_rl_ref,
+                )
+                if not runner_uses_expected_prime_rl_ref:
+                    failures.append(
+                        "launch runner does not checkout expected prime_rl_ref "
+                        f"{expected_prime_rl_ref}"
+                    )
         else:
             failures.append(f"launch kit missing {filename}")
         kit_file_shas[report_key] = local_sha
@@ -245,11 +325,17 @@ def build_launch_readiness_report(
         },
         "preflight": {
             "path": str(preflight_report_path),
+            "sha256": _sha256(preflight_report_path),
             "gate_passed": bool(preflight_gate.get("passed")),
             "failed_checks": failed_checks,
+            "checks": preflight_checks,
+            "launch_policy": preflight_policy,
         },
         "launch_kit": {
             "manifest_path": str(launch_manifest_path),
+            "prime_rl_ref": prime_rl_ref or None,
+            "expected_prime_rl_ref": expected_prime_rl_ref,
+            "runner_uses_expected_prime_rl_ref": runner_uses_expected_prime_rl_ref,
             "config_source_path": launch_config.get("source_path"),
             "config_sha256": launch_config.get("sha256"),
             "eval_manifest_source_path": packaged_eval.get("source_path"),
@@ -321,6 +407,12 @@ def build_launch_readiness_report(
     required=True,
     help="Launch-readiness report JSON.",
 )
+@click.option(
+    "--expected-prime-rl-ref",
+    default=EXPECTED_PRIME_RL_REF,
+    show_default=True,
+    help="Pinned PrimeIntellect-ai/prime-rl ref expected in the launch kit.",
+)
 @click.option("--no-fail-on-gate", is_flag=True)
 def cli(
     config_path: Path,
@@ -329,6 +421,7 @@ def cli(
     eval_manifest_path: Path,
     launch_archive_path: Path,
     output_path: Path,
+    expected_prime_rl_ref: str,
     no_fail_on_gate: bool,
 ) -> None:
     """Verify Prime SFT launch artifacts before spending a tracked run."""
@@ -339,6 +432,7 @@ def cli(
         eval_manifest_path=eval_manifest_path,
         launch_archive_path=launch_archive_path,
         output_path=output_path,
+        expected_prime_rl_ref=expected_prime_rl_ref,
     )
     click.echo(
         "prime_sft_launch_readiness={gate} failures={failures} report={report}".format(

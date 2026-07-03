@@ -155,7 +155,7 @@ def test_build_sft_output_report_accepts_clean50_s2_dataset(tmp_path: Path) -> N
     _write_config(
         config,
         output_dir,
-        dataset="jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50",
+        dataset="jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat",
     )
     _write_step(output_dir)
 
@@ -170,7 +170,7 @@ def test_build_sft_output_report_accepts_clean50_s2_dataset(tmp_path: Path) -> N
     assert report["passed"] is True
     assert (
         report["config"]["data"]
-        == "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50"
+        == "jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat"
     )
 
 

@@ -203,8 +203,51 @@ uv run scripts/train/prepare_prime_sft_to_rl_config.py \
 ```
 
 ```bash
-prime --plain train configs/prime/qwen35_2b_p5050_after_sft_env0315_<checkpoint_slug>.toml --yes --output json
+prime --plain train run configs/prime/qwen35_2b_p5050_after_sft_env0315_<checkpoint_slug>.toml --yes --output json
 ```
+
+For the extended after-SFT run, use the full400 template:
+
+```bash
+uv run scripts/train/prepare_prime_sft_to_rl_config.py \
+  --template configs/prime/qwen35_2b_p5050_after_sft_env0315_full400_template.toml \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
+  --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
+  --checkpoint-handoff-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/checkpoint_handoff.json \
+  --promotion-gate-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/promotion_gate.json \
+  --output configs/prime/qwen35_2b_p5050_after_sft_env0315_full400_<checkpoint_slug>.toml \
+  --run-name humanize-p5050-qwen35-2b-after-sft-full400-env0315-<checkpoint_slug>
+```
+
+```bash
+prime --plain train run configs/prime/qwen35_2b_p5050_after_sft_env0315_full400_<checkpoint_slug>.toml --yes --output json
+```
+
+If Prime enables the exact SFT HF model as a Hosted Training model, use the
+SFT-as-base full400 template instead of a warm-start checkpoint:
+
+```bash
+python3 - <<'PY'
+import json
+import subprocess
+
+target = "jayshah5696/humanize-rl-qwen35-2b-sft-env0315-clean50-primecompat-step200"
+payload = subprocess.check_output(
+    ["prime", "--plain", "train", "models", "--output", "json"],
+    text=True,
+)
+models = {item["name"] for item in json.loads(payload)["models"]}
+raise SystemExit(0 if target in models else 1)
+PY
+```
+
+```bash
+prime --plain train run configs/prime/qwen35_2b_p5050_sft_model_env0315_full400_template.toml --yes --output json
+```
+
+Do not launch this template until the availability check passes. This is the
+clean shared-Hosted equivalent of after-SFT RL: the SFT artifact is the actual
+training base model, not a placeholder checkpoint.
 
 Env0315 Qwen configs intentionally use `max_tokens = 1024`, explicit
 `max_inflight_rollouts`, and smaller eval batches. The old env0314 full configs

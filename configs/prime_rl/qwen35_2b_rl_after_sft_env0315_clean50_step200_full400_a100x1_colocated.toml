@@ -1,0 +1,118 @@
+max_steps = 400
+seq_len = 4096
+output_dir = "outputs/prime_rl/qwen35_2b_rl_after_sft_env0315_clean50_step200_full400_a100x1_colocated"
+clean_output_dir = false
+
+[env_vars]
+TORCH_CUDNN_V8_API_DISABLED = "1"
+WANDB_MODE = "offline"
+WANDB_API_KEY = "offline"
+
+[deployment]
+type = "single_node"
+gpus_per_node = 2
+num_train_gpus = 1
+num_infer_gpus = 1
+
+[weight_broadcast]
+type = "filesystem"
+
+[model]
+name = "jayshah5696/humanize-rl-qwen35-2b-sft-env0315-clean50-primecompat-step200"
+
+[ckpt]
+interval = 50
+keep_last = 8
+
+[trainer.model]
+impl = "auto"
+seq_len = 4096
+optimization_dtype = "bfloat16"
+reduce_dtype = "float32"
+
+[trainer.model.ac]
+freq = 1
+
+[trainer.model.lora]
+rank = 32
+alpha = 64
+dropout = 0.0
+
+[trainer.optim]
+lr = 8e-5
+
+[trainer.ckpt]
+interval = 50
+weights_only = true
+keep_last = 8
+
+[trainer.ckpt.weights]
+save_adapter_separately = true
+save_sharded = true
+save_format = "safetensors"
+
+[trainer.wandb]
+project = "humanize-rl"
+name = "qwen35-2b-rl-after-sft-env0315-clean50-step200-full400-a100x1-colocated"
+tags = ["prime-rl", "rl", "qwen3.5-2b", "after-sft", "env0315", "clean50", "step200", "full400", "p50-50", "a100x1", "colocated"]
+offline = true
+
+[orchestrator]
+batch_size = 64
+group_size = 8
+max_inflight_rollouts = 16
+tasks_per_minute = 180
+
+[orchestrator.train.sampling]
+temperature = 0.7
+max_completion_tokens = 1024
+
+[[orchestrator.train.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "train_mix_v2_p5050_qwen35_2b_after_sft_env0315_clean50_step200_full400_a100x1_colocated"
+args = { split = "train", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }
+group_size = 8
+
+[orchestrator.eval]
+interval = 50
+num_examples = 64
+group_size = 1
+
+[orchestrator.eval.sampling]
+temperature = 0.2
+max_completion_tokens = 1024
+
+[[orchestrator.eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_mix_v2_p5050_env0315"
+args = { split = "validation", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }
+
+[[orchestrator.eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_v02_strict_env0315"
+args = { split = "validation", task_set = "v02_smoke", reward_mode = "strict" }
+
+[[orchestrator.eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_v03_strict_env0315"
+args = { split = "validation", task_set = "v03", reward_mode = "strict" }
+
+[orchestrator.renderer]
+name = "qwen3.5"
+enable_thinking = false
+
+[orchestrator.wandb]
+project = "humanize-rl"
+name = "qwen35-2b-rl-after-sft-env0315-clean50-step200-full400-a100x1-colocated"
+tags = ["prime-rl", "rl", "qwen3.5-2b", "after-sft", "env0315", "clean50", "step200", "full400", "p50-50", "a100x1", "colocated"]
+offline = true
+
+[inference]
+gpu_memory_utilization = 0.42
+
+[inference.model]
+max_model_len = 4096
+
+[inference.parallel]
+tp = 1
+dp = 1

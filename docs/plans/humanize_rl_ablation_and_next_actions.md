@@ -1359,6 +1359,265 @@ Launch preflight from 2026-06-28:
   promotion gates. Only after promotion should the after-SFT RL config be
   rendered and launched.
 
+## 2026-07-03 After-SFT RL Full400 Attempt
+
+Status:
+
+- SFT is treated as complete at step 200. Do not rerun SFT for this ablation.
+- New RL config:
+  `configs/prime_rl/qwen35_2b_rl_after_sft_env0315_clean50_step200_full400.toml`.
+- Output:
+  `outputs/prime_rl/qwen35_2b_rl_after_sft_env0315_clean50_step200_full400`.
+- Run shape: SFT checkpoint model
+  `jayshah5696/humanize-rl-qwen35-2b-sft-env0315-clean50-primecompat-step200`,
+  env `jayshah5696/humanize-rl-env@0.3.15`, Qwen3.5 renderer,
+  `max_steps=400`, RL `batch_size=64`, `group_size=8`, eval/checkpoint every
+  50 steps, `keep_last=8`, offline W&B.
+
+Execution:
+
+- Confirmed Prime pod list was empty before launch.
+- Launched one Prime Datacrunch `A100_80GB x2` pod:
+  `80161285ef8e4dafadfb5b3fc97da056`
+  (`humanize-rl-after-sft-qwen35-2b-a100x2-full400-r1`).
+- Initial runner incorrectly used `pip install flash-attn==2.8.3.post1`, which
+  pulled the PyPI source tarball and started compiling 72 `sm_80` kernels.
+- Same-pod correction: stopped the source-build runner and relaunched with
+  Prime's pinned extra:
+  `uv run --extra flash-attn rl @ /workspace/prime_rl_launch_kit/config.toml`.
+- Corrected path installed the Prime-pinned Torch 2.11/CUDA 12.8
+  `flash-attn` wheel in 11 ms and verified `flash_attn_2_cuda OK`.
+- Corrected local launch archive:
+  `3365c03a1f80e4a250f617b88f6f8a6f1573934046ae97cdf826fb8e7125e75f`.
+- Corrected runner hash:
+  `d69234b8357bd3028cef49af02273fcefecdf4720f347ad607fb68d07d4dbb08`.
+- Config hash:
+  `c91c59fcf3d11d0d779e117c5890eba7630258eae56a140a413b48c063db59bb`.
+
+Result:
+
+- RL startup reached model predownload, config render, inference on GPU 0,
+  trainer on GPU 1, orchestrator startup, tokenizer initialization,
+  Qwen35 renderer initialization, offline W&B setup, rollout filter setup, and
+  training environment loading.
+- It failed before step 0 completed:
+  `Inference failed with exit code 1` at `2026-07-03 21:24:51 UTC`.
+- Stop rule applied. Pod terminated immediately:
+  `prime --plain pods terminate 80161285ef8e4dafadfb5b3fc97da056 --yes`.
+- Verified `prime --plain pods list --output json` returned zero pods.
+- No second paid attempt was started.
+- The deeper `inference.log` was not recovered because the host was unreachable
+  after termination. Next paid retry must preserve logs before or during
+  cleanup.
+
+Next decision:
+
+- Do not retry RL full400 without explicit approval.
+- Before any approved retry, fix the launch runner to keep the corrected
+  `uv run --extra flash-attn` path and add a failure trap/log sync for
+  `inference.log`, `orchestrator.log`, and `trainer.log`.
+- The next investigation target is the inference process exit, not SFT, data,
+  reward weights, or another environment version.
+
+## 2026-07-04 A100x1 Colocated Retry Prep And First Attempt
+
+Status:
+
+- A cheaper one-GPU path was prepared as a separate config:
+  `configs/prime_rl/qwen35_2b_rl_after_sft_env0315_clean50_step200_full400_a100x1_colocated.toml`.
+- This is not stock two-device Prime placement. It keeps Prime's launcher
+  unpatched, but the runner sets `CUDA_VISIBLE_DEVICES=0,0` so Prime's logical
+  inference and trainer GPU roles both map to physical GPU 0.
+- Runtime pressure was reduced for one A100:
+  `max_inflight_rollouts=16`, `tasks_per_minute=180`, and
+  `inference.gpu_memory_utilization=0.42`.
+- Optimizer horizon, SFT checkpoint, env, train batch, group size, eval cadence,
+  and reward mode remain aligned with the full400 plan.
+
+First 1x attempt:
+
+- Launched one MassedCompute `A100_80GB x1` pod:
+  `c581141dcc104415b4978c12fd5b5f0c`
+  (`humanize-rl-after-sft-qwen35-2b-a100x1-full400-colocated-r1`).
+- Prime availability showed this shape at about `$1.20/h`.
+- SSH and GPU check passed:
+  `NVIDIA A100 80GB PCIe, 81920 MiB`.
+- The attempt failed before training during `uv` install:
+  `ERROR: unable to create receipt directory at /home/ubuntu/.config/uv`.
+- Failure bundle was copied locally:
+  `runs/prime_rl_launch_kit/failure_bundle_qwen35_2b_rl_after_sft_env0315_clean50_step200_full400_a100x1_colocated_20260704T004610Z.tar.gz`.
+- Pod was terminated immediately and `prime --plain pods list --output json`
+  returned zero pods.
+
+Fix after first 1x attempt:
+
+- Runner now sets writable paths under `/workspace`:
+  `XDG_CONFIG_HOME=/workspace/.config`,
+  `XDG_CACHE_HOME=/workspace/.cache`, and
+  `UV_CACHE_DIR=/workspace/.cache/uv`.
+- Corrected 1x launch-kit hashes:
+  - archive:
+    `4cc64e27d96fb02cb09ad61d75db4c8803ae8768e0702448d5057872f9eeab39`;
+  - config:
+    `451ae29ad1cf3f07636f42f62ae72a5a462e607ec55035ffa0b2e60d4e4fc5bb`;
+  - runner:
+    `6c42586f221aa0f153ea4fbe0a88f0defed1096d9d80527c1550d3c2c4c8754a`.
+
+Next decision:
+
+- No second paid 1x attempt has been launched after the `uv` path fix.
+- If approved, retry with the corrected archive above and stop again if it
+  fails before step 0.
+
+## 2026-07-03 Hosted Training Correction
+
+Status:
+
+- Current Prime docs and CLI support Hosted Training from a TOML with:
+  `prime train run <config.toml>`.
+- Installed CLI `0.6.15` also accepts the older direct form
+  `prime train <config.toml>`, and `prime rl` is only a deprecated alias for
+  `prime train`.
+- Prime pods are not required for the Hosted RL env path. Pods were only
+  relevant to open `prime-rl` commands such as `uv run sft @ ...` and
+  `uv run rl @ ...`.
+- Current pod status was checked after stopping the previous attempts:
+  `prime --plain pods list --output json` returned zero pods.
+
+Course check:
+
+- `anakin87/llm-rl-environments-lil-course` uses the same two-step idea:
+  SFT warmup, then RL against an environment.
+- Its SFT chapter runs open PRIME-RL on a GPU machine with
+  `uv run sft @ primerl_sft.toml`.
+- Its RL chapter runs Verifiers `vf.RLTrainer` on a GPU machine with
+  `uv run vf-rl @ vfrltrainer_rl1.toml`; it explicitly recommends switching
+  to PRIME-RL for more complete RL features.
+- The course supports the two-step pattern, but it is not the same as Prime
+  Hosted Training. For this repo, Hosted Training is the correct no-pod RL
+  surface when the run can start from a Prime Hosted checkpoint.
+
+Current blocker for after-SFT Hosted RL:
+
+- The completed Qwen SFT output verification passed for local/open `prime-rl`
+  files, but its manifest has `checkpoint_id: null`, `path: null`, and
+  `promotion_root: null`.
+- Hosted warm-start requires a `READY` Prime checkpoint id for the same model.
+- Existing Qwen 2B Hosted base-RL run `o48ryskshkn06b3o1b1kauql` has only
+  checkpoint `jgeit425lcztmwslc50rbom1` at status `UPLOADING`, not `READY`.
+- Existing READY checkpoint `arsnu29hb9akbm2jc1b33pmc` belongs to the Llama
+  3.2 3B Hosted RL run, not the Qwen 3.5 2B SFT warmup.
+- Follow-up inventory on 2026-07-03 checked the full Hosted run list with
+  `prime --plain train list --num 100 --output json`; there is exactly one
+  Hosted `Qwen/Qwen3.5-2B` run in the account, and it is the stopped base-RL
+  run above.
+- Installed Prime CLI `0.6.15` exposes no Hosted checkpoint import/upload
+  command. `prime train configs --output json` only exposes top-level
+  `checkpoint_id` as the warm-start input.
+
+Decision:
+
+- Do not launch another pod for this RL goal.
+- Added Hosted full400 after-SFT template:
+  `configs/prime/qwen35_2b_p5050_after_sft_env0315_full400_template.toml`.
+- Added SFT-as-base Hosted full400 template:
+  `configs/prime/qwen35_2b_p5050_sft_model_env0315_full400_template.toml`.
+- Do not launch the after-SFT Hosted full400 run until a valid Qwen 3.5 2B
+  `READY` Prime checkpoint id exists and passes
+  `scripts/train/verify_prime_warm_start_checkpoint.py`.
+- Do not launch the SFT-as-base Hosted full400 run until
+  `prime train models --output json` lists
+  `jayshah5696/humanize-rl-qwen35-2b-sft-env0315-clean50-primecompat-step200`.
+- If no Qwen SFT Hosted checkpoint can be produced/imported, the honest Hosted
+  options are either base-model RL full400 or a different READY same-model
+  checkpoint, not an after-SFT Hosted run pretending the local SFT output is a
+  Hosted checkpoint.
+- Do not launch base Qwen 2B RL full400 as a substitute without a new approval,
+  because the prior base Qwen 2B full200 run was stopped at step 55 after strict
+  eval regression.
+
+Follow-up on 2026-07-03:
+
+- Attempted the managed dedicated full-FT path with the existing open
+  `prime-rl` after-SFT config:
+  `prime --plain train run -e HF_TOKEN --yes --output json configs/prime_rl/qwen35_2b_rl_after_sft_env0315_clean50_step200_full400.toml`.
+- Prime rejected it before compute started:
+  `HTTP 403: Dedicated training runs are admin-only`.
+- Submitted a Hosted Training model request for:
+  `jayshah5696/humanize-rl-qwen35-2b-sft-env0315-clean50-primecompat-step200`.
+- Hugging Face model metadata check confirmed the SFT model is public and has
+  `model.safetensors` plus `lora_adapters/adapter_model.safetensors`.
+- Prime deployable adapters list has READY adapters for the stopped Qwen 2B
+  base-RL run, but those are not the SFT artifact and must not be used as an
+  after-SFT substitute.
+
+Follow-up on 2026-07-08:
+
+- User approved bypassing the Hosted Training wait and trying direct open
+  `prime-rl` after-SFT RL full400.
+- Confirmed there were zero active Prime pods before launch.
+- Created direct MassedCompute pod
+  `a64c16b16a884a218ec79edc94332324`
+  (`A100_80GB x2`, `$2.40/h`) through the Prime API because CLI pod creation
+  rejected the available Ubuntu-only config when env vars were passed.
+- Staged and hash-verified the launch kit for
+  `configs/prime_rl/qwen35_2b_rl_after_sft_env0315_clean50_step200_full400.toml`.
+- The pod had two visible `NVIDIA A100 80GB PCIe` GPUs and enough disk.
+- The run failed before training, before model load, and before step 0:
+  `curl: (6) Could not resolve host: astral.sh` during `uv` bootstrap.
+- Failure bundle was copied to
+  `runs/prime_rl_launch_kit/failure_bundles/a64c16b16a884a218ec79edc94332324/`.
+- Pod was terminated and `prime --plain pods list --output json` returned zero
+  pods.
+- Post-failure, the direct 2x runner was hardened to DNS-preflight
+  `astral.sh` and `github.com` and apply a `1.1.1.1` / `8.8.8.8` resolver
+  fallback before `uv` install or `prime-rl` clone.
+- Rebuilt clean direct 2x archive:
+  `495c1dcd5281109466f9c5f960097f3ac8086d167546c3e1861af7da7ba20178`.
+- This hardening is not proven on a fresh paid pod. Do not launch it without
+  explicit approval.
+
+Correction on 2026-07-08:
+
+- User clarified that "direct RL" means Hosted base-model RL without SFT, not
+  open `prime-rl` on a pod and not after-SFT RL.
+- Added base Hosted full400 config:
+  `configs/prime/qwen35_2b_p5050_env0315_full400.toml`.
+- This config uses `Qwen/Qwen3.5-2B`, env
+  `jayshah5696/humanize-rl-env@0.3.15`, `max_steps=400`,
+  `batch_size=64`, `rollouts_per_example=8`,
+  `max_inflight_rollouts=32`, eval every 50 steps, and no
+  `checkpoint_id`.
+- Correct launch command:
+  `prime --plain train run configs/prime/qwen35_2b_p5050_env0315_full400.toml --yes --output json`.
+- Do not use pods for this corrected run.
+- Launched run `ln8ui3bmtx4skvxcu7pwvvbl`
+  (`humanize-p5050-qwen35-2b-base-full400-env0315-r1`) and it completed at
+  `2026-07-08 22:37:27.480000`.
+- Final step 400 scores:
+  - `eval_mix_v2_p5050_env0315/avg@1 = 0.7093008879222907`;
+  - `eval_v02_strict_env0315/avg@1 = 0.43871350751982796`;
+  - `eval_v03_strict_env0315/avg@1 = 0.124382966841523`.
+- Best eval by `mix_v2_p5050` was step 350:
+  `0.717125491476916`, with v02 `0.2968331216110124` and v03
+  `0.10482476999553221`.
+- Final usage: `25,354,343` tokens, `$3.0106` total reported cost.
+- Checkpoints steps `50..350` are `READY`; final step 400 checkpoint
+  `un0pjopifbkt5s37v4vc514h` was still `UPLOADING` after post-completion
+  polling through `2026-07-08 22:48:42 UTC`.
+- Verified `prime --plain pods list --output json` returned zero pods after
+  completion.
+- Published HF report/model-reference repo:
+  `https://huggingface.co/jayshah5696/humanize-p5050-qwen35-2b-base-full400-env0315-r1`.
+- Local final Markdown report:
+  `runs/reports/prime_qwen35_2b_base_full400_env0315_hf/FINAL_REPORT.md`.
+- Publication is a Prime adapter reference and report, not standalone
+  downloadable HF weights. The Prime final adapter id is
+  `wxhjhfx6hc7xzuqbneinr7zr`.
+- Matched before/after samples in the report show metric improvement but also
+  reward-hacking artifacts, so this is not a production release without a
+  qualitative audit/reward fix.
+
 ## What Not To Do Next
 
 - Do not deploy the step-200 checkpoint as a candidate model.
@@ -1372,9 +1631,28 @@ Launch preflight from 2026-06-28:
   `62abc46cde1f4705b0ce65ab702005ae` is active.
 - Do not point active Prime SFT runs at the old S2 clean50 Hub repo; use
   `jayshah5696/humanize-rl-prime-sft-messages-env0315-clean50-primecompat`.
+- Do not start a second paid RL full400 attempt until the inference exit is
+  diagnosed and explicitly approved.
+- Do not manually install `flash-attn` from PyPI for `prime-rl@d700753`; use
+  Prime's `flash-attn` extra so the pinned prebuilt Torch 2.11/CUDA 12.8 wheel
+  is used.
+- Do not launch a second A100x1 colocated attempt without approval. The first
+  A100x1 attempt failed before training on pod-side `uv` config permissions and
+  was terminated.
+- Do not launch another pod for the current RL goal while the Hosted Training
+  path is viable.
+- Do not launch Hosted after-SFT RL without a READY same-model Prime checkpoint
+  id.
+- Do not launch another direct Prime pod attempt without explicit approval. If
+  approved, use the DNS-hardened direct 2x archive above and stop again before
+  retrying if bootstrap still cannot resolve `astral.sh` or `github.com`.
 
 ## References
 
+- Prime Hosted Training getting started:
+  `https://docs.primeintellect.ai/hosted-training/getting-started`
+- Prime Hosted Training end-to-end run:
+  `https://docs.primeintellect.ai/hosted-training/end-to-end-run`
 - Prime Hosted Training models and pricing:
   `https://docs.primeintellect.ai/hosted-training/models-and-pricing`
 - Prime Hosted Training advanced configs:

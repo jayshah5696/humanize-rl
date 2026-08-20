@@ -60,3 +60,25 @@ v03-verify strict="--no-strict":
 v03-publish repo_id="jayshah5696/humanize-rl-tasks-v03" flags="":
     uv run python scripts/publish_to_hf.py dataset --repo-id {{repo_id}} --path data/rl/humanize_tasks_v03_filtered.jsonl --readme runs/cards/rl_tasks_v03.md --artifact runs/v03/slice5_verification.md:verification_report.md --artifact runs/v03/slice5_verification.json:verification_report.json --artifact data/rl/humanize_tasks_v03_summary.json:dataset_summary.json {{flags}}
 
+# ---- reward-lab: Lakebed capsule wrapping the reward function (app/ — gitignored) ----
+
+# Regenerate parity fixtures from Python (no-ridge + ridge-enabled + ridge tokenizer cases)
+# and re-export the embedded ridge artifacts.
+reward-lab-fixtures:
+    uv run scripts/dump_reward_fixtures.py
+    uv run scripts/dump_reward_with_ridge_fixtures.py
+    uv run scripts/dump_ridge_artifacts.py
+
+reward-lab-install:
+    cd app/reward-lab-tests && npm install
+
+# Re-dump fixtures + ridge artifacts, then run all 4 parity suites (210 tests).
+reward-lab-test: reward-lab-fixtures
+    cd app/reward-lab-tests && npm test
+
+reward-lab-dev:
+    cd app/reward-lab && rtk npx --yes lakebed dev
+
+reward-lab-deploy:
+    cd app/reward-lab && rtk npx --yes lakebed deploy
+

@@ -81,10 +81,11 @@ google/gemma-4-e2b-it:free
 google/gemma-4-31b-it:free
 ```
 
-## Training Platform Order — Prime First
+## Training Platform Order — Prime By Default
 
-For new SFT/RL experiments, check Prime Intellect before adding or launching
-Modal/TRL code.
+For new SFT/RL experiments, use Prime Intellect by default. Do not add or
+launch Modal/TRL/custom cloud training unless Prime cannot support the run and
+that exception is documented first.
 
 Prime capabilities verified from the June 22, 2026 Prime docs:
 
@@ -119,15 +120,38 @@ Prime capabilities verified from the June 22, 2026 Prime docs:
 
 Policy:
 
-1. Use Prime first for Qwen/Llama/Nemotron/GPT-OSS SFT/RL when the target model,
-   data format, checkpointing, and budget fit.
+1. Use Prime by default for Qwen/Llama/Nemotron/GPT-OSS SFT/RL when the target
+   model, data format, checkpointing, and budget fit.
 2. Use Modal/TRL only when Prime cannot support the needed model/path, when we
    need custom code not available in Prime, or when continuing a pre-existing
    Modal run already launched.
-3. Before writing new training infrastructure, document the Prime CLI/doc check
+3. Prime `prime-rl` runs are TOML-first. The intended interface is
+   `uv run sft @ config.toml` or `uv run rl @ config.toml`. A pod/instance is
+   only the compute surface, not the workflow.
+4. Before writing new training infrastructure, document the Prime CLI/doc check
    in `log.md` and explain why Prime is or is not viable.
-4. Do not stop an already-running Modal job unless the user asks; finish it,
+5. If the Prime path is unclear, blocked, missing dependencies, or requires
+   manual runtime debugging, stop and report the blocker before launching paid
+   compute or switching platforms.
+6. Do not stop an already-running Modal job unless the user asks; finish it,
    log the result, then move the next run back to Prime-first ordering.
+
+## Paid Compute Safety
+
+- Do not launch Prime pods, Prime jobs, Modal jobs, HF Jobs, or any paid GPU
+  compute without explicit user approval in the current conversation.
+- Before requesting approval, provide the exact command/config, GPU type/count,
+  expected runtime, cost risk, log path, checkpoint/output path, and shutdown
+  condition.
+- Do not SSH into paid compute for ad hoc setup, dependency debugging, file
+  editing, or exploratory work unless the user explicitly approves that mode.
+- Prefer local/no-cost checks first: TOML validation, dataset schema checks,
+  config tests, dry-run commands where available, and docs review.
+- If a paid run fails before training starts, terminate the compute immediately,
+  record the failure in `log.md`, and ask before trying again.
+- After any paid run, verify `prime pods list` or the equivalent platform status
+  shows no idle paid resources unless the user explicitly asked to keep them
+  running.
 
 ## Architecture
 

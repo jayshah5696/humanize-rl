@@ -1,0 +1,72 @@
+max_steps = 200
+output_dir = "outputs/prime_sft/qwen35_2b_sft_target_messages_env0314_gate_env0315"
+clean_output_dir = false
+loss_impl = "torch"
+
+[model]
+name = "Qwen/Qwen3.5-2B"
+seq_len = 4096
+impl = "auto"
+optimization_dtype = "bfloat16"
+reduce_dtype = "float32"
+
+[model.ac]
+freq = 1
+
+[model.lora]
+rank = 32
+alpha = 64
+dropout = 0.0
+
+[renderer]
+name = "qwen3.5"
+
+[data]
+name = "jayshah5696/humanize-rl-prime-sft-messages-env0314"
+splits = ["train"]
+seq_len = 4096
+batch_size = 128
+micro_batch_size = 1
+shuffle = true
+seed = 5696
+
+[data.loss_mask]
+assistant = true
+user = false
+system = false
+tool = false
+
+[val]
+interval = 25
+eval_on_start = true
+
+[val.data]
+name = "jayshah5696/humanize-rl-prime-sft-messages-env0314"
+splits = ["validation"]
+seq_len = 4096
+batch_size = 64
+micro_batch_size = 1
+shuffle = false
+
+[val.data.loss_mask]
+assistant = true
+user = false
+system = false
+tool = false
+
+[optim]
+lr = 2e-5
+
+[ckpt]
+interval = 50
+weights_only = true
+
+[ckpt.weights]
+save_adapter_separately = true
+save_sharded = true
+save_format = "safetensors"
+
+[wandb]
+project = "humanize-rl"
+name = "qwen35-2b-prime-sft-target-data-env0314-gate-env0315"
+tags = ["prime-rl", "sft", "qwen3.5-2b", "data-env0314", "gate-env0315", "target"]

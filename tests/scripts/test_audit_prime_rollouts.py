@@ -4,7 +4,7 @@ import json
 
 from humanize_rl.reward.env import prime_dataset_row
 from humanize_rl.reward.tasks import RLTask
-from scripts.eval.audit_prime_rollouts import build_rollout_audit
+from scripts.eval.audit_prime_rollouts import build_rollout_audit, resolve_audit_inputs
 
 
 class FakePerfectRidgeScorer:
@@ -83,3 +83,27 @@ def test_build_rollout_audit_rescores_and_counts_surface_failures(tmp_path) -> N
     assert report["diagnostics"]["failed_counts"]["all_caps"] == 1
     assert report["diagnostics"]["high_rescored_with_failed_diagnostics"] == 0
     assert report["recomputed_reward"]["max"] <= 0.70
+
+
+def test_resolve_audit_inputs_uses_eval_label_defaults() -> None:
+    taskset, reward_mode = resolve_audit_inputs(
+        eval_label="v03_strict",
+        taskset_path=None,
+        reward_mode=None,
+    )
+
+    assert taskset.as_posix() == "data/rl/humanize_tasks_v03_filtered.jsonl"
+    assert reward_mode == "strict"
+
+
+def test_resolve_audit_inputs_allows_explicit_overrides(tmp_path) -> None:
+    custom_taskset = tmp_path / "custom.jsonl"
+
+    taskset, reward_mode = resolve_audit_inputs(
+        eval_label="v02_strict",
+        taskset_path=custom_taskset,
+        reward_mode="p50_50_no_penalty",
+    )
+
+    assert taskset == custom_taskset
+    assert reward_mode == "p50_50_no_penalty"

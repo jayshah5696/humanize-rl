@@ -1,0 +1,65 @@
+name = "humanize-p5050-qwen35-2b-after-sft-full400-env0315-r1"
+model = "Qwen/Qwen3.5-2B"
+checkpoint_id = "FILL_WITH_READY_SFT_CHECKPOINT_ID"
+max_steps = 400
+batch_size = 64
+rollouts_per_example = 8
+max_inflight_rollouts = 32
+learning_rate = 8e-5
+lora_alpha = 32
+
+[sampling]
+max_tokens = 1024
+temperature = 0.7
+enable_thinking = false
+
+[[env]]
+id = "jayshah5696/humanize-rl-env"
+name = "train_mix_v2_p5050_qwen35_2b_after_sft_full400_env0315_r1"
+version = "0.3.15"
+args = { split = "train", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }
+
+[eval]
+interval = 50
+num_examples = 64
+rollouts_per_example = 1
+eval_base_model = false
+
+[eval.sampling]
+max_tokens = 1024
+temperature = 0.2
+enable_thinking = false
+
+[[eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_mix_v2_p5050_env0315"
+version = "0.3.15"
+args = { split = "validation", task_set = "mix_v2_p5050", reward_mode = "p50_50_no_penalty" }
+
+[[eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_v02_strict_env0315"
+version = "0.3.15"
+args = { split = "validation", task_set = "v02_smoke", reward_mode = "strict" }
+
+[[eval.env]]
+id = "jayshah5696/humanize-rl-env"
+name = "eval_v03_strict_env0315"
+version = "0.3.15"
+args = { split = "validation", task_set = "v03", reward_mode = "strict" }
+
+[val]
+num_examples = 64
+rollouts_per_example = 1
+interval = 20
+
+[checkpoints]
+interval = 50
+keep_cloud = 8
+
+[adapters]
+interval = 50
+keep_last = 8
+
+[infrastructure]
+compute_size = "L"

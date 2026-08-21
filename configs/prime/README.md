@@ -1,8 +1,12 @@
 # Prime p50 sweep configs
 
-Use these after refreshing Prime auth and pushing env `0.3.14`.
-All configs set train/eval `max_tokens = 4096`; Qwen configs disable thinking
-in both train and eval sampling.
+Use these after refreshing Prime auth and confirming the env version required
+by the specific TOML. Older configs target env `0.3.14`; the current
+fake-casual-fix ablation configs target env `0.3.15`.
+
+Older full configs set train/eval `max_tokens = 4096`; env0315 smoke/full
+templates use `1024` because that is the safer hosted Qwen renderer path.
+Qwen configs disable thinking in both train and eval sampling.
 Prime docs list `pre_batch_filters` / `post_batch_filters`, but CLI `0.6.14`
 rejects those sections as extra inputs. Keep these TOMLs runnable under the
 installed CLI; env `0.3.14` handles repetition/runaway, the observed
@@ -28,7 +32,7 @@ Training eval uses `temperature = 0.2`; `r9` showed Qwen greedy hosted eval at
 `0.0` can run to the full `4096` cap. Keep `enable_thinking = false` in these
 TOML configs for Hosted Training.
 
-Run order:
+Legacy env0314 run order:
 
 ```bash
 prime --plain train configs/prime/qwen35_08b_docs_debug.toml
@@ -109,3 +113,157 @@ Eval gates in every config:
 - `mix_v2_p5050` validation with `p50_50_no_penalty`
 - `v02_smoke` validation with `strict`
 - `v03` validation with `strict`
+
+## Env 0.3.15 Fake-Casual Fix Configs
+
+Do not launch the Qwen 2B full templates until hosted smoke
+`fj9oinokvx5zott096tgfwqw` is audited and passes. Prime auth must be refreshed
+first.
+
+Prepared post-auth order:
+
+```bash
+prime --plain train get fj9oinokvx5zott096tgfwqw --output json
+prime --plain train progress fj9oinokvx5zott096tgfwqw
+prime --plain train configs/prime/qwen35_08b_fakecasualfix_env0315_smoke50.toml --yes --output json
+```
+
+Only after the Qwen 0.8B env0315 smoke passes, launch one Qwen 2B full path:
+
+```bash
+prime --plain train configs/prime/qwen35_2b_p5050_env0315_full200_template.toml --yes --output json
+```
+
+For SFT-to-RL, first run dataset SFT from `configs/prime_rl/`, wait for a
+READY checkpoint, write the eval manifest, verify the SFT output files, build a
+bounded human-read packet from candidate audit samples, build/pass the SFT
+promotion gate, generate a concrete hosted RL config, then launch:
+
+```bash
+uv run scripts/eval/build_sft_eval_manifest.py \
+  --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
+  --promotion-root runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID> \
+  --pangram-bulk-items runs/detector_mimic/pangram_bulk_items.json \
+  --output runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json
+```
+
+If `--after-sft-config` or `--rl-run-name` contains `<checkpoint_slug>`, the
+manifest builder replaces it automatically once `--checkpoint-id` is real. The
+template checkpoint id `READY_SFT_CHECKPOINT_ID` keeps placeholders intact.
+
+```bash
+uv run scripts/train/verify_prime_sft_output.py \
+  --config configs/prime_rl/qwen35_2b_sft_target_messages_env0314_gate_env0315.toml \
+  --step 200 \
+  --output runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_output_verification.json
+```
+
+```bash
+uv run scripts/eval/build_sft_human_read_packet.py \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
+  --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
+  --candidate-audit mix_v2_p5050=<sft_mix_audit.json> \
+  --candidate-audit v02_strict=<sft_v02_audit.json> \
+  --candidate-audit v03_strict=<sft_v03_audit.json> \
+  --output runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/human_read_packet.json
+```
+
+```bash
+uv run scripts/eval/build_sft_promotion_gate.py \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
+  --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
+  --baseline-audit mix_v2_p5050=<base_mix_audit.json> \
+  --baseline-audit v02_strict=<base_v02_audit.json> \
+  --baseline-audit v03_strict=<base_v03_audit.json> \
+  --candidate-audit mix_v2_p5050=<sft_mix_audit.json> \
+  --candidate-audit v02_strict=<sft_v02_audit.json> \
+  --candidate-audit v03_strict=<sft_v03_audit.json> \
+  --detector-report <detector_mimic_report.json> \
+  --human-read runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/human_read_packet.json \
+  --sft-output-verification runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_output_verification.json \
+  --output runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/promotion_gate.json
+```
+
+```bash
+uv run scripts/train/verify_prime_warm_start_checkpoint.py \
+  --run-id <PRIME_RUN_ID_WITH_READY_CHECKPOINT> \
+  --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
+  --output runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/checkpoint_handoff.json
+```
+
+```bash
+uv run scripts/train/prepare_prime_sft_to_rl_config.py \
+  --template configs/prime/qwen35_2b_p5050_after_sft_env0315_full200_template.toml \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
+  --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
+  --checkpoint-handoff-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/checkpoint_handoff.json \
+  --promotion-gate-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/promotion_gate.json \
+  --output configs/prime/qwen35_2b_p5050_after_sft_env0315_<checkpoint_slug>.toml \
+  --run-name humanize-p5050-qwen35-2b-after-sft-env0315-<checkpoint_slug>
+```
+
+```bash
+prime --plain train run configs/prime/qwen35_2b_p5050_after_sft_env0315_<checkpoint_slug>.toml --yes --output json
+```
+
+For the extended after-SFT run, use the full400 template:
+
+```bash
+uv run scripts/train/prepare_prime_sft_to_rl_config.py \
+  --template configs/prime/qwen35_2b_p5050_after_sft_env0315_full400_template.toml \
+  --sft-eval-manifest runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/sft_eval_manifest.json \
+  --checkpoint-id <READY_SFT_CHECKPOINT_ID> \
+  --checkpoint-handoff-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/checkpoint_handoff.json \
+  --promotion-gate-report runs/prime_sft_promotion/<READY_SFT_CHECKPOINT_ID>/promotion_gate.json \
+  --output configs/prime/qwen35_2b_p5050_after_sft_env0315_full400_<checkpoint_slug>.toml \
+  --run-name humanize-p5050-qwen35-2b-after-sft-full400-env0315-<checkpoint_slug>
+```
+
+```bash
+prime --plain train run configs/prime/qwen35_2b_p5050_after_sft_env0315_full400_<checkpoint_slug>.toml --yes --output json
+```
+
+If Prime enables the exact SFT HF model as a Hosted Training model, use the
+SFT-as-base full400 template instead of a warm-start checkpoint:
+
+```bash
+python3 - <<'PY'
+import json
+import subprocess
+
+target = "jayshah5696/humanize-rl-qwen35-2b-sft-env0315-clean50-primecompat-step200"
+payload = subprocess.check_output(
+    ["prime", "--plain", "train", "models", "--output", "json"],
+    text=True,
+)
+models = {item["name"] for item in json.loads(payload)["models"]}
+raise SystemExit(0 if target in models else 1)
+PY
+```
+
+```bash
+prime --plain train run configs/prime/qwen35_2b_p5050_sft_model_env0315_full400_template.toml --yes --output json
+```
+
+Do not launch this template until the availability check passes. This is the
+clean shared-Hosted equivalent of after-SFT RL: the SFT artifact is the actual
+training base model, not a placeholder checkpoint.
+
+Env0315 Qwen configs intentionally use `max_tokens = 1024`, explicit
+`max_inflight_rollouts`, and smaller eval batches. The old env0314 full configs
+used `4096` token caps and larger rollout geometry, which had already produced
+Qwen hosted-renderer instability and reward-hacking risk.
+
+2026-06-28 result:
+
+- Qwen 0.8B `qwen35_08b_fakecasualfix_env0315_smoke50.toml` improved p50 but
+  failed strict-family guardrails.
+- Qwen 0.8B `qwen35_08b_fakecasualfix_env0315_smoke50_lr5e5.toml` passed p50,
+  strict, rollout-audit, and detector-mimic gates.
+- Qwen 2B base RL
+  `qwen35_2b_p5050_env0315_full200_template.toml` was stopped at step 55
+  because step-50 strict eval regressed even though p50 improved.
+
+Do not relaunch the Qwen 2B base-RL template at `8e-5` without a new ablation
+reason. The next full-model path is dataset SFT first, then SFT-to-RL from a
+READY SFT checkpoint.

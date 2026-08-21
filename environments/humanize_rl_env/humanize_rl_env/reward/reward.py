@@ -51,6 +51,7 @@ SEMANTIC_FAILURES = {
     "invented_number",
     "invented_temporal_detail",
     "invented_detail",
+    "low_specificity_substitution",
     "low_source_overlap",
     "missing_number",
     "missing_entity",
@@ -348,6 +349,11 @@ def _task_following_score(report: CheckReport) -> float:
             "all_caps",
             "hashtag",
             "salutation",
+            "fake_casual_phrase",
+            "low_specificity_substitution",
+            "broken_informal_grammar",
+            "register_mismatch",
+            "thanks_padding",
             "placeholder_required",
         },
     )
@@ -363,6 +369,7 @@ def _faithfulness_score(report: CheckReport) -> float:
             "missing_required_fact",
             "forbidden_fact",
             "missing_must_include_phrase",
+            "low_specificity_substitution",
             "unsuitable_recommendation",
         },
     )
@@ -416,7 +423,18 @@ def _semantic_faithfulness_score(report: CheckReport) -> float:
 
 def _surface_naturalness_score(report: CheckReport) -> float:
     return _score_from_failures(
-        report, {"emoji", "all_caps", "hashtag", "em_dash", "ai_tell_phrase"}
+        report,
+        {
+            "emoji",
+            "all_caps",
+            "hashtag",
+            "em_dash",
+            "ai_tell_phrase",
+            "fake_casual_phrase",
+            "broken_informal_grammar",
+            "register_mismatch",
+            "thanks_padding",
+        },
     )
 
 

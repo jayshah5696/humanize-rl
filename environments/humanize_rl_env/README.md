@@ -60,7 +60,7 @@ external download or API call required.
 
 ### Deterministic (50%)
 
-Equal-weight mean of 6 constraint checks that fire on hard task rules:
+Equal-weight mean of constraint checks that fire on hard task rules:
 
 | component | what it checks |
 |---|---|
@@ -70,6 +70,11 @@ Equal-weight mean of 6 constraint checks that fire on hard task rules:
 | `format` | no subject lines, signoffs, or forbidden markdown |
 | `placeholder` | placeholder usage matches task constraints |
 | `clarity` | avg sentence length (≤24 words → 1.0, ≤35 → 0.7, else 0.4) |
+| `repetition` | repeated n-grams and density caps |
+| `semantic_faithfulness` | hard semantic failures, including vague substitutions for concrete facts |
+| `recommendation_suitability` | task-specific recommendation suitability caps |
+| `surface_naturalness` | emoji/all-caps/AI tells plus fake-casual, broken-grammar, slang, and padding caps |
+| `hard_format` | direct-answer format, exact phrase, structure, and placeholder gates |
 
 ### Penalties (diagnostics; additive only in strict mode)
 
@@ -77,15 +82,20 @@ Equal-weight mean of 6 constraint checks that fire on hard task rules:
 |---|---|
 | `invented_detail` | −0.50 |
 | `forbidden_fact` | −0.50 |
+| `low_specificity_substitution` | −0.50 |
 | `option_menu` | −0.40 |
 | `missing_number` | −0.40 |
 | `missing_entity` | −0.40 |
 | `refusal` | −0.40 |
 | `placeholder_disallowed` | −0.35 |
 | `missing_required_fact` | −0.35 |
+| `fake_casual_phrase` | −0.35 |
+| `broken_informal_grammar` | −0.35 |
+| `register_mismatch` | −0.35 |
 | `too_long` | −0.30 |
 | `placeholder_required` | −0.30 |
 | `ai_tell_phrase` | −0.25 |
+| `thanks_padding` | −0.20 |
 | `wrapper_phrase` | −0.20 |
 | `sentence_count` | −0.20 |
 | `wrong_format_markdown` | −0.20 |
@@ -220,6 +230,7 @@ install required. The wheel includes the ridge pkl and smoke dataset.
 
 | version | change |
 |---|---|
+| 0.3.15 | Fake-casual, low-specificity substitution, broken informal grammar, slang/register mismatch, and thanks-padding deterministic caps |
 | 0.3.13 | Ignore subject-title and discourse false entities such as Compliance Review, Firstly, Secondly, and Understanding |
 | 0.3.12 | Scaffold fact filtering plus invented-number/time, unsupported-negation, low-overlap, em-dash, inline-closing, and AI-tell surface caps |
 | 0.3.10 | Core semantic-failure cap for p50 deterministic reward |

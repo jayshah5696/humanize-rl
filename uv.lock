@@ -1384,6 +1384,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "arka" },
+    { name = "click" },
     { name = "datasets" },
     { name = "einops" },
     { name = "fasttext-wheel" },
@@ -1412,6 +1413,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "arka", git = "https://github.com/jayshah5696/arka.git?rev=3cfa30176863ad44f3456444933f864918268b47" },
+    { name = "click" },
     { name = "datasets", specifier = ">=4.8.5" },
     { name = "einops", specifier = ">=0.8.2" },
     { name = "fasttext-wheel", specifier = ">=0.9.2" },

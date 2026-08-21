@@ -36,6 +36,23 @@ def test_normalize_messages_row() -> None:
     assert pair.response == "Here it is."
 
 
+def test_normalize_row_lifts_nested_metadata() -> None:
+    pair = normalize_row(
+        {
+            "instruction": "Rewrite this.",
+            "response": "Done.",
+            "metadata": {
+                "source": "prime_failure_reference_generation",
+                "mode": "tone_shift",
+            },
+            "source": "top_level_source",
+        }
+    )
+
+    assert pair.metadata["mode"] == "tone_shift"
+    assert pair.metadata["source"] == "top_level_source"
+
+
 def test_rejects_ai_tell_phrase(tmp_path: Path) -> None:
     config = BuildConfig(input_path=tmp_path / "in.jsonl", output_dir=tmp_path / "out")
     pair = normalize_row(
